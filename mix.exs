@@ -114,10 +114,10 @@ defmodule MedEx.Workspace.MixProject do
           compile: 4,
           test: 4,
           credo: 4,
-          dialyzer: 2,
+          dialyzer: 4,
           docs: 4
         ],
-        overrides: [dialyzer: 1]
+        overrides: []
       ],
       tasks: [
         deps_get: [args: ["deps.get"], preflight?: false],
