@@ -61,11 +61,7 @@ defmodule MedCore.Session do
                required(:t_ms) => non_neg_integer()
              }}
 
-  @type effect ::
-          {:emit_fact, atom(), map()}
-          | {:publish_ui, atom(), map()}
-          | {:start_lossless_capture, String.t(), acquisition_id()}
-          | {:append_audit_log, map()}
+  @type effect :: {:emit_fact, atom(), map()}
 
   @type t :: %__MODULE__{
           id: session_id(),
@@ -76,8 +72,7 @@ defmodule MedCore.Session do
           connections: %{connection_id() => map()},
           acquisitions: %{acquisition_id() => map()},
           preview_interruptions: [map()],
-          integrity_reports: %{integrity_subject() => integrity_report()},
-          audit_seq: non_neg_integer()
+          integrity_reports: %{integrity_subject() => integrity_report()}
         }
 
   @enforce_keys [:id, :topology, :streams]
@@ -90,8 +85,7 @@ defmodule MedCore.Session do
     connections: %{},
     acquisitions: %{},
     preview_interruptions: [],
-    integrity_reports: %{},
-    audit_seq: 0
+    integrity_reports: %{}
   ]
 
   @doc """
@@ -134,22 +128,15 @@ defmodule MedCore.Session do
         connected_at_ms: t_ms
       })
 
-    {preview_interruptions, closed_interruption} =
+    preview_interruptions =
       close_open_interruption(session.preview_interruptions, peer_id, t_ms)
 
     next = %{
       session
       | participants: participants,
         connections: connections,
-        preview_interruptions: preview_interruptions,
-        audit_seq: session.audit_seq + 1
+        preview_interruptions: preview_interruptions
     }
-
-    completed_acquisitions =
-      next.acquisitions
-      |> Enum.filter(fn {_id, acq} -> acq.state == :completed end)
-      |> Enum.map(fn {id, _acq} -> id end)
-      |> Enum.sort()
 
     effects = [
       {:emit_fact, :peer_connection_changed,
@@ -160,15 +147,7 @@ defmodule MedCore.Session do
          connection_id: conn_id,
          state: :connected,
          t_ms: t_ms
-       }},
-      {:publish_ui, :session_snapshot,
-       %{
-         session_id: session.id,
-         connection_id: conn_id,
-         preview_interruption: closed_interruption,
-         completed_acquisitions: completed_acquisitions
-       }},
-      audit_effect(next, :peer_connected, %{peer_id: peer_id, connection_id: conn_id, t_ms: t_ms})
+       }}
     ]
 
     {next, effects}
@@ -212,26 +191,14 @@ defmodule MedCore.Session do
 
     case Map.get(session.acquisitions, acq_id) do
       %{state: :completed, artifact_sha256: ^sha256} ->
-        next = %{session | audit_seq: session.audit_seq + 1}
-
-        effects = [
-          audit_effect(next, :duplicate_capture_ignored, %{
-            acquisition_id: acq_id,
-            artifact_sha256: sha256,
-            delivery_id: delivery_id,
-            t_ms: t_ms
-          })
-        ]
-
-        {next, effects}
+        {session, []}
 
       %{state: :completed, artifact_sha256: existing_sha} = existing ->
         updated = Map.merge(existing, %{state: :conflict, conflicting_sha256: sha256})
 
         next = %{
           session
-          | acquisitions: Map.put(session.acquisitions, acq_id, updated),
-            audit_seq: session.audit_seq + 1
+          | acquisitions: Map.put(session.acquisitions, acq_id, updated)
         }
 
         effects = [
@@ -244,13 +211,7 @@ defmodule MedCore.Session do
              incoming_sha256: sha256,
              delivery_id: delivery_id,
              t_ms: t_ms
-           }},
-          audit_effect(next, :capture_conflict, %{
-            acquisition_id: acq_id,
-            existing_sha256: existing_sha,
-            incoming_sha256: sha256,
-            t_ms: t_ms
-          })
+           }}
         ]
 
         {next, effects}
@@ -281,8 +242,7 @@ defmodule MedCore.Session do
         next = %{
           session
           | acquisitions: Map.put(session.acquisitions, acq_id, completed),
-            integrity_reports: Map.put(session.integrity_reports, subject, report),
-            audit_seq: session.audit_seq + 1
+            integrity_reports: Map.put(session.integrity_reports, subject, report)
         }
 
         effects = [
@@ -302,13 +262,7 @@ defmodule MedCore.Session do
              continuity: continuity,
              delivery_id: delivery_id,
              t_ms: t_ms
-           }},
-          audit_effect(next, :capture_completed, %{
-            acquisition_id: acq_id,
-            artifact_sha256: sha256,
-            continuity: continuity,
-            t_ms: t_ms
-          })
+           }}
         ]
 
         {next, effects}
@@ -326,22 +280,7 @@ defmodule MedCore.Session do
         continuity: nil
       })
 
-    next = %{
-      session
-      | acquisitions: acquisitions,
-        audit_seq: session.audit_seq + 1
-    }
-
-    effects = [
-      {:start_lossless_capture, stream_id, acq_id},
-      audit_effect(next, :acquisition_started, %{
-        acquisition_id: acq_id,
-        stream_id: stream_id,
-        t_ms: t_ms
-      })
-    ]
-
-    {next, effects}
+    {%{session | acquisitions: acquisitions}, []}
   end
 
   defp disconnect_preview(session, peer_id, conn_id, stream_id, t_ms) do
@@ -377,8 +316,7 @@ defmodule MedCore.Session do
       | participants:
           Map.update!(session.participants, peer_id, &%{&1 | active_connection_id: nil}),
         preview_interruptions: session.preview_interruptions ++ [interruption],
-        integrity_reports: integrity_reports,
-        audit_seq: session.audit_seq + 1
+        integrity_reports: integrity_reports
     }
 
     effects =
@@ -392,15 +330,7 @@ defmodule MedCore.Session do
            state: :disconnected,
            t_ms: t_ms
          }}
-      ] ++
-        integrity_effects ++
-        [
-          audit_effect(next, :peer_disconnected, %{
-            peer_id: peer_id,
-            connection_id: conn_id,
-            t_ms: t_ms
-          })
-        ]
+      ] ++ integrity_effects
 
     {next, effects}
   end
@@ -419,31 +349,16 @@ defmodule MedCore.Session do
   end
 
   defp close_open_interruption(interruptions, peer_id, t_ms) do
-    {updated, closed} =
-      Enum.map_reduce(interruptions, nil, fn entry, acc ->
-        if entry.peer_id == peer_id and is_nil(entry.ended_at_ms) do
-          closed_entry = %{entry | ended_at_ms: t_ms}
-          {closed_entry, closed_entry}
-        else
-          {entry, acc}
-        end
-      end)
-
-    {updated, closed}
+    Enum.map(interruptions, fn entry ->
+      if entry.peer_id == peer_id and is_nil(entry.ended_at_ms) do
+        %{entry | ended_at_ms: t_ms}
+      else
+        entry
+      end
+    end)
   end
 
   defp continuity_reasons(:observed_continuous), do: []
   defp continuity_reasons(:observed_gap), do: [:observed_gap]
   defp continuity_reasons(:unknown), do: [:continuity_unknown]
-
-  defp audit_effect(session, action, meta) do
-    {:append_audit_log,
-     %{
-       seq: session.audit_seq,
-       session_id: session.id,
-       encounter_ref: session.encounter_ref,
-       action: action,
-       meta: meta
-     }}
-  end
 end
