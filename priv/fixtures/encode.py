@@ -6,7 +6,6 @@ from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-import urllib.request
 
 import imageio_ffmpeg
 
@@ -20,7 +19,15 @@ def main(target: Path):
         work = Path(work)
         if not wav.is_file():
             candidate = work / wav.name
-            urllib.request.urlretrieve(fixture["source_url"], candidate)
+            subprocess.run(
+                [
+                    "curl", "--fail", "--silent", "--show-error", "--location",
+                    "--connect-timeout", "8", "--max-time", "25",
+                    "--retry", "3", "--retry-all-errors",
+                    "--output", str(candidate), fixture["source_url"],
+                ],
+                check=True,
+            )
             verify(candidate, fixture["file_sha256"])
             candidate.replace(wav)
         verify(wav, fixture["file_sha256"])
