@@ -5,6 +5,8 @@ defmodule MedRTC.WavCapture do
   is identified by its canonical WAV digest and its decoded PCM digest.
   """
 
+  require Logger
+
   alias ExWebRTC.Media.Ogg.Reader
 
   @frame_ms 20
@@ -133,16 +135,20 @@ defmodule MedRTC.WavCapture do
 
   defp start_preview(path, on_frame) when is_function(on_frame, 2) do
     spawn_link(fn ->
-      with {:ok, reader} <- Reader.open(path) do
-        try do
-          preview_frames(reader, 0, on_frame)
-        rescue
-          _ -> :ok
-        catch
-          _, _ -> :ok
-        after
-          Reader.close(reader)
-        end
+      case Reader.open(path) do
+        {:ok, reader} ->
+          try do
+            preview_frames(reader, 0, on_frame)
+          rescue
+            _ -> :ok
+          catch
+            _, _ -> :ok
+          after
+            Reader.close(reader)
+          end
+
+        {:error, reason} ->
+          Logger.warning("Opus preview unavailable: #{inspect(reason)}")
       end
     end)
   end
@@ -161,9 +167,13 @@ defmodule MedRTC.WavCapture do
         :ok
 
       {:preview_frame, target} ->
-        with {:ok, packet, reader} <- read_preview_frame(reader, index, target) do
-          on_frame.(target, packet)
-          preview_frames(reader, target + 1, on_frame)
+        case read_preview_frame(reader, index, target) do
+          {:ok, packet, reader} ->
+            on_frame.(target, packet)
+            preview_frames(reader, target + 1, on_frame)
+
+          :error ->
+            Logger.warning("Opus preview ended or contains an invalid frame")
         end
     after
       5_000 -> :ok

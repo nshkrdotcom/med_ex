@@ -46,11 +46,14 @@ defmodule MedRTC.Preview do
 
   @doc "Sends one 20 ms Opus frame. Frame indices are relative to the acquisition."
   @spec send_opus(t(), binary(), non_neg_integer()) :: :ok
-  def send_opus(%__MODULE__{pid: pid, track_id: id}, payload, index) do
+  def send_opus(peer, payload, index), do: send_opus(peer, payload, index, index)
+
+  @doc "Sends one Opus frame using separate packet and media indices."
+  def send_opus(%__MODULE__{pid: pid, track_id: id}, payload, sequence, media_index) do
     packet =
       Packet.new(payload,
-        sequence_number: rem(index, 65_536),
-        timestamp: rem(index * 960, 4_294_967_296)
+        sequence_number: rem(sequence, 65_536),
+        timestamp: rem(media_index * 960, 4_294_967_296)
       )
 
     PeerConnection.send_rtp(pid, id, packet)

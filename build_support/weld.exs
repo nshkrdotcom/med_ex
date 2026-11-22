@@ -22,7 +22,7 @@
         version: "0.1.0",
         elixir: "~> 1.20",
         description:
-          "Browser-capable clinical WebRTC/Opus/SCTP live-session and signal-integrity SDK for connected medical devices",
+          "Browser-capable clinical Send-only WebRTC and Opus preview with independent WAV replay",
         licenses: ["MIT"],
         maintainers: ["nshkrdotcom"],
         links: %{"GitHub" => "https://github.com/nshkrdotcom/med_ex"},
@@ -31,7 +31,7 @@
           logo: "assets/med_ex.svg",
           homepage_url: "https://github.com/nshkrdotcom/med_ex",
           source_url: "https://github.com/nshkrdotcom/med_ex",
-          source_ref: "v0.1.0",
+          source_ref: "med_ex-v0.1.0",
           assets: %{"assets" => "assets"},
           extra_titles: %{
             "README.md" => "Overview",
@@ -47,6 +47,7 @@
       output: [
         docs: [
           "README.md",
+          "guides/host_integration.md",
           "CHANGELOG.md",
           "LICENSE"
         ],
@@ -54,7 +55,7 @@
       ],
       verify: [
         hex_build: true,
-        hex_publish: false
+        hex_publish: true
       ]
     ]
   ]
