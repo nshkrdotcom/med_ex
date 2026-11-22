@@ -84,7 +84,6 @@ defmodule MedCore.Session do
           connections: %{connection_id() => map()},
           acquisitions: %{acquisition_id() => map()},
           preview_interruptions: [map()],
-          integrity_state: %{integrity_subject() => integrity_status()},
           integrity_reports: %{integrity_subject() => integrity_report()},
           degradation_level: degradation_level(),
           audit_seq: non_neg_integer()
@@ -100,7 +99,6 @@ defmodule MedCore.Session do
     connections: %{},
     acquisitions: %{},
     preview_interruptions: [],
-    integrity_state: %{},
     integrity_reports: %{},
     degradation_level: :nominal,
     audit_seq: 0
@@ -130,7 +128,6 @@ defmodule MedCore.Session do
   @spec step(t(), event()) :: {t(), [effect()]}
   def step(%__MODULE__{} = session, {:peer_connected, payload}) do
     %{peer_id: peer_id, connection_id: conn_id, role: role, t_ms: t_ms} = payload
-    stream_id = Map.get(payload, :stream_id, default_preview_stream_id(session))
 
     participants =
       Map.put(session.participants, peer_id, %{
@@ -150,32 +147,11 @@ defmodule MedCore.Session do
     {preview_interruptions, closed_interruption} =
       close_open_interruption(session.preview_interruptions, peer_id, t_ms)
 
-    {integrity_state, integrity_reports} =
-      if is_binary(stream_id) do
-        subject = {:preview_stream, stream_id}
-
-        report = %{
-          subject: subject,
-          interval_ms: {t_ms, t_ms},
-          continuity: :observed_continuous,
-          reasons: []
-        }
-
-        {
-          Map.put(session.integrity_state, subject, :validated),
-          Map.put(session.integrity_reports, subject, report)
-        }
-      else
-        {session.integrity_state, session.integrity_reports}
-      end
-
     next = %{
       session
       | participants: participants,
         connections: connections,
         preview_interruptions: preview_interruptions,
-        integrity_state: integrity_state,
-        integrity_reports: integrity_reports,
         audit_seq: session.audit_seq + 1
     }
 
@@ -212,73 +188,20 @@ defmodule MedCore.Session do
     %{peer_id: peer_id, connection_id: conn_id, t_ms: t_ms} = payload
     stream_id = Map.get(payload, :stream_id, default_preview_stream_id(session))
 
-    connections =
-      Map.update(
-        session.connections,
-        conn_id,
-        %{peer_id: peer_id, state: :disconnected, disconnected_at_ms: t_ms},
-        &Map.merge(&1, %{state: :disconnected, disconnected_at_ms: t_ms})
-      )
+    case session.connections do
+      %{^conn_id => %{peer_id: ^peer_id, state: :connected} = connection} ->
+        connection = Map.merge(connection, %{state: :disconnected, disconnected_at_ms: t_ms})
+        next = %{session | connections: Map.put(session.connections, conn_id, connection)}
 
-    interruption = %{
-      peer_id: peer_id,
-      connection_id: conn_id,
-      stream_id: stream_id,
-      started_at_ms: t_ms,
-      ended_at_ms: nil
-    }
+        if get_in(session.participants, [peer_id, :active_connection_id]) == conn_id do
+          disconnect_preview(next, peer_id, conn_id, stream_id, t_ms)
+        else
+          {next, []}
+        end
 
-    {integrity_state, integrity_reports, integrity_effects} =
-      if is_binary(stream_id) do
-        subject = {:preview_stream, stream_id}
-
-        report = %{
-          subject: subject,
-          interval_ms: {t_ms, t_ms},
-          continuity: :unknown,
-          reasons: [:preview_disconnected]
-        }
-
-        {
-          Map.put(session.integrity_state, subject, {:degraded, [:preview_disconnected]}),
-          Map.put(session.integrity_reports, subject, report),
-          [{:emit_fact, :integrity_reported, Map.put(report, :session_id, session.id)}]
-        }
-      else
-        {session.integrity_state, session.integrity_reports, []}
-      end
-
-    next = %{
-      session
-      | connections: connections,
-        preview_interruptions: session.preview_interruptions ++ [interruption],
-        integrity_state: integrity_state,
-        integrity_reports: integrity_reports,
-        audit_seq: session.audit_seq + 1
-    }
-
-    effects =
-      [
-        {:emit_fact, :peer_connection_changed,
-         %{
-           encounter_ref: session.encounter_ref,
-           session_id: session.id,
-           peer_id: peer_id,
-           connection_id: conn_id,
-           state: :disconnected,
-           t_ms: t_ms
-         }}
-      ] ++
-        integrity_effects ++
-        [
-          audit_effect(next, :peer_disconnected, %{
-            peer_id: peer_id,
-            connection_id: conn_id,
-            t_ms: t_ms
-          })
-        ]
-
-    {next, effects}
+      _ ->
+        {session, []}
+    end
   end
 
   def step(%__MODULE__{} = session, {:acquisition_started, payload}) do
@@ -367,9 +290,11 @@ defmodule MedCore.Session do
 
         {next, effects}
 
+      %{state: :conflict} ->
+        {session, []}
+
       existing ->
         subject = {:recording_artifact, acq_id}
-        status = continuity_to_status(continuity)
 
         report = %{
           subject: subject,
@@ -391,7 +316,6 @@ defmodule MedCore.Session do
         next = %{
           session
           | acquisitions: Map.put(session.acquisitions, acq_id, completed),
-            integrity_state: Map.put(session.integrity_state, subject, status),
             integrity_reports: Map.put(session.integrity_reports, subject, report),
             audit_seq: session.audit_seq + 1
         }
@@ -426,6 +350,67 @@ defmodule MedCore.Session do
     end
   end
 
+  defp disconnect_preview(session, peer_id, conn_id, stream_id, t_ms) do
+    interruption = %{
+      peer_id: peer_id,
+      connection_id: conn_id,
+      stream_id: stream_id,
+      started_at_ms: t_ms,
+      ended_at_ms: nil
+    }
+
+    {integrity_reports, integrity_effects} =
+      if is_binary(stream_id) do
+        subject = {:preview_stream, stream_id}
+
+        report = %{
+          subject: subject,
+          interval_ms: {t_ms, t_ms},
+          continuity: :unknown,
+          reasons: [:preview_disconnected]
+        }
+
+        {
+          Map.put(session.integrity_reports, subject, report),
+          [{:emit_fact, :integrity_reported, Map.put(report, :session_id, session.id)}]
+        }
+      else
+        {session.integrity_reports, []}
+      end
+
+    next = %{
+      session
+      | participants:
+          Map.update!(session.participants, peer_id, &%{&1 | active_connection_id: nil}),
+        preview_interruptions: session.preview_interruptions ++ [interruption],
+        integrity_reports: integrity_reports,
+        audit_seq: session.audit_seq + 1
+    }
+
+    effects =
+      [
+        {:emit_fact, :peer_connection_changed,
+         %{
+           encounter_ref: session.encounter_ref,
+           session_id: session.id,
+           peer_id: peer_id,
+           connection_id: conn_id,
+           state: :disconnected,
+           t_ms: t_ms
+         }}
+      ] ++
+        integrity_effects ++
+        [
+          audit_effect(next, :peer_disconnected, %{
+            peer_id: peer_id,
+            connection_id: conn_id,
+            t_ms: t_ms
+          })
+        ]
+
+    {next, effects}
+  end
+
   defp normalize_streams(streams) when is_map(streams), do: streams
 
   defp normalize_streams(streams) when is_list(streams) do
@@ -452,10 +437,6 @@ defmodule MedCore.Session do
 
     {updated, closed}
   end
-
-  defp continuity_to_status(:observed_continuous), do: :validated
-  defp continuity_to_status(:observed_gap), do: {:degraded, [:observed_gap]}
-  defp continuity_to_status(:unknown), do: :unverified
 
   defp continuity_reasons(:observed_continuous), do: []
   defp continuity_reasons(:observed_gap), do: [:observed_gap]

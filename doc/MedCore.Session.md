@@ -129,7 +129,6 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
   encounter_ref: encounter_ref(),
   id: session_id(),
   integrity_reports: %{required(integrity_subject()) =&gt; integrity_report()},
-  integrity_state: %{required(integrity_subject()) =&gt; integrity_status()},
   participants: %{required(String.t()) =&gt; map()},
   preview_interruptions: [map()],
   streams: %{required(String.t()) =&gt; MedCore.StreamSpec.t()},

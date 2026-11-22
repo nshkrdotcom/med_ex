@@ -2,6 +2,7 @@ MedCore.Profile.md
 MedCore.Session.md
 MedCore.StreamSpec.md
 MedCore.md
+MedRTC.PeerLoopback.md
 MedRTC.SessionServer.md
 MedRTC.md
 MedWeb.Signaling.md
