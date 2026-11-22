@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-for tool in git curl tar make cc mix elixir erl uv; do
+for tool in git curl tar make cc mix elixir erl; do
   command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 1; }
 done
 
@@ -15,5 +15,8 @@ mix local.rebar --force --if-missing
 mix deps.get --check-locked
 mix monorepo.deps.get -- --check-locked
 if [[ "${1:-}" == "--fixture" ]]; then
+  for tool in uv shasum; do
+    command -v "$tool" >/dev/null || { echo "Missing fixture prerequisite: $tool" >&2; exit 1; }
+  done
   bash fixtures/circor/prepare.sh "${MED_EX_FIXTURE_DIR:-$PWD/fixtures/circor}"
 fi
