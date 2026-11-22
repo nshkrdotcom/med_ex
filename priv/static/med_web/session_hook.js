@@ -1,62 +1,117 @@
-// MedWeb reusable browser RTCPeerConnection signaling & reconnect hook asset.
-// Shipped inside priv/static/med_web/session_hook.js and verified through Weld projection.
-export const MedSessionHook = {
-  mounted() {
-    this.sessionId = this.el.dataset.sessionId;
-    this.peerId = this.el.dataset.peerId || "browser_peer";
-    this.role = this.el.dataset.role || "clinician";
-    this.connectPeer();
-  },
+// The exam supplies its Phoenix Socket constructor and server-issued token.
+export function createMedExHook(Socket) {
+  return {
+    mounted() {
+      this.buttons = new AbortController();
+      this.audio = this.el.querySelector("audio");
+      const options = { signal: this.buttons.signal };
 
-  async connectPeer() {
-    this.connectionId = this.el.dataset.connectionId || crypto.randomUUID();
-    this.pc = new RTCPeerConnection({ iceServers: [] });
+      this.el.querySelector("#preview-play").addEventListener("click", () => {
+        if (this.pc) this.audio.play().catch(() => {});
+        else this.connectPreview();
+      }, options);
+      this.el.querySelector("#preview-disconnect").addEventListener("click", () => {
+        this.closePreview("disconnected");
+      }, options);
+      this.el.querySelector("#preview-reconnect").addEventListener("click", () => {
+        this.connectPreview();
+      }, options);
+    },
 
-    this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.pushEvent("med_ice_candidate", {
-          session_id: this.sessionId,
-          connection_id: this.connectionId,
-          candidate: event.candidate.toJSON()
-        });
-      }
-    };
-
-    this.pc.onconnectionstatechange = () => {
-      this.pushEvent("med_peer_state", {
-        session_id: this.sessionId,
-        peer_id: this.peerId,
-        connection_id: this.connectionId,
-        state: this.pc.connectionState
+    async connectPreview() {
+      this.closePreview("connecting");
+      const pc = new RTCPeerConnection();
+      const socket = new Socket("/socket", { params: { token: this.el.dataset.token } });
+      const connectionId = crypto.randomUUID();
+      const channel = socket.channel(`signaling:${this.el.dataset.encounterId}`, {
+        connection_id: connectionId
       });
-    };
 
-    this.handleEvent("med_sdp_answer", async ({ sdp }) => {
-      await this.pc.setRemoteDescription({ type: "answer", sdp });
-    });
+      this.pc = pc;
+      this.socket = socket;
+      this.channel = channel;
+      this.el.medExPeer = pc;
+      this.el.dataset.connectionId = connectionId;
 
-    this.handleEvent("med_remote_ice", async ({ candidate }) => {
-      await this.pc.addIceCandidate(candidate);
-    });
+      pc.ontrack = ({ track, streams }) => {
+        if (this.pc !== pc) return;
+        this.audio.srcObject = streams[0] || new MediaStream([track]);
+        this.audio.play().catch(() => {});
+      };
 
-    this.pushEvent("med_session_join", {
-      session_id: this.sessionId,
-      peer_id: this.peerId,
-      connection_id: this.connectionId,
-      role: this.role
-    });
-  },
+      pc.onconnectionstatechange = () => {
+        if (this.pc === pc) this.el.dataset.state = pc.connectionState;
+      };
 
-  reconnected() {
-    if (this.pc) {
-      this.pc.close();
+      channel.onClose(() => {
+        if (this.pc === pc) this.closePreview("disconnected");
+      });
+      channel.onError(() => {
+        if (this.pc === pc) this.closePreview("failed");
+      });
+
+      try {
+        socket.connect();
+        const { session_id } = await reply(channel.join());
+        this.el.dataset.sessionId = session_id;
+        pc.addTransceiver("audio", { direction: "recvonly" });
+        await pc.setLocalDescription(await pc.createOffer());
+        await gatherCandidates(pc);
+        const { sdp } = await reply(channel.push("offer", { sdp: pc.localDescription.sdp }, 7_000));
+        await pc.setRemoteDescription({ type: "answer", sdp });
+      } catch (error) {
+        if (this.pc === pc) {
+          this.closePreview("failed");
+          this.el.dataset.error = error.message;
+        }
+      }
+    },
+
+    closePreview(state) {
+      const { pc, channel, socket } = this;
+      this.pc = this.channel = this.socket = null;
+      this.el.medExPeer = null;
+      this.el.dataset.state = state;
+      delete this.el.dataset.error;
+      pc?.close();
+      channel?.leave().receive("ok", () => socket?.disconnect())
+        .receive("error", () => socket?.disconnect())
+        .receive("timeout", () => socket?.disconnect());
+      if (!channel) socket?.disconnect();
+      this.audio.srcObject = null;
+    },
+
+    destroyed() {
+      this.buttons.abort();
+      this.closePreview("disconnected");
     }
-    this.connectPeer();
-  },
+  };
+}
 
-  destroyed() {
-    if (this.pc) {
-      this.pc.close();
-    }
-  }
-};
+function reply(push) {
+  return new Promise((resolve, reject) => {
+    push.receive("ok", resolve)
+      .receive("error", ({ reason } = {}) => reject(new Error(reason || "Signaling failed")))
+      .receive("timeout", () => reject(new Error("Signaling timed out")));
+  });
+}
+
+function gatherCandidates(pc) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Browser ICE gathering timed out"));
+    }, 5_000);
+
+    pc.addEventListener("icegatheringstatechange", () => {
+      if (pc.iceGatheringState === "complete") {
+        clearTimeout(timer);
+        controller.abort();
+        resolve();
+      }
+    }, { signal: controller.signal });
+  });
+}

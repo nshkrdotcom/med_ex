@@ -6,7 +6,7 @@ defmodule MedEx.MixProject do
       app: :med_ex,
       version: "0.1.0",
       build_path: "_build",
-      elixir: "~> 1.18",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       erlc_paths: [],
@@ -34,6 +34,7 @@ defmodule MedEx.MixProject do
 
   defp deps do
     [
+      {:ex_rtp, "~> 0.4"},
       {:ex_webrtc, "~> 0.18.0"},
       {:credo, "~> 1.7.19", [only: [:dev, :test], runtime: false]},
       {:dialyxir, "~> 1.4.9", [only: [:dev, :test], runtime: false]},

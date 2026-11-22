@@ -194,35 +194,10 @@ defmodule MedCore.Session do
     end
   end
 
-  def step(%__MODULE__{} = session, {:acquisition_started, payload}) do
-    %{acquisition_id: acq_id, stream_id: stream_id, t_ms: t_ms} = payload
-
-    acquisitions =
-      Map.put(session.acquisitions, acq_id, %{
-        id: acq_id,
-        stream_id: stream_id,
-        state: :active,
-        started_at_ms: t_ms,
-        artifact_sha256: nil,
-        continuity: nil
-      })
-
-    next = %{
-      session
-      | acquisitions: acquisitions,
-        audit_seq: session.audit_seq + 1
-    }
-
-    effects = [
-      {:start_lossless_capture, stream_id, acq_id},
-      audit_effect(next, :acquisition_started, %{
-        acquisition_id: acq_id,
-        stream_id: stream_id,
-        t_ms: t_ms
-      })
-    ]
-
-    {next, effects}
+  def step(%__MODULE__{} = session, {:acquisition_started, %{acquisition_id: id} = payload}) do
+    if Map.has_key?(session.acquisitions, id),
+      do: {session, []},
+      else: start_acquisition(session, payload)
   end
 
   def step(%__MODULE__{} = session, {:capture_completed, payload}) do
@@ -340,6 +315,35 @@ defmodule MedCore.Session do
     end
   end
 
+  defp start_acquisition(session, %{acquisition_id: acq_id, stream_id: stream_id, t_ms: t_ms}) do
+    acquisitions =
+      Map.put(session.acquisitions, acq_id, %{
+        id: acq_id,
+        stream_id: stream_id,
+        state: :active,
+        started_at_ms: t_ms,
+        artifact_sha256: nil,
+        continuity: nil
+      })
+
+    next = %{
+      session
+      | acquisitions: acquisitions,
+        audit_seq: session.audit_seq + 1
+    }
+
+    effects = [
+      {:start_lossless_capture, stream_id, acq_id},
+      audit_effect(next, :acquisition_started, %{
+        acquisition_id: acq_id,
+        stream_id: stream_id,
+        t_ms: t_ms
+      })
+    ]
+
+    {next, effects}
+  end
+
   defp disconnect_preview(session, peer_id, conn_id, stream_id, t_ms) do
     interruption = %{
       peer_id: peer_id,
@@ -408,9 +412,9 @@ defmodule MedCore.Session do
   end
 
   defp default_preview_stream_id(%__MODULE__{streams: streams}) do
-    case Map.keys(streams) |> Enum.sort() do
-      [first | _] -> first
-      [] -> nil
+    case Map.keys(streams) do
+      [only] -> only
+      _ -> nil
     end
   end
 
