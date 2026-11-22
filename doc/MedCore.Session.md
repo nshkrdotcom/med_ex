@@ -26,16 +26,6 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
 @type continuity_state() :: :observed_continuous | :observed_gap | :unknown
 ```
 
-# `degradation_level`
-
-```elixir
-@type degradation_level() ::
-  :nominal
-  | :conserve_video
-  | :audio_and_telemetry_only
-  | :critical_telemetry_only
-```
-
 # `effect`
 
 ```elixir
@@ -99,12 +89,6 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
 }
 ```
 
-# `integrity_status`
-
-```elixir
-@type integrity_status() :: :unverified | :validated | {:degraded, [atom()]}
-```
-
 # `integrity_subject`
 
 ```elixir
@@ -125,7 +109,6 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
   acquisitions: %{required(acquisition_id()) =&gt; map()},
   audit_seq: non_neg_integer(),
   connections: %{required(connection_id()) =&gt; map()},
-  degradation_level: degradation_level(),
   encounter_ref: encounter_ref(),
   id: session_id(),
   integrity_reports: %{required(integrity_subject()) =&gt; integrity_report()},

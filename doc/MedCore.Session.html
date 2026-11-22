@@ -12,7 +12,7 @@
 
     <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
 
-    <script defer src="dist/sidebar_items-2E4ABDEB.js"></script>
+    <script defer src="dist/sidebar_items-75200123.js"></script>
     <script defer src="docs_config.js"></script>
     <script defer src="dist/html-LBCGAQQV.js"></script>
 
@@ -164,14 +164,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#t:degradation_level/0" data-no-tooltip="" translate="no">degradation_level()</a>
-
-      </div>
-
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-signature">
         <a href="#t:effect/0" data-no-tooltip="" translate="no">effect()</a>
 
       </div>
@@ -197,14 +189,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
     <div class="summary-row">
       <div class="summary-signature">
         <a href="#t:integrity_report/0" data-no-tooltip="" translate="no">integrity_report()</a>
-
-      </div>
-
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-signature">
-        <a href="#t:integrity_status/0" data-no-tooltip="" translate="no">integrity_status()</a>
 
       </div>
 
@@ -358,38 +342,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
 
   </section>
 </section>
-<section class="detail" id="t:degradation_level/0">
-
-  <div class="detail-header">
-    <a href="#t:degradation_level/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">degradation_level()</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L34" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@type</span> degradation_level() ::
-  :nominal
-  | :conserve_video
-  | :audio_and_telemetry_only
-  | :critical_telemetry_only</pre>
-
-      </div>
-
-
-  </section>
-</section>
 <section class="detail" id="t:effect/0">
 
   <div class="detail-header">
@@ -400,7 +352,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">effect()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L72" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L64" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -460,7 +412,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">event()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L40" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L32" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -541,34 +493,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
 
   </section>
 </section>
-<section class="detail" id="t:integrity_status/0">
-
-  <div class="detail-header">
-    <a href="#t:integrity_status/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">integrity_status()</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L32" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@type</span> integrity_status() :: :unverified | :validated | {:degraded, [<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>()]}</pre>
-
-      </div>
-
-
-  </section>
-</section>
 <section class="detail" id="t:integrity_subject/0">
 
   <div class="detail-header">
@@ -636,7 +560,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">t()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L78" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L70" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -651,7 +575,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
   acquisitions: %{required(<a href="#t:acquisition_id/0">acquisition_id</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()},
   audit_seq: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(),
   connections: %{required(<a href="#t:connection_id/0">connection_id</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()},
-  degradation_level: <a href="#t:degradation_level/0">degradation_level</a>(),
   encounter_ref: <a href="#t:encounter_ref/0">encounter_ref</a>(),
   id: <a href="#t:session_id/0">session_id</a>(),
   integrity_reports: %{required(<a href="#t:integrity_subject/0">integrity_subject</a>()) =&gt; <a href="#t:integrity_report/0">integrity_report</a>()},
@@ -689,7 +612,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">new(opts)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L111" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L101" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -717,7 +640,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">step(session, arg)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L129" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L119" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 

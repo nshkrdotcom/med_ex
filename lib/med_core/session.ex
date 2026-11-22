@@ -29,14 +29,6 @@ defmodule MedCore.Session do
           optional(:reasons) => [atom()]
         }
 
-  @type integrity_status :: :unverified | :validated | {:degraded, [atom()]}
-
-  @type degradation_level ::
-          :nominal
-          | :conserve_video
-          | :audio_and_telemetry_only
-          | :critical_telemetry_only
-
   @type event ::
           {:peer_connected,
            %{
@@ -85,7 +77,6 @@ defmodule MedCore.Session do
           acquisitions: %{acquisition_id() => map()},
           preview_interruptions: [map()],
           integrity_reports: %{integrity_subject() => integrity_report()},
-          degradation_level: degradation_level(),
           audit_seq: non_neg_integer()
         }
 
@@ -100,7 +91,6 @@ defmodule MedCore.Session do
     acquisitions: %{},
     preview_interruptions: [],
     integrity_reports: %{},
-    degradation_level: :nominal,
     audit_seq: 0
   ]
 

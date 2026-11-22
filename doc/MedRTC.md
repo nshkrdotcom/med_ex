@@ -3,14 +3,9 @@
 
 OTP effect shell and WebRTC/Opus/SCTP runtime boundary for MedEx.
 
-Orchestrates per-session supervision trees, media pipelines, and effect
-interpretation while delegating clinical signal invariants to `MedCore`.
-
-# `core_version`
-
-```elixir
-@spec core_version() :: String.t()
-```
+Orchestrates live session coordination (`MedRTC.SessionServer`) and WebRTC
+peer negotiation (`MedRTC.PeerLoopback`) while delegating pure clinical signal
+invariants to `MedCore.Session`.
 
 ---
 
