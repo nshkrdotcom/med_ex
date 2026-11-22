@@ -13,22 +13,6 @@ DigiScope phonocardiogram) to two independent outputs:
    sample count, duration, SHA-256 digest, and continuity state
    (`:observed_continuous | :observed_gap | :unknown`) for `MedCore.Session`.
 
-# `capture_summary`
-
-```elixir
-@type capture_summary() :: %{
-  acquisition_id: String.t(),
-  sample_rate_hz: pos_integer(),
-  sample_count: non_neg_integer(),
-  duration_ms: non_neg_integer(),
-  artifact_sha256: String.t(),
-  interval_ms: {non_neg_integer(), non_neg_integer()},
-  continuity: MedCore.Session.continuity_state(),
-  preview_chunks_sent: non_neg_integer(),
-  preview_chunks_dropped: non_neg_integer()
-}
-```
-
 # `parsed_wav`
 
 ```elixir
@@ -73,23 +57,6 @@ the same input. Preview is best-effort and can stall or fail independently.
 
 Run this operation in the acquisition task. Supply `:on_preview_frame`
 to receive `(frame_index, opus_payload)` from the preview worker.
-
-# `replay`
-
-```elixir
-@spec replay(parsed_wav(), keyword()) :: capture_summary()
-```
-
-Replays a parsed WAV through one input into two independent outputs:
-a live preview sink (`:on_preview_chunk`) and a lossless capture collector.
-
-Options:
-- `:acquisition_id` (required)
-- `:started_at_ms` (default `0`)
-- `:chunk_ms` (default `20`)
-- `:on_preview_chunk` (`fn chunk_idx, pcm_chunk -> :ok | {:error, term()} end`, optional)
-- `:drop_capture_indices` (`MapSet` or list of chunk indices simulating real capture loss)
-- `:continuity_observable?` (default `true`; when `false`, reports `:unknown`)
 
 ---
 

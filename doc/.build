@@ -3,9 +3,7 @@ MedCore.Profile.html
 MedCore.Session.html
 MedCore.StreamSpec.html
 MedCore.html
-MedRTC.PeerLoopback.html
 MedRTC.Preview.html
-MedRTC.SessionServer.html
 MedRTC.WavCapture.html
 MedRTC.html
 MedWeb.Signaling.html
@@ -21,8 +19,8 @@ dist/lato-latin-700-normal-2XVSBPG4.woff2
 dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/remixicon-ZWU5GQ4X.woff2
-dist/search_data-CC447BBF.js
-dist/sidebar_items-F0543D02.js
+dist/search_data-587775AD.js
+dist/sidebar_items-78D20011.js
 index.html
 license.html
 readme.html

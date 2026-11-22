@@ -12,7 +12,7 @@
 
     <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
 
-    <script defer src="dist/sidebar_items-F0543D02.js"></script>
+    <script defer src="dist/sidebar_items-78D20011.js"></script>
     <script defer src="docs_config.js"></script>
     <script defer src="dist/html-LBCGAQQV.js"></script>
 
@@ -142,14 +142,6 @@ sample count, duration, SHA-256 digest, and continuity state
 
     <div class="summary-row">
       <div class="summary-signature">
-        <a href="#t:capture_summary/0" data-no-tooltip="" translate="no">capture_summary()</a>
-
-      </div>
-
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-signature">
         <a href="#t:parsed_wav/0" data-no-tooltip="" translate="no">parsed_wav()</a>
 
       </div>
@@ -196,17 +188,6 @@ the same input. Preview is best-effort and can stall or fail independently.</p><
 
     </div>
 
-    <div class="summary-row">
-      <div class="summary-signature">
-        <a href="#replay/2" data-no-tooltip="" translate="no">replay(wav, opts)</a>
-
-      </div>
-
-        <div class="summary-synopsis"><p>Replays a parsed WAV through one input into two independent outputs:
-a live preview sink (<code class="inline">:on_preview_chunk</code>) and a lossless capture collector.</p></div>
-
-    </div>
-
 </div>
 
   </section>
@@ -221,44 +202,6 @@ a live preview sink (<code class="inline">:on_preview_chunk</code>) and a lossle
     </h2>
 
     <div class="types-list">
-<section class="detail" id="t:capture_summary/0">
-
-  <div class="detail-header">
-    <a href="#t:capture_summary/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">capture_summary()</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L30" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@type</span> capture_summary() :: %{
-  acquisition_id: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(),
-  sample_rate_hz: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">pos_integer</a>(),
-  sample_count: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(),
-  duration_ms: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(),
-  artifact_sha256: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(),
-  interval_ms: {<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>()},
-  continuity: <a href="MedCore.Session.html#t:continuity_state/0">MedCore.Session.continuity_state</a>(),
-  preview_chunks_sent: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(),
-  preview_chunks_dropped: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>()
-}</pre>
-
-      </div>
-
-
-  </section>
-</section>
 <section class="detail" id="t:parsed_wav/0">
 
   <div class="detail-header">
@@ -269,7 +212,7 @@ a live preview sink (<code class="inline">:on_preview_chunk</code>) and a lossle
       <h1 class="signature" translate="no">parsed_wav()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L21" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L20" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -317,7 +260,7 @@ a live preview sink (<code class="inline">:on_preview_chunk</code>) and a lossle
       <h1 class="signature" translate="no">encode_pcm16_wav(pcm, sample_rate_hz)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L74" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L61" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -346,7 +289,7 @@ binary.</p>
       <h1 class="signature" translate="no">parse_wav(arg1)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L47" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L34" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -375,7 +318,7 @@ binary.</p>
       <h1 class="signature" translate="no">record(wav_path, opus_path, artifact_path, opts)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L166" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L88" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -395,35 +338,6 @@ binary.</p>
 a playable WAV. The paired Ogg file contains 20 ms Opus frames derived from
 the same input. Preview is best-effort and can stall or fail independently.</p><p>Run this operation in the acquisition task. Supply <code class="inline">:on_preview_frame</code>
 to receive <code class="inline">(frame_index, opus_payload)</code> from the preview worker.</p>
-  </section>
-</section>
-<section class="detail" id="replay/2">
-
-  <div class="detail-header">
-    <a href="#replay/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">replay(wav, opts)</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_rtc/wav_capture.ex#L105" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@spec</span> replay(<a href="#t:parsed_wav/0">parsed_wav</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#built-in-types">keyword</a>()) :: <a href="#t:capture_summary/0">capture_summary</a>()</pre>
-
-      </div>
-
-<p>Replays a parsed WAV through one input into two independent outputs:
-a live preview sink (<code class="inline">:on_preview_chunk</code>) and a lossless capture collector.</p><p>Options:</p><ul><li><code class="inline">:acquisition_id</code> (required)</li><li><code class="inline">:started_at_ms</code> (default <code class="inline">0</code>)</li><li><code class="inline">:chunk_ms</code> (default <code class="inline">20</code>)</li><li><p><code class="inline">:on_preview_chunk</code> (<code class="inline">fn chunk_idx, pcm_chunk -&gt; :ok | {:error, term()} end</code>, optional)</p></li><li><code class="inline">:drop_capture_indices</code> (<a href="https://elixir.hexdocs.pm/MapSet.html"><code class="inline">MapSet</code></a> or list of chunk indices simulating real capture loss)</li><li><code class="inline">:continuity_observable?</code> (default <code class="inline">true</code>; when <code class="inline">false</code>, reports <code class="inline">:unknown</code>)</li></ul>
   </section>
 </section>
 

@@ -12,7 +12,7 @@
 
     <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
 
-    <script defer src="dist/sidebar_items-F0543D02.js"></script>
+    <script defer src="dist/sidebar_items-78D20011.js"></script>
     <script defer src="docs_config.js"></script>
     <script defer src="dist/html-LBCGAQQV.js"></script>
 
@@ -118,8 +118,7 @@ med_ex
 
 
     <section id="moduledoc">
-<p>Browser signaling message normalization and reconnect handshake contract for
-MedEx live sessions.</p>
+<p>Locates the browser hook in a source child or the released SDK.</p>
     </section>
 
 </div>
@@ -131,20 +130,6 @@ MedEx live sessions.</p>
       </a>
       <span class="text">Summary</span>
     </h2>
-<div class="summary-types summary">
-  <h3>
-    <a href="#types">Types</a>
-  </h3>
-
-    <div class="summary-row">
-      <div class="summary-signature">
-        <a href="#t:client_signal/0" data-no-tooltip="" translate="no">client_signal()</a>
-
-      </div>
-
-    </div>
-
-</div>
 <div class="summary-functions summary">
   <h3>
     <a href="#functions">Functions</a>
@@ -156,78 +141,12 @@ MedEx live sessions.</p>
 
       </div>
 
-        <div class="summary-synopsis"><p>Resolves the absolute path to the shipped browser hook asset whether loaded
-from <code class="inline">:med_web</code> in source mode or from the Welded <code class="inline">:med_ex</code> SDK package.</p></div>
-
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-signature">
-        <a href="#hook_asset_path/0" data-no-tooltip="" translate="no">hook_asset_path()</a>
-
-      </div>
-
-        <div class="summary-synopsis"><p>Returns the shipped browser hook asset relative path inside <code class="inline">priv/</code>.</p></div>
-
-    </div>
-
-    <div class="summary-row">
-      <div class="summary-signature">
-        <a href="#to_session_event/1" data-no-tooltip="" translate="no">to_session_event(arg)</a>
-
-      </div>
-
-        <div class="summary-synopsis"><p>Normalizes a browser signaling event into a pure <a href="MedCore.Session.html"><code class="inline">MedCore.Session</code></a> event.</p></div>
-
     </div>
 
 </div>
 
   </section>
 
-
-  <section id="types" class="details-list">
-    <h2 class="section-heading">
-      <a class="hover-link" href="#types">
-        <i class="ri-link-m" aria-hidden="true"></i>
-      </a>
-      <span class="text">Types</span>
-    </h2>
-
-    <div class="types-list">
-<section class="detail" id="t:client_signal/0">
-
-  <div class="detail-header">
-    <a href="#t:client_signal/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">client_signal()</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_web/signaling.ex#L9" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@type</span> client_signal() ::
-  {:join, <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>()}
-  | {:leave, <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>()}</pre>
-
-      </div>
-
-
-  </section>
-</section>
-
-    </div>
-  </section>
 
   <section id="functions" class="details-list">
     <h2 class="section-heading">
@@ -248,7 +167,7 @@ from <code class="inline">:med_web</code> in source mode or from the Welded <cod
       <h1 class="signature" translate="no">hook_asset_full_path()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_web/signaling.ex#L38" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_web/signaling.ex#L4" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -257,70 +176,7 @@ from <code class="inline">:med_web</code> in source mode or from the Welded <cod
 
   <section class="docstring">
 
-      <div class="specs">
 
-          <pre translate="no"><span class="attribute">@spec</span> hook_asset_full_path() :: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()</pre>
-
-      </div>
-
-<p>Resolves the absolute path to the shipped browser hook asset whether loaded
-from <code class="inline">:med_web</code> in source mode or from the Welded <code class="inline">:med_ex</code> SDK package.</p>
-  </section>
-</section>
-<section class="detail" id="hook_asset_path/0">
-
-  <div class="detail-header">
-    <a href="#hook_asset_path/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">hook_asset_path()</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_web/signaling.ex#L29" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@spec</span> hook_asset_path() :: <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()</pre>
-
-      </div>
-
-<p>Returns the shipped browser hook asset relative path inside <code class="inline">priv/</code>.</p>
-  </section>
-</section>
-<section class="detail" id="to_session_event/1">
-
-  <div class="detail-header">
-    <a href="#to_session_event/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
-      <i class="ri-link-m" aria-hidden="true"></i>
-    </a>
-    <div class="heading-with-actions">
-      <h1 class="signature" translate="no">to_session_event(arg)</h1>
-
-
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_web/signaling.ex#L17" class="icon-action" rel="help nofollow" aria-label="View Source">
-          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
-        </a>
-
-    </div>
-  </div>
-
-  <section class="docstring">
-
-      <div class="specs">
-
-          <pre translate="no"><span class="attribute">@spec</span> to_session_event(<a href="#t:client_signal/0">client_signal</a>()) :: <a href="MedCore.Session.html#t:event/0">MedCore.Session.event</a>()</pre>
-
-      </div>
-
-<p>Normalizes a browser signaling event into a pure <a href="MedCore.Session.html"><code class="inline">MedCore.Session</code></a> event.</p>
   </section>
 </section>
 
