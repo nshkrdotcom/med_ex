@@ -1,0 +1,18 @@
+# Mix build and dependency artifacts
+/_build/
+/deps/
+/cover/
+/doc/
+/tmp/
+/dist/
+/.blitz/
+/priv/plts/
+
+# Erlang crash dumps & archives
+erl_crash.dump
+*.ez
+*.tar
+
+# Editor / OS artifacts
+.DS_Store
+*.swp
