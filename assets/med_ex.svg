@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-labelledby="medex-title medex-desc">
+  <title id="medex-title">MedEx</title>
+  <desc id="medex-desc">Hexagonal clinical telemetry and WebRTC signal emblem featuring a medical cross, live ECG pulse trace, and real-time wave arcs.</desc>
+  <defs>
+    <clipPath id="medex-hex">
+      <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z"/>
+    </clipPath>
+    <linearGradient id="medex-bg" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f3d46"/>
+      <stop offset="0.52" stop-color="#0b1f33"/>
+      <stop offset="1" stop-color="#060c14"/>
+    </linearGradient>
+    <linearGradient id="medex-pulse" x1="32" y1="100" x2="168" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#53f6d3"/>
+      <stop offset="0.5" stop-color="#60b7ff"/>
+      <stop offset="1" stop-color="#a8ffea"/>
+    </linearGradient>
+    <filter id="medex-glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#53f6d3" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#medex-hex)">
+    <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z" fill="url(#medex-bg)"/>
+    <g fill="none" stroke="#1f586b" stroke-width="1.4" opacity="0.38">
+      <path d="M26 70 H174 M26 100 H174 M26 130 H174"/>
+      <path d="M62 34 V166 M100 22 V178 M138 34 V166"/>
+    </g>
+    <g fill="none" stroke="#60b7ff" stroke-width="2.4" stroke-linecap="round" opacity="0.45">
+      <path d="M56 54 A62 62 0 0 1 144 54"/>
+      <path d="M68 65 A45 45 0 0 1 132 65"/>
+      <path d="M144 146 A62 62 0 0 1 56 146"/>
+      <path d="M132 135 A45 45 0 0 1 68 135"/>
+    </g>
+    <rect x="85" y="42" width="30" height="116" rx="8" fill="#102b3d" stroke="#2d7a8e" stroke-width="2"/>
+    <rect x="42" y="85" width="116" height="30" rx="8" fill="#102b3d" stroke="#2d7a8e" stroke-width="2"/>
+    <path d="M30 102 H66 L77 102 L86 76 L98 132 L110 62 L121 114 L130 96 L139 102 H170" fill="none" stroke="url(#medex-pulse)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#medex-glow)"/>
+    <circle cx="110" cy="62" r="4.5" fill="#ffffff"/>
+    <circle cx="98" cy="132" r="4" fill="#53f6d3"/>
+    <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z" fill="none" stroke="#8fffe8" stroke-width="4"/>
+  </g>
+</svg>

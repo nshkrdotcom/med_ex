@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.5">
+    <meta name="project" content="med_ex v0.1.0">
+
+
+    <title>Overview — med_ex v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-62C652AC.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-LBCGAQQV.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+        <a href="https://github.com/nshkrdotcom/med_ex" class="sidebar-projectImage">
+          <img src="assets/logo.svg" alt="med_ex" />
+        </a>
+
+      <div>
+        <a href="https://github.com/nshkrdotcom/med_ex" class="sidebar-projectName" translate="no">
+med_ex
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of med_ex</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>Overview</h1>
+
+<a href="readme.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+      <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/README.md#L1" title="View Source" class="icon-action" rel="help nofollow">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+  </div>
+
+
+<p align="center">  <img src="assets/med_ex.svg" width="200" height="200" alt="MedEx logo" /></p><p align="center">  <a href="https://github.com/nshkrdotcom/med_ex">
+    <img alt="GitHub: med_ex" src="https://img.shields.io/badge/GitHub-med_ex-0b0f14?logo=github" />
+  </a>
+  <a href="https://github.com/nshkrdotcom/med_ex/blob/main/LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0b0f14.svg" />
+  </a></p><h1>MedEx</h1><p><code class="inline">MedEx</code> is a reusable Elixir/Phoenix/LiveView/WebRTC/Opus SDK poncho for connected medical devices.</p><p>Instead of building a leaky &quot;generic video call&quot; wrapper, <code class="inline">MedEx</code> inverts the typical WebRTC architecture: <strong>clinical signal integrity, multi-stream time alignment, lossless capture continuity, and audited device control are the core domain</strong>, while WebRTC, Opus, RTP, and SCTP are pluggable transports that serve those invariants.</p><p>This repository is a non-umbrella Elixir poncho workspace orchestrated with <a rel="nofollow" href="https://github.com/nshkrdotcom/blitz">Blitz</a> and <a rel="nofollow" href="https://github.com/nshkrdotcom/weld">Weld</a>. The root <code class="inline">mix.exs</code> (<code class="inline">:med_ex_workspace</code>) is a tooling-only project that coordinates parallel child checks and projects the consumable <code class="inline">:med_ex</code> SDK artifact.</p><hr class="thin"/><h2 id="ownership-boundary-med_ex-sdk-vs-med_fabric-product-platform" class="section-heading"><a href="#ownership-boundary-med_ex-sdk-vs-med_fabric-product-platform" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Ownership Boundary (<code class="inline">med_ex</code> SDK vs. <code class="inline">med_fabric</code> Product Platform)</span></h2><p><code class="inline">MedEx</code> owns the <strong>reusable real-time clinical signal, live session, WebRTC/Opus/Membrane transport, browser media workbench, and opt-in live signal-compute plane</strong>.</p><p>Durable clinical encounters, clinician observation acceptance, transactional outbox persistence, HL7 FHIR delivery, and full clinical product applications live in the companion <code class="inline">med_fabric</code> workspace (<code class="inline">mf_domain</code>, <code class="inline">mf_runtime</code>, <code class="inline">mf_store</code>, <code class="inline">mf_interop</code>, <code class="inline">apps/exam</code>). Dependencies flow strictly one-way (<code class="inline">med_fabric</code> → <code class="inline">:med_ex</code>), while <code class="inline">med_ex</code> remains usable standalone without requiring an external <code class="inline">encounter_ref</code>.</p><ul><li><strong>Single SDK Distribution Identity (<code class="inline">:med_ex</code>)</strong>: Downstream consumers such as <code class="inline">med_fabric/apps/exam</code> depend on <strong>one OTP app (<code class="inline">:med_ex</code>)</strong> projected by Weld from <code class="inline">core/med_core</code>, <code class="inline">core/med_rtc</code>, and <code class="inline">core/med_web</code> (an explicitly browser-capable default SDK). <code class="inline">core/med_adapters</code> stays an opt-in source project excluded from the default projection until a concrete consumer proves compatibility against <code class="inline">:med_ex</code>'s public API; a separate headless-only SDK distribution waits for an actual headless consumer.</li><li><strong>Minimal Reference App (<code class="inline">apps/med_pulse</code>)</strong>: Proves standalone consumption of <code class="inline">med_ex</code>'s public API (two-browser WebRTC call + deterministic simulated capture + preview disconnect/rejoin + duplicate completion handling). Full clinical product roadmaps belong in <code class="inline">med_fabric</code>.</li><li><strong><a href="MedCore.Session.html"><code class="inline">MedCore.Session</code></a></strong> (<code class="inline">session_id</code>) outlasts individual WebRTC peer connections (<code class="inline">connection_id</code>), tracks standalone or encounter-linked captures (<code class="inline">acquisition_id</code>), and separates <strong>live preview integrity</strong> (<code class="inline">{:preview_stream, id}</code>) from <strong>recording artifact integrity</strong> (<code class="inline">{:recording_artifact, acquisition_id}</code>). See the canonical reconnect trace in <a href="readme.html">core/med_core/README.md</a>.</li></ul><hr class="thin"/><h2 id="poncho-architecture-package-map" class="section-heading"><a href="#poncho-architecture-package-map" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Poncho Architecture &amp; Package Map</span></h2><pre><code class="text">med_ex/
+├── mix.exs                         # Tooling root (:med_ex_workspace) with Blitz + Weld
+├── build_support/weld.exs          # Weld manifest projecting the browser-capable :med_ex SDK
+├── core/
+│   ├── med_core/                   # Pure functional core (zero OTP, zero IO, 100% deterministic)
+│   ├── med_rtc/                    # OTP effect runtime, supervision tree, ExWebRTC/ExSCTP/Membrane shell
+│   ├── med_web/                    # Reusable Phoenix Signaling, LiveComponents, JS WebAudio/WebRTC hooks
+│   └── med_adapters/               # Opt-in source project: signal/AI &amp; external media ports (Ortex, NeuroKit2/WFDB, LiveKit, Pipecat)
+└── apps/
+    └── med_pulse/                  # Minimal standalone SDK reference app</code></pre><h3 id="sub-package-documentation" class="section-heading"><a href="#sub-package-documentation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Sub-Package Documentation</span></h3><table><thead><tr><th style="text-align: left;">Package</th><th style="text-align: left;">Path</th><th style="text-align: left;">Layer</th><th style="text-align: left;">Role</th><th style="text-align: left;">Documentation</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>MedCore</strong></td><td style="text-align: left;"><code class="inline">core/med_core</code></td><td style="text-align: left;">Pure Functional Core <em>(in <code class="inline">:med_ex</code> SDK)</em></td><td style="text-align: left;">Clinical contracts (<code class="inline">StreamSpec</code>, <code class="inline">Session</code>, <code class="inline">Profile</code>), preview vs. recording integrity model, canonical reconnect trace, and 5 deterministic state machines (<code class="inline">SignalIntegrity</code>, <code class="inline">TimelineAligner</code>, <code class="inline">ControlInterlock</code>, <code class="inline">DegradationPolicy</code>, <code class="inline">AuditChain</code>)</td><td style="text-align: left;"><a href="readme.html">core/med_core/README.md</a></td></tr><tr><td style="text-align: left;"><strong>MedRTC</strong></td><td style="text-align: left;"><code class="inline">core/med_rtc</code></td><td style="text-align: left;">OTP Runtime &amp; Transport Shell <em>(in <code class="inline">:med_ex</code> SDK)</em></td><td style="text-align: left;">Per-session <code class="inline">:rest_for_one</code> supervision, <code class="inline">EffectInterpreter</code>, <code class="inline">ExWebRTC</code>/<code class="inline">ExSCTP</code>/<code class="inline">Membrane</code> pipelines, lossless capture tees, <code class="inline">Rel</code> TURN/STUN config, and DTLS key pinning</td><td style="text-align: left;"><a href="readme.html">core/med_rtc/README.md</a></td></tr><tr><td style="text-align: left;"><strong>MedWeb</strong></td><td style="text-align: left;"><code class="inline">core/med_web</code></td><td style="text-align: left;">Phoenix &amp; LiveView Workbench <em>(in <code class="inline">:med_ex</code> SDK)</em></td><td style="text-align: left;">Signed session tokens, WebRTC signaling channel, reusable LiveComponents, WebAudio <code class="inline">AudioWorklet</code> hooks, and <code class="inline">ex_webrtc_dashboard</code> metrics</td><td style="text-align: left;"><a href="readme.html">core/med_web/README.md</a></td></tr><tr><td style="text-align: left;"><strong>MedAdapters</strong></td><td style="text-align: left;"><code class="inline">core/med_adapters</code></td><td style="text-align: left;">Opt-in Signal &amp; Media Ports <em>(excluded from default SDK)</em></td><td style="text-align: left;"><code class="inline">@behaviour</code> contracts and isolated adapters for in-BEAM ONNX (<code class="inline">Ortex</code>/<code class="inline">Nx</code>), Python biosignal workers (<code class="inline">NeuroKit2</code>, <code class="inline">wfdb-python</code>), <code class="inline">LiveKit</code>, and <code class="inline">Pipecat</code>/<code class="inline">whisper.cpp</code></td><td style="text-align: left;"><a href="readme.html">core/med_adapters/README.md</a></td></tr><tr><td style="text-align: left;"><strong>MedPulse</strong></td><td style="text-align: left;"><code class="inline">apps/med_pulse</code></td><td style="text-align: left;">Minimal SDK Reference App</td><td style="text-align: left;">Standalone proof exercising live WebRTC talkback, deterministic simulated capture, preview disconnect/rejoin, and independent recording integrity through <code class="inline">med_ex</code>'s public API</td><td style="text-align: left;"><a href="readme.html">apps/med_pulse/README.md</a></td></tr></tbody></table><hr class="thin"/><h2 id="4-orthogonal-clinical-transport-archetypes-generalizing-all-12-use-cases" class="section-heading"><a href="#4-orthogonal-clinical-transport-archetypes-generalizing-all-12-use-cases" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">4 Orthogonal Clinical Transport Archetypes (Generalizing All 12 Use Cases)</span></h2><p>Forcing all 12 connected-medical-device use cases through a single &quot;WebRTC Room&quot; abstraction breaks clinical safety: browser AEC/NS/AGC ruins digital stethoscope heart sounds; ECG waveforms must never pass through a lossy audio codec; conversational medical voice AI needs full-duplex VAD barge-in rather than multi-peer video fan-out.</p><p><code class="inline">MedEx</code> decomposes all 12 use cases into <strong>4 composable Clinical Transport Archetypes</strong>. A product composes archetypes inside one synchronized <a href="MedCore.Session.html"><code class="inline">MedCore.Session</code></a> via <a href="MedCore.Profile.html"><code class="inline">MedCore.Profile</code></a>:</p><table><thead><tr><th style="text-align: left;">Archetype</th><th style="text-align: left;">Core Signal &amp; Protocol Contract</th><th style="text-align: left;">Optimal WebRTC Topology</th><th style="text-align: left;">Degradation &amp; Safety Rule</th><th style="text-align: left;">Covered Use Cases</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>A. Diagnostic Signal Plane</strong> <em>(High-Fidelity Biosignal Audio)</em></td><td style="text-align: left;">Unprocessed PCM over ordered/partially-reliable SCTP DataChannel <strong>or</strong> high-bitrate validated Opus (<code class="inline">stereo=0; maxaveragebitrate=128000; cbr=1; useinbandfec=1</code>) with browser <code class="inline">echoCancellation: false</code>, <code class="inline">noiseSuppression: false</code>, <code class="inline">autoGainControl: false</code>.</td><td style="text-align: left;"><strong>Server-Terminated Pipeline</strong> (<code class="inline">ex_webrtc</code> → <code class="inline">membrane_core</code>) so the server tees the exact bit-stream to lossless capture, optional ONNX QC/screening, and clinician playback.</td><td style="text-align: left;">If packet loss exceeds policy, clipping occurs, or client fails DSP-off attestation, <strong>flag the affected interval as <code class="inline">:non_diagnostic</code></strong> in real time (never silently conceal with PLC; report preview vs. recording integrity separately).</td><td style="text-align: left;"><strong>#1</strong> Digital Stethoscope, <strong>#8</strong> Respiratory/Spirometer Sounds, <strong>#9</strong> Speech Therapy (acoustic assessment), <strong>#11</strong> Hearing Aid Fitting (calibrated audio)</td></tr><tr><td style="text-align: left;"><strong>B. Structured Telemetry &amp; Control Plane</strong> <em>(Lossless Sensor &amp; Interlock)</em></td><td style="text-align: left;">Binary framed waveforms (ECG, SpO₂, PPG, airflow, device diagnostics) on SCTP DataChannels (<code class="inline">ex_sctp</code>) + <strong>separate</strong> authenticated, nonce-sequenced, ACKed Control DataChannel.</td><td style="text-align: left;"><strong>Star / Hub-and-Spoke</strong> terminated in BEAM (<code class="inline">ex_webrtc</code> + <code class="inline">ex_sctp</code>). Control commands are never P2P; the BEAM session is the sole authorization &amp; audit authority.</td><td style="text-align: left;">Telemetry carries monotonic hardware sample counters (exact gap detection); Control channel enforces <strong>deadman timeout + idempotency + state-machine interlocks</strong> before actuating settings.</td><td style="text-align: left;"><strong>#4</strong> RPM (ECG/SpO₂), <strong>#10</strong> Remote Device Troubleshooting, <strong>#11</strong> Hearing Device Parameter Fitting, <strong>#3</strong> &amp; <strong>#7</strong> (vitals channels)</td></tr><tr><td style="text-align: left;"><strong>C. Interactive Clinical Media Plane</strong> <em>(Human-to-Human A/V + Annotations)</em></td><td style="text-align: left;">Adaptive Opus (24–48 kbps, DTX, FEC, AEC/NS/AGC <strong>on</strong>) + H.264/VP8 video (simulcast/SVC) + lightweight JSON/CBOR annotation DataChannel (telestration vectors, freeze-frame markers).</td><td style="text-align: left;"><strong>SFU</strong> (<code class="inline">membrane_rtc_engine</code> in-BEAM for 2–8 clinicians; optional <code class="inline">livekit</code> adapter for large cohorts). Never full mesh beyond 2–3 peers due to mobile/EMS uplink limits.</td><td style="text-align: left;">Graceful degradation ladder: drop video resolution → drop video FPS → freeze video / preserve Opus audio + telemetry. Never starve Archetype A/B bandwidth for talking-head video.</td><td style="text-align: left;"><strong>#3</strong> Connected Telehealth, <strong>#6</strong> Remote Ultrasound, <strong>#7</strong> Tele-EMS, <strong>#9</strong> Speech Therapy (articulation video), <strong>#12</strong> Remote Clinical Training</td></tr><tr><td style="text-align: left;"><strong>D. Full-Duplex Conversational AI Plane</strong> <em>(Streaming Speech-to-Agent)</em></td><td style="text-align: left;">Low-latency Opus (16–24 kHz, 20 ms frames) terminated on server → VAD (<code class="inline">silero-vad</code> via <code class="inline">Ortex</code>) → streaming ASR (<code class="inline">Bumblebee</code>/<code class="inline">whisper.cpp</code>) → deterministic clinical guardrails + LLM → TTS back over Opus RTP.</td><td style="text-align: left;"><strong>Edge-to-Server-Terminated</strong> (<code class="inline">ex_webrtc</code> + <code class="inline">membrane_opus_plugin</code>, or bridged to <code class="inline">pipecat</code> over WebRTC/gRPC).</td><td style="text-align: left;">Barge-in cancellation on VAD speech-start; <strong>hard deterministic escalation router</strong> (red-flag symptoms or confidence drop triggers immediate warm handoff to Archetype C clinician SFU).</td><td style="text-align: left;"><strong>#2</strong> AI Voice Patient Monitoring, <strong>#5</strong> AI Medical Voice Assistants</td></tr></tbody></table><hr class="thin"/><h2 id="vetted-open-source-github-ecosystem" class="section-heading"><a href="#vetted-open-source-github-ecosystem" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Vetted Open-Source GitHub Ecosystem</span></h2><ul><li><strong>WebRTC, Media Pipelines &amp; LiveView (<code class="inline">core/med_rtc</code>, <code class="inline">core/med_web</code>)</strong>:<ul><li><a rel="nofollow" href="https://github.com/elixir-webrtc/ex_webrtc">ExWebRTC</a>, <a rel="nofollow" href="https://github.com/elixir-webrtc/ex_sctp">ExSCTP</a>, <a rel="nofollow" href="https://github.com/elixir-webrtc/live_ex_webrtc">LiveExWebRTC</a>, <a rel="nofollow" href="https://github.com/elixir-webrtc/ex_webrtc_recorder">ExWebRTC Recorder</a>, <a rel="nofollow" href="https://github.com/elixir-webrtc/ex_webrtc_dashboard">ExWebRTC Dashboard</a>, <a rel="nofollow" href="https://github.com/elixir-webrtc/rel">Rel (TURN/STUN)</a></li><li><a rel="nofollow" href="https://github.com/membraneframework/membrane_core">Membrane Core</a>, <a rel="nofollow" href="https://github.com/membraneframework/membrane_webrtc_plugin">membrane_webrtc_plugin</a>, <a rel="nofollow" href="https://github.com/membraneframework/membrane_opus_plugin">membrane_opus_plugin</a>, <a rel="nofollow" href="https://github.com/membraneframework/membrane_wav_plugin">membrane_wav_plugin</a>, <a rel="nofollow" href="https://github.com/fishjam-dev/membrane_rtc_engine">membrane_rtc_engine</a></li></ul></li><li><strong>Opt-In Signal Compute &amp; External Media (<code class="inline">core/med_adapters</code>)</strong>:<ul><li><a rel="nofollow" href="https://github.com/elixir-nx/nx">Nx</a>, <a rel="nofollow" href="https://github.com/elixir-nx/ortex">Ortex</a>, <a rel="nofollow" href="https://github.com/elixir-nx/bumblebee">Bumblebee</a>, <a rel="nofollow" href="https://github.com/snakers4/silero-vad">Silero VAD</a></li><li><a rel="nofollow" href="https://github.com/NoahIsARider/open-stethoscope">Open-Stethoscope</a>, <a rel="nofollow" href="https://github.com/neuropsychology/NeuroKit">NeuroKit2</a>, <a rel="nofollow" href="https://github.com/MIT-LCP/wfdb-python">WFDB-Python</a></li><li><a rel="nofollow" href="https://github.com/pion/webrtc">Pion WebRTC</a>, <a rel="nofollow" href="https://github.com/pipecat-ai/pipecat">Pipecat</a>, <a rel="nofollow" href="https://github.com/ggml-org/whisper.cpp">whisper.cpp</a>, <a rel="nofollow" href="https://github.com/livekit/livekit">LiveKit</a></li></ul></li></ul><hr class="thin"/><h2 id="verification-distribution-pipeline" class="section-heading"><a href="#verification-distribution-pipeline" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Verification &amp; Distribution Pipeline</span></h2><table><thead><tr><th style="text-align: left;">Stage</th><th style="text-align: left;">Command</th><th style="text-align: left;">What It Proves</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>Inner Dev Loop (Source Poncho)</strong></td><td style="text-align: left;"><code class="inline">mix ci</code> &amp; <code class="inline">mix monorepo.dialyzer</code></td><td style="text-align: left;">Fast parallel child checks across <code class="inline">core/*</code> and <code class="inline">apps/*</code> via Blitz with zero projection overhead.</td></tr><tr><td style="text-align: left;"><strong>SDK Artifact Projection</strong></td><td style="text-align: left;"><code class="inline">mix weld.inspect</code>, <code class="inline">mix weld.project</code>, <code class="inline">mix weld.verify</code></td><td style="text-align: left;">Projects <code class="inline">core/{med_core, med_rtc, med_web}</code> into one <code class="inline">:med_ex</code> OTP app (<code class="inline">dist/monolith/med_ex</code>), compiles, tests, builds docs, and runs <code class="inline">mix hex.build</code>.</td></tr><tr><td style="text-align: left;"><strong>Tracked Projection / Release</strong></td><td style="text-align: left;"><code class="inline">mix weld.release.prepare</code> &amp; <code class="inline">mix weld.release.track --push</code></td><td style="text-align: left;">Publishes the verified <code class="inline">:med_ex</code> projection onto orphan branch <code class="inline">projection/med_ex</code> so downstream consumers (<code class="inline">med_fabric/apps/exam</code>) resolve one <code class="inline">:med_ex</code> package from private Git (and later Hex) with identical app identity locally via Mix Workspace Ops.</td></tr></tbody></table><p><em>(Future Weld optimization: fingerprint inputs—selected sources, dependency locks, manifest, shipped assets, and toolchain inputs—before projection so unchanged local projections can be verified and reused safely while keeping fresh clean-consumer builds for release candidates.)</em></p><h2 id="workspace-commands" class="section-heading"><a href="#workspace-commands" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Workspace Commands</span></h2><pre><code class="makeup bash" translate="no"><span class="">mix deps.get
+</span><span class="">mix monorepo.deps.get
+</span><span class="">mix ci
+</span><span class="">mix monorepo.dialyzer
+</span><span class="">mix weld.inspect
+</span><span class="">mix weld.verify
+</span><span class="">mix weld.release.prepare
+</span><span class="">mix weld.release.track --push
+</span></code></pre><h2 id="security-regulatory-boundary" class="section-heading"><a href="#security-regulatory-boundary" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Security &amp; Regulatory Boundary</span></h2><p>WebRTC DTLS-SRTP provides transport encryption in transit, which is necessary but insufficient for HIPAA/FDA compliance. <code class="inline">MedEx</code> enforces short-lived per-session DTLS certificates, role-scoped signaling tokens, transient RAM-only media by default unless an audited capture command runs, and SaMD advisory envelopes (<code class="inline">advisory_only: true</code>, <code class="inline">model_sha256</code>, <code class="inline">signal_quality_score</code>, <code class="inline">integrity_state</code>) on all inference outputs.</p><h2 id="license" class="section-heading"><a href="#license" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">License</span></h2><p>MIT — see <a href="license.html">LICENSE</a>.</p>
+
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="changelog.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Changelog
+        </span>
+      </a>
+
+  </div>
+</div>
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/med_ex/0.1.0">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/med_ex/0.1.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/med_ex/0.1.0/show/README.md">current file</a>)
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="med_ex.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.5) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

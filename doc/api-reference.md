@@ -1,0 +1,15 @@
+# med_ex v0.1.0 - API Reference
+
+## Modules
+
+- [MedCore](MedCore.md): Pure functional clinical signal and live-session domain core for MedEx.
+- [MedCore.Profile](MedCore.Profile.md): Behaviour implemented by clinical product applications to compose MedEx
+transport archetypes, streams, inference hooks, and device control policies.
+
+- [MedCore.Session](MedCore.Session.md): Immutable live clinical transport session aggregate and pure reducer seam.
+- [MedCore.StreamSpec](MedCore.StreamSpec.md): Declarative contract for a clinical media, telemetry, or device control stream.
+
+- [MedRTC](MedRTC.md): OTP effect shell and WebRTC/Opus/SCTP runtime boundary for MedEx.
+- [MedWeb](MedWeb.md): Reusable Phoenix signaling, clinical LiveComponents, and WebAudio workbench
+primitives for MedEx applications.
+
