@@ -3,12 +3,15 @@ defmodule MedWebTest do
 
   alias MedWeb.Signaling
 
-  test "links against MedRTC/MedCore and ships browser hook asset in both source and Welded modes" do
-    assert MedWeb.runtime_core_version() == "0.1.0"
-
+  test "normalizes browser signaling events and ships RTCPeerConnection hook asset in source and Welded modes" do
     assert {:peer_connected, %{peer_id: "p1", connection_id: "c1", role: :clinician, t_ms: 10}} ==
              Signaling.to_session_event({:join, "p1", "c1", :clinician, 10})
 
-    assert File.regular?(Signaling.hook_asset_full_path())
+    assert {:peer_disconnected, %{peer_id: "p1", connection_id: "c1", t_ms: 20}} ==
+             Signaling.to_session_event({:leave, "p1", "c1", 20})
+
+    hook_path = Signaling.hook_asset_full_path()
+    assert File.regular?(hook_path)
+    assert String.contains?(File.read!(hook_path), "RTCPeerConnection")
   end
 end

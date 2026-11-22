@@ -1,12 +1,7 @@
 defmodule MedAdapters do
   @moduledoc """
-  Behaviour-driven clinical signal and media adapter layer for MedEx.
-
-  Defines isolated boundaries for in-BEAM ONNX inference, supervised Python
-  biosignal workers, and optional external media/voice-AI planes. Durable
-  clinical outbox storage and FHIR/HL7 delivery belong to `med_fabric`.
+  Opt-in behaviour-driven signal compute and external media adapter layer for
+  MedEx (`MedAdapters.Inference`). Excluded from the default `:med_ex` SDK
+  projection until a concrete adapter proves clean-consumer compatibility.
   """
-
-  @spec core_version() :: String.t()
-  def core_version, do: MedCore.version()
 end

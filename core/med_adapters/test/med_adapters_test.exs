@@ -1,7 +1,7 @@
 defmodule MedAdaptersTest do
   use ExUnit.Case, async: true
 
-  test "skeleton links against MedCore" do
-    assert MedAdapters.core_version() == "0.1.0"
+  test "exposes MedAdapters.Inference advisory callback behaviour" do
+    assert {:infer, 2} in MedAdapters.Inference.behaviour_info(:callbacks)
   end
 end

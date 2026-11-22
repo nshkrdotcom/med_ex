@@ -7,8 +7,6 @@ defmodule MedRTCTest do
   alias MedRTC.SessionServer
 
   test "real ExWebRTC SDP/ICE loopback survives preview disconnect/rejoin while simulated capture completes" do
-    assert MedRTC.core_version() == "0.1.0"
-
     stream = %StreamSpec{
       id: "sim_audio",
       archetype: :diagnostic_audio,
