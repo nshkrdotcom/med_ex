@@ -1,41 +1,389 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-labelledby="medex-title medex-desc">
-  <title id="medex-title">MedEx</title>
-  <desc id="medex-desc">Hexagonal clinical telemetry and WebRTC signal emblem featuring a medical cross, live ECG pulse trace, and real-time wave arcs.</desc>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="medex-hex">
-      <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z"/>
+    <!-- Exact regular pointy-top hexagon clip (R = 98, centered at 100,100) -->
+    <clipPath id="medex-outer-clip">
+      <polygon points="0,-98 84.87,-49 84.87,49 0,98 -84.87,49 -84.87,-49"/>
     </clipPath>
-    <linearGradient id="medex-bg" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0f3d46"/>
-      <stop offset="0.52" stop-color="#0b1f33"/>
-      <stop offset="1" stop-color="#060c14"/>
+
+    <clipPath id="medex-chamber-clip">
+      <polygon points="0,-82 71.01,-41 71.01,41 0,82 -71.01,41 -71.01,-41"/>
+    </clipPath>
+
+    <!-- Strictly centered radial gradients -->
+    <radialGradient id="medex-chamber-bg" cx="0" cy="0" r="84" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3EFFDD"/>
+      <stop offset="20%" stop-color="#0E6C73"/>
+      <stop offset="48%" stop-color="#0A2B3F"/>
+      <stop offset="76%" stop-color="#071826"/>
+      <stop offset="100%" stop-color="#030A11"/>
+    </radialGradient>
+
+    <radialGradient id="medex-vignette" cx="0" cy="0" r="82" gradientUnits="userSpaceOnUse">
+      <stop offset="68%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="92%" stop-color="#01070C" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#010408" stop-opacity="0.92"/>
+    </radialGradient>
+
+    <radialGradient id="medex-core-aura" cx="0" cy="0" r="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="30%" stop-color="#5EFFDF" stop-opacity="0.7"/>
+      <stop offset="62%" stop-color="#2D9CFF" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#072235" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="medex-core-moat" cx="0" cy="0" r="23" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C8FFF4"/>
+      <stop offset="44%" stop-color="#1EC9B4"/>
+      <stop offset="76%" stop-color="#0E4A6D"/>
+      <stop offset="100%" stop-color="#061420"/>
+    </radialGradient>
+
+    <radialGradient id="medex-peer-jewel" cx="0" cy="0" r="5.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="35%" stop-color="#9EFFEC"/>
+      <stop offset="72%" stop-color="#2FA6FF"/>
+      <stop offset="100%" stop-color="#0B2E4E"/>
+    </radialGradient>
+
+    <radialGradient id="medex-pulse-spark" cx="0" cy="0" r="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#D8FFF7"/>
+      <stop offset="74%" stop-color="#52F7D4" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#FF6384" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Local-space symmetric gradients (transformed cleanly per D6 sector) -->
+    <linearGradient id="medex-bezel-outer" x1="0" y1="-97" x2="48" y2="-69" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F2FFFC"/>
+      <stop offset="36%" stop-color="#B0DDD8"/>
+      <stop offset="72%" stop-color="#51838D"/>
+      <stop offset="100%" stop-color="#97CCC8"/>
     </linearGradient>
-    <linearGradient id="medex-pulse" x1="32" y1="100" x2="168" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#53f6d3"/>
-      <stop offset="0.5" stop-color="#60b7ff"/>
-      <stop offset="1" stop-color="#a8ffea"/>
+
+    <linearGradient id="medex-bezel-trench" x1="0" y1="-93" x2="46" y2="-66" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0E2D3A"/>
+      <stop offset="50%" stop-color="#071620"/>
+      <stop offset="100%" stop-color="#0F2A3A"/>
     </linearGradient>
-    <filter id="medex-glow" x="-25%" y="-25%" width="150%" height="150%">
-      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#53f6d3" flood-opacity="0.45"/>
+
+    <linearGradient id="medex-bezel-lip" x1="0" y1="-86" x2="43" y2="-61" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#DEFFF8"/>
+      <stop offset="50%" stop-color="#629AA3"/>
+      <stop offset="100%" stop-color="#C3F2EA"/>
+    </linearGradient>
+
+    <linearGradient id="medex-arm-metal" x1="0" y1="-78" x2="11" y2="-24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F3FFFD"/>
+      <stop offset="34%" stop-color="#B9DFDC"/>
+      <stop offset="72%" stop-color="#4A7E8A"/>
+      <stop offset="100%" stop-color="#1C4050"/>
+    </linearGradient>
+
+    <linearGradient id="medex-arm-channel" x1="0" y1="-22" x2="0" y2="-76" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="28%" stop-color="#62FFE0"/>
+      <stop offset="68%" stop-color="#22B8E6"/>
+      <stop offset="100%" stop-color="#79FFF0"/>
+    </linearGradient>
+
+    <linearGradient id="medex-wave-plate" x1="0" y1="-67" x2="22" y2="-32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#13384C"/>
+      <stop offset="50%" stop-color="#0C2436"/>
+      <stop offset="100%" stop-color="#061420"/>
+    </linearGradient>
+
+    <linearGradient id="medex-wave-arc" x1="-18" y1="-50" x2="18" y2="-50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3DA6FF" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#7DFFE8" stop-opacity="0.98"/>
+      <stop offset="100%" stop-color="#3DA6FF" stop-opacity="0.35"/>
+    </linearGradient>
+
+    <linearGradient id="medex-collar-metal" x1="0" y1="-27" x2="14" y2="-16" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#B9E6E0"/>
+      <stop offset="100%" stop-color="#3B727E"/>
+    </linearGradient>
+
+    <linearGradient id="medex-crystal-light" x1="0" y1="-16.5" x2="7.5" y2="-4" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="42%" stop-color="#9EFFEC"/>
+      <stop offset="100%" stop-color="#1CD4B8"/>
+    </linearGradient>
+
+    <linearGradient id="medex-crystal-deep" x1="0" y1="-16.5" x2="9" y2="-8" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6BFFE4"/>
+      <stop offset="50%" stop-color="#2692E8"/>
+      <stop offset="100%" stop-color="#0C3559"/>
+    </linearGradient>
+
+    <!-- Multi-stage glow filters (strictly clipped inside outer hexagon) -->
+    <filter id="medex-bio-glow" x="-100" y="-100" width="200" height="200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5.2" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
+
+    <filter id="medex-soft-bloom" x="-100" y="-100" width="200" height="200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.0" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- ================================================================== -->
+    <!-- D6 FUNDAMENTAL BUILDING BLOCKS (strict 6-fold + mirror symmetry)   -->
+    <!-- ================================================================== -->
+
+    <!-- 1. Surgical Titanium-Teal Hexagonal Bezel half-edge -->
+    <g id="medex-bezel-half">
+      <!-- Outer polished surgical titanium rim -->
+      <polygon points="0,-96.8 41.92,-72.6 39.92,-69.15 0,-92.2" fill="url(#medex-bezel-outer)"/>
+      <line x1="0" y1="-96.4" x2="41.7" y2="-72.3" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="0.65"/>
+      <!-- Recessed telemetry calibration trench -->
+      <polygon points="0,-92.2 39.92,-69.15 37.33,-64.65 0,-86.2" fill="url(#medex-bezel-trench)"/>
+      <!-- ECG-style precision calibration ticks -->
+      <g stroke="#50A8B3" stroke-opacity="0.58" stroke-width="0.65" stroke-linecap="round">
+        <line x1="8.8" y1="-86.2" x2="10.2" y2="-83.7"/>
+        <line x1="13.8" y1="-83.3" x2="14.9" y2="-81.4"/>
+        <line x1="18.8" y1="-80.4" x2="20.4" y2="-77.7"/>
+        <line x1="23.8" y1="-77.5" x2="24.9" y2="-75.6"/>
+        <line x1="28.8" y1="-74.6" x2="30.4" y2="-71.9"/>
+        <line x1="33.8" y1="-71.7" x2="34.9" y2="-69.8"/>
+      </g>
+      <!-- Bio-mint luminescent bezel channel -->
+      <line x1="0" y1="-89.2" x2="38.62" y2="-66.9" stroke="#3FF5D2" stroke-opacity="0.78" stroke-width="1.05"/>
+      <line x1="0" y1="-89.2" x2="38.62" y2="-66.9" stroke="#D8FFF7" stroke-opacity="0.7" stroke-width="0.35"/>
+      <!-- Inner titanium lip -->
+      <polygon points="0,-86.2 37.33,-64.65 35.51,-61.5 0,-82" fill="url(#medex-bezel-lip)"/>
+      <line x1="0" y1="-82.1" x2="35.51" y2="-61.5" stroke="#041018" stroke-width="0.9"/>
+    </g>
+
+    <g id="medex-bezel-sector">
+      <use href="#medex-bezel-half"/>
+      <use href="#medex-bezel-half" transform="scale(-1, 1)"/>
+    </g>
+
+    <!-- 2. Oscilloscope & Clinical Telemetry Grid (per 60 deg sector) -->
+    <g id="medex-grid-half">
+      <line x1="0" y1="-22" x2="0" y2="-82" stroke="#53F6D3" stroke-opacity="0.16" stroke-width="0.65"/>
+      <path d="M0,-74 L32.0,-55.5 M0,-60 L26.0,-45 M0,-46 L19.9,-34.5" stroke="#4DC4D9" stroke-opacity="0.16" stroke-width="0.55"/>
+      <path d="M9.5,-68 L17.5,-63.5 L21.5,-56" stroke="#4BB5FF" stroke-opacity="0.38" stroke-width="0.8" stroke-linejoin="round"/>
+      <circle cx="17.5" cy="-63.5" r="1.05" fill="#7EFFEA" fill-opacity="0.8"/>
+    </g>
+
+    <g id="medex-grid-sector">
+      <use href="#medex-grid-half"/>
+      <use href="#medex-grid-half" transform="scale(-1, 1)"/>
+    </g>
+
+    <!-- 3. Six WebRTC Acoustic / Signal-Wave Sectors (centered on edge-normal axes: 30, 90, 150, 210, 270, 330) -->
+    <g id="medex-wave-half">
+      <!-- Recessed dark telemetry bay -->
+      <polygon points="0,-67.5 19.5,-67.5 26.8,-54.8 14.4,-33.2 0,-36.2" fill="url(#medex-wave-plate)" stroke="#2F798E" stroke-opacity="0.6" stroke-width="0.65" stroke-linejoin="round"/>
+      <!-- Precision metallic acoustic baffle frame -->
+      <path d="M0,-67.5 L19.5,-67.5 L26.8,-54.8" stroke="#A6E6DF" stroke-opacity="0.55" stroke-width="0.7" stroke-linejoin="round"/>
+      <!-- Symmetric micro-pulse / PCM audio bar indicators flanking bay -->
+      <g stroke="#50F2D2" stroke-linecap="round">
+        <line x1="15.8" y1="-63.5" x2="18.2" y2="-63.5" stroke-width="1.1" stroke-opacity="0.8"/>
+        <line x1="17.6" y1="-60.4" x2="21.0" y2="-60.4" stroke-width="1.1" stroke-opacity="0.9"/>
+        <line x1="19.4" y1="-57.3" x2="22.4" y2="-57.3" stroke-width="1.1" stroke-opacity="0.7"/>
+      </g>
+      <!-- Mid-edge WebRTC transceiver clamp on outer bezel -->
+      <polygon points="0,-74.5 9.6,-74.5 7.6,-69.8 0,-69.8" fill="#B6E1DC" stroke="#061621" stroke-width="0.6"/>
+      <polygon points="0,-73.2 5.8,-73.2 4.8,-70.8 0,-70.8" fill="#0B2230"/>
+      <line x1="0" y1="-72.0" x2="3.9" y2="-72.0" stroke="#FF6B8B" stroke-width="1.05" stroke-linecap="round"/>
+    </g>
+
+    <g id="medex-wave-unit">
+      <use href="#medex-wave-half"/>
+      <use href="#medex-wave-half" transform="scale(-1, 1)"/>
+      <!-- Concentric WebRTC / acoustic wave arcs radiating cleanly across the bay -->
+      <g fill="none" stroke-linecap="round">
+        <path d="M-16.5,-59.8 A24 24 0 0 1 16.5,-59.8" stroke="url(#medex-wave-arc)" stroke-width="1.75"/>
+        <path d="M-12.6,-54.4 A18 18 0 0 1 12.6,-54.4" stroke="url(#medex-wave-arc)" stroke-width="1.6"/>
+        <path d="M-8.8,-49.2 A12.5 12.5 0 0 1 8.8,-49.2" stroke="#8CFFF0" stroke-opacity="0.92" stroke-width="1.45"/>
+        <!-- Mirror symmetric inner telemetry echo arc -->
+        <path d="M-7.5,-40.2 A11 11 0 0 0 7.5,-40.2" stroke="#4EB8FF" stroke-opacity="0.72" stroke-width="1.15"/>
+      </g>
+      <!-- Peer telemetry node jewel inside each acoustic bay -->
+      <g transform="translate(0, -45.2)">
+        <polygon points="0,-4.8 4.16,-2.4 4.16,2.4 0,4.8 -4.16,2.4 -4.16,-2.4" fill="#071926" stroke="#78F5E0" stroke-width="0.75"/>
+        <circle cx="0" cy="0" r="2.7" fill="url(#medex-peer-jewel)"/>
+        <circle cx="0" cy="0" r="1.05" fill="#FFFFFF"/>
+      </g>
+      <!-- Crisp vital coral telemetry pin linking peer to core -->
+      <line x1="0" y1="-39.8" x2="0" y2="-33.5" stroke="#FF6B8B" stroke-opacity="0.88" stroke-width="1.0" stroke-linecap="round"/>
+    </g>
+
+    <!-- 4. Six-Armed Sculpted "Star of Life" Clinical Telemetry Cross (along vertex axes: 0, 60, 120, 180, 240, 300) -->
+    <g id="medex-arm-glow">
+      <path d="M-4.6,-22 L-4.2,-76 L0,-82 L4.2,-76 L4.6,-22 Z" fill="url(#medex-arm-channel)" opacity="0.72"/>
+      <ellipse cx="0" cy="-34" rx="4.6" ry="9" fill="#52FFE0" opacity="0.38"/>
+    </g>
+
+    <g id="medex-arm-half">
+      <!-- Deep elevation shadow -->
+      <polygon points="0,-79.5 8.8,-74.4 9.8,-62.2 8.2,-27.2 0,-23.5" fill="#02090F" fill-opacity="0.78"/>
+      <!-- Surgical titanium beveled Star-of-Life arm body -->
+      <polygon points="0,-78.2 7.6,-73.8 8.6,-62.0 7.1,-28.0 0,-24.6" fill="url(#medex-arm-metal)" stroke="#071622" stroke-width="0.65" stroke-linejoin="round"/>
+      <!-- Crisp bright surgical chamfer highlight -->
+      <path d="M0,-77.6 L7.2,-73.4 L8.1,-62.0 L6.8,-28.6" stroke="#FFFFFF" stroke-opacity="0.62" stroke-width="0.6" stroke-linejoin="round"/>
+      <!-- Recessed telemetry wave channel inside arm -->
+      <polygon points="0,-74.5 4.4,-71.8 4.8,-61.6 4.0,-29.2 0,-26.8" fill="#071825" stroke="#2D8EA3" stroke-opacity="0.75" stroke-width="0.5"/>
+      <!-- Symmetric ECG / acoustic PCM pulse waveform ridge along arm flank -->
+      <path d="M0,-71.5 L0,-66.5 L2.5,-64.2 L0,-61.8 L0,-56.2 L3.4,-53.4 L0,-50.6 L0,-44.8 L2.9,-42.2 L0,-39.6 L0,-34.2 L3.6,-31.4 L0,-28.6" fill="none" stroke="#55FFE0" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Micro surgical fastener dots -->
+      <circle cx="5.9" cy="-68.2" r="0.85" fill="#0A1F2E" stroke="#DCFFF9" stroke-width="0.4"/>
+      <circle cx="5.5" cy="-35.8" r="0.85" fill="#0A1F2E" stroke="#DCFFF9" stroke-width="0.4"/>
+      <!-- Corner peer terminal bracket at vertex (r = 76..92) -->
+      <polygon points="0,-91.8 6.8,-87.9 5.5,-78.4 0,-75.2" fill="#102C3D" stroke="#D2FAF4" stroke-width="0.7" stroke-linejoin="round"/>
+      <polygon points="0,-89.3 4.3,-86.8 3.4,-80.3 0,-78.3" fill="#071824" stroke="#4FF7D6" stroke-opacity="0.85" stroke-width="0.6"/>
+    </g>
+
+    <g id="medex-arm-unit">
+      <use href="#medex-arm-half"/>
+      <use href="#medex-arm-half" transform="scale(-1, 1)"/>
+      <!-- Glowing white-mint central telemetry spine -->
+      <line x1="0" y1="-25.5" x2="0" y2="-74.5" stroke="#E5FFFA" stroke-width="1.05" stroke-linecap="round"/>
+      <!-- Vital coral pulse accent jewel on arm centerline -->
+      <polygon points="0,-55.8 2.1,-53.4 0,-51.0 -2.1,-53.4" fill="#FF6B8B" stroke="#FFE3EA" stroke-width="0.35"/>
+      <!-- Corner terminal jewel -->
+      <polygon points="0,-87.0 2.1,-85.7 0,-80.8 -2.1,-85.7" fill="#E3FFFA"/>
+    </g>
+
+    <!-- 5. Central Vital Telemetry Collar & Faceted Crystal -->
+    <g id="medex-collar-half">
+      <polygon points="0,-27.2 13.6,-23.5 10.6,-18.3 0,-21.2" fill="url(#medex-collar-metal)" stroke="#061722" stroke-width="0.55" stroke-linejoin="round"/>
+      <!-- Vital coral-mint telemetry accent line on collar -->
+      <line x1="2.4" y1="-23.6" x2="12.1" y2="-20.9" stroke="#FF7090" stroke-width="1.0" stroke-linecap="round"/>
+      <!-- Bio-mint injection node at each of the 6 arms -->
+      <polygon points="0,-27.5 2.4,-25.6 1.8,-20.4 0,-19.4" fill="#A6FFF0"/>
+      <!-- Precision bridge rays into central prism -->
+      <polygon points="0,-21.2 1.5,-19.8 0,-16.0" fill="#FFFFFF" opacity="0.9"/>
+      <line x1="8.9" y1="-15.4" x2="6.9" y2="-11.9" stroke="#68F7DE" stroke-opacity="0.8" stroke-width="0.8"/>
+    </g>
+
+    <g id="medex-collar-sector">
+      <use href="#medex-collar-half"/>
+      <use href="#medex-collar-half" transform="scale(-1, 1)"/>
+    </g>
+
+    <g id="medex-crystal-half">
+      <polygon points="0,-16.2 7.01,-12.15 4.25,-7.36 0,-9.8" fill="url(#medex-crystal-deep)" stroke="#D9FFF8" stroke-opacity="0.65" stroke-width="0.4" stroke-linejoin="round"/>
+      <polygon points="0,-9.8 4.25,-7.36 0,0" fill="url(#medex-crystal-light)" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="0.4" stroke-linejoin="round"/>
+      <polygon points="0,-16.2 2.1,-10.2 0,-9.8" fill="#FFFFFF" opacity="0.65"/>
+    </g>
+
+    <g id="medex-crystal-sector">
+      <use href="#medex-crystal-half"/>
+      <use href="#medex-crystal-half" transform="scale(-1, 1)"/>
+    </g>
   </defs>
-  <g clip-path="url(#medex-hex)">
-    <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z" fill="url(#medex-bg)"/>
-    <g fill="none" stroke="#1f586b" stroke-width="1.4" opacity="0.38">
-      <path d="M26 70 H174 M26 100 H174 M26 130 H174"/>
-      <path d="M62 34 V166 M100 22 V178 M138 34 V166"/>
+
+  <!-- ==================================================================== -->
+  <!-- ROOT HEXAGON CONTAINER (100% transparent outside R = 98 hexagon)     -->
+  <!-- ==================================================================== -->
+  <g transform="translate(100, 100)" clip-path="url(#medex-outer-clip)">
+
+    <!-- Layer 0: Crisp dark marine-obsidian outer edge (reads cleanly on light & dark themes) -->
+    <polygon points="0,-98 84.87,-49 84.87,49 0,98 -84.87,49 -84.87,-49" fill="#040D14"/>
+
+    <!-- Layer 1: Deep Clinical Telemetry Chamber -->
+    <g clip-path="url(#medex-chamber-clip)">
+      <polygon points="0,-82 71.01,-41 71.01,41 0,82 -71.01,41 -71.01,-41" fill="url(#medex-chamber-bg)"/>
+
+      <!-- Concentric polar telemetry rings -->
+      <circle cx="0" cy="0" r="64" stroke="#4FF7D8" stroke-opacity="0.16" stroke-width="0.8"/>
+      <circle cx="0" cy="0" r="48" stroke="#4EB8FF" stroke-opacity="0.22" stroke-width="0.9" stroke-dasharray="3.5 3.5"/>
+      <circle cx="0" cy="0" r="33" stroke="#53F6D3" stroke-opacity="0.28" stroke-width="0.8"/>
+
+      <!-- 6-fold oscilloscope grid -->
+      <g>
+        <use href="#medex-grid-sector" transform="rotate(0)"/>
+        <use href="#medex-grid-sector" transform="rotate(60)"/>
+        <use href="#medex-grid-sector" transform="rotate(120)"/>
+        <use href="#medex-grid-sector" transform="rotate(180)"/>
+        <use href="#medex-grid-sector" transform="rotate(240)"/>
+        <use href="#medex-grid-sector" transform="rotate(300)"/>
+      </g>
+
+      <!-- Recessed perimeter depth vignette -->
+      <polygon points="0,-82 71.01,-41 71.01,41 0,82 -71.01,41 -71.01,-41" fill="url(#medex-vignette)"/>
+
+      <!-- Multi-stage bio-telemetry plasma bloom -->
+      <g filter="url(#medex-bio-glow)">
+        <circle cx="0" cy="0" r="34" fill="url(#medex-core-aura)"/>
+        <use href="#medex-arm-glow" transform="rotate(0)"/>
+        <use href="#medex-arm-glow" transform="rotate(60)"/>
+        <use href="#medex-arm-glow" transform="rotate(120)"/>
+        <use href="#medex-arm-glow" transform="rotate(180)"/>
+        <use href="#medex-arm-glow" transform="rotate(240)"/>
+        <use href="#medex-arm-glow" transform="rotate(300)"/>
+      </g>
     </g>
-    <g fill="none" stroke="#60b7ff" stroke-width="2.4" stroke-linecap="round" opacity="0.45">
-      <path d="M56 54 A62 62 0 0 1 144 54"/>
-      <path d="M68 65 A45 45 0 0 1 132 65"/>
-      <path d="M144 146 A62 62 0 0 1 56 146"/>
-      <path d="M132 135 A45 45 0 0 1 68 135"/>
+
+    <!-- Layer 2: Precision Surgical Titanium-Teal Outer Bezel (6-fold D6) -->
+    <g>
+      <use href="#medex-bezel-sector" transform="rotate(0)"/>
+      <use href="#medex-bezel-sector" transform="rotate(60)"/>
+      <use href="#medex-bezel-sector" transform="rotate(120)"/>
+      <use href="#medex-bezel-sector" transform="rotate(180)"/>
+      <use href="#medex-bezel-sector" transform="rotate(240)"/>
+      <use href="#medex-bezel-sector" transform="rotate(300)"/>
     </g>
-    <rect x="85" y="42" width="30" height="116" rx="8" fill="#102b3d" stroke="#2d7a8e" stroke-width="2"/>
-    <rect x="42" y="85" width="116" height="30" rx="8" fill="#102b3d" stroke="#2d7a8e" stroke-width="2"/>
-    <path d="M30 102 H66 L77 102 L86 76 L98 132 L110 62 L121 114 L130 96 L139 102 H170" fill="none" stroke="url(#medex-pulse)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#medex-glow)"/>
-    <circle cx="110" cy="62" r="4.5" fill="#ffffff"/>
-    <circle cx="98" cy="132" r="4" fill="#53f6d3"/>
-    <path d="M100 6 L181 53 L181 147 L100 194 L19 147 L19 53 Z" fill="none" stroke="#8fffe8" stroke-width="4"/>
+
+    <!-- Layer 3: Six WebRTC Acoustic / Signal-Wave Sectors (edge-normal axes) -->
+    <g>
+      <use href="#medex-wave-unit" transform="rotate(30)"/>
+      <use href="#medex-wave-unit" transform="rotate(90)"/>
+      <use href="#medex-wave-unit" transform="rotate(150)"/>
+      <use href="#medex-wave-unit" transform="rotate(210)"/>
+      <use href="#medex-wave-unit" transform="rotate(270)"/>
+      <use href="#medex-wave-unit" transform="rotate(330)"/>
+    </g>
+
+    <!-- Layer 4: Six-Armed Star-of-Life Telemetry Cross & Pulse Channels (vertex axes) -->
+    <g>
+      <use href="#medex-arm-unit" transform="rotate(0)"/>
+      <use href="#medex-arm-unit" transform="rotate(60)"/>
+      <use href="#medex-arm-unit" transform="rotate(120)"/>
+      <use href="#medex-arm-unit" transform="rotate(180)"/>
+      <use href="#medex-arm-unit" transform="rotate(240)"/>
+      <use href="#medex-arm-unit" transform="rotate(300)"/>
+    </g>
+
+    <!-- Layer 5: Central Telemetry Containment Collar & Moat -->
+    <g>
+      <polygon points="0,-22 19.05,-11 19.05,11 0,22 -19.05,11 -19.05,-11" fill="url(#medex-core-moat)"/>
+      <use href="#medex-collar-sector" transform="rotate(0)"/>
+      <use href="#medex-collar-sector" transform="rotate(60)"/>
+      <use href="#medex-collar-sector" transform="rotate(120)"/>
+      <use href="#medex-collar-sector" transform="rotate(180)"/>
+      <use href="#medex-collar-sector" transform="rotate(240)"/>
+      <use href="#medex-collar-sector" transform="rotate(300)"/>
+    </g>
+
+    <!-- Layer 6: Faceted 12-Facet Central Vital Crystal -->
+    <g>
+      <use href="#medex-crystal-sector" transform="rotate(0)"/>
+      <use href="#medex-crystal-sector" transform="rotate(60)"/>
+      <use href="#medex-crystal-sector" transform="rotate(120)"/>
+      <use href="#medex-crystal-sector" transform="rotate(180)"/>
+      <use href="#medex-crystal-sector" transform="rotate(240)"/>
+      <use href="#medex-crystal-sector" transform="rotate(300)"/>
+    </g>
+
+    <!-- Layer 7: Incandescent 6-Point Vital Pulse Core -->
+    <g filter="url(#medex-soft-bloom)">
+      <circle cx="0" cy="0" r="7.4" fill="url(#medex-pulse-spark)"/>
+      <polygon points="0,-8.0 1.6,-2.75 6.93,-4.0 2.75,0 6.93,4.0 1.6,2.75 0,8.0 -1.6,2.75 -6.93,4.0 -2.75,0 -6.93,-4.0 -1.6,-2.75" fill="#FFFFFF"/>
+      <polygon points="0,-3.4 2.94,-1.7 2.94,1.7 0,3.4 -2.94,1.7 -2.94,-1.7" fill="#FFF0F4" stroke="#FF6B8B" stroke-width="0.45"/>
+    </g>
+
   </g>
 </svg>
