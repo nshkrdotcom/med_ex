@@ -1,10 +1,10 @@
-defmodule PulseScopeTest do
+defmodule MedPulseTest do
   use ExUnit.Case, async: true
 
-  alias PulseScope.ClinicalProfile
+  alias MedPulse.ClinicalProfile
 
   test "skeleton profile declares the expected streams" do
-    assert PulseScope.profile() == ClinicalProfile
+    assert MedPulse.profile() == ClinicalProfile
     assert ClinicalProfile.topology() == :server_terminated
 
     stream_ids = Enum.map(ClinicalProfile.streams(), & &1.id)

@@ -35,7 +35,7 @@ med_ex/
 │   ├── med_adapters/               # Behaviour-driven clinical OSS adapters (Ortex, NeuroKit2/WFDB, FHIR, Orthanc)
 │   └── med_web/                    # Reusable Phoenix Signaling, LiveComponents, JS WebAudio/WebRTC hooks
 └── apps/
-    └── pulse_scope/                # First vertical slice: Use Cases #1 (Digital Stethoscope) + #4 (RPM ECG/SpO2)
+    └── med_pulse/                  # First vertical slice: Use Cases #1 (Digital Stethoscope) + #4 (RPM ECG/SpO2)
 ```
 
 ### Sub-Package Documentation
@@ -46,7 +46,7 @@ med_ex/
 | **MedRTC** | `core/med_rtc` | OTP Runtime & Transport Shell | Per-encounter `:rest_for_one` supervision, `EffectInterpreter`, `ExWebRTC`/`ExSCTP`/`Membrane` pipelines, `Rel` TURN/STUN config, and security/DTLS key pinning | [core/med_rtc/README.md](core/med_rtc/README.md) |
 | **MedAdapters** | `core/med_adapters` | External OSS & Clinical Ports | `@behaviour` contracts and isolated adapters for in-BEAM ONNX (`Ortex`/`Nx`), Python biosignal workers (`NeuroKit2`, `wfdb-python`), `HAPI FHIR`/`Medplum`, `Orthanc` DICOMweb, `LiveKit`, and `Pipecat`/`whisper.cpp` | [core/med_adapters/README.md](core/med_adapters/README.md) |
 | **MedWeb** | `core/med_web` | Phoenix & LiveView Workbench | Signed encounter tokens, WebRTC signaling channel, reusable LiveComponents, WebAudio `AudioWorklet` PCM hooks, and `ex_webrtc_dashboard` metrics | [core/med_web/README.md](core/med_web/README.md) |
-| **PulseScope** | `apps/pulse_scope` | Reference Product App | First vertical slice implementing Use Cases **#1 (Remote Digital Stethoscope)** + **#4 (Remote Patient Monitoring: ECG/SpO₂)** with 4 kHz PCM-over-SCTP, `open-stethoscope` ONNX, `NeuroKit2`/`WFDB`, `pion/webrtc` edge gateway, and FHIR export | [apps/pulse_scope/README.md](apps/pulse_scope/README.md) |
+| **MedPulse** | `apps/med_pulse` | Reference Product App | First vertical slice implementing Use Cases **#1 (Remote Digital Stethoscope)** + **#4 (Remote Patient Monitoring: ECG/SpO₂)** with 4 kHz PCM-over-SCTP, `open-stethoscope` ONNX, `NeuroKit2`/`WFDB`, `pion/webrtc` edge gateway, and FHIR export | [apps/med_pulse/README.md](apps/med_pulse/README.md) |
 
 ---
 
@@ -155,7 +155,7 @@ Every external library has a distinct architectural role across the poncho layer
 - **Bumblebee** — <https://github.com/elixir-nx/bumblebee> (Local Whisper ASR and neural models on Axon/EXLA)
 - **Silero VAD** — <https://github.com/snakers4/silero-vad> (~2 MB MIT ONNX VAD runnable directly via `Ortex`)
 
-### C. Medical Signal Processing, Clinical Archives, Edge & Voice-AI (`core/med_adapters`, `apps/pulse_scope`)
+### C. Medical Signal Processing, Clinical Archives, Edge & Voice-AI (`core/med_adapters`, `apps/med_pulse`)
 
 - **Open-Stethoscope** — <https://github.com/NoahIsARider/open-stethoscope> (PhysioNet-2022 CirCor heart murmur & auscultation position-QC, 1.6 MB ONNX)
 - **NeuroKit2** — <https://github.com/neuropsychology/NeuroKit> (ECG, RSP, PPG/SpO₂, R-peak detection, HRV, and signal quality indices)
@@ -174,7 +174,7 @@ Every external library has a distinct architectural role across the poncho layer
 2. **Phase 1A — Pure Core & Deterministic Trace Suite ([`core/med_core`](core/med_core/README.md))**: Implement `StreamSpec`, `Encounter`, `SignalIntegrity`, `TimelineAligner`, `ControlInterlock`, `DegradationPolicy`, and `AuditChain` with property-based verification of packet loss, 15 ppm clock drift, and concurrent control interlock races.
 3. **Phase 1B — OTP Runtime & Edge Harness ([`core/med_rtc`](core/med_rtc/README.md))**: Wire `ExWebRTC`, `ExSCTP`, `Membrane`, and `Rel` under `EncounterSupervisor` plus the `pion/webrtc` PhysioNet fixture publisher.
 4. **Phase 1C — Clinical OSS Adapters ([`core/med_adapters`](core/med_adapters/README.md))**: Load `open-stethoscope` ONNX into `Ortex`/`Nx`, supervise `NeuroKit2` + `wfdb-python` behind length-prefixed binary Erlang `Port`s, and wire `HAPI FHIR` export.
-5. **Phase 1D — LiveView Clinical Workbench & First Vertical Slice ([`core/med_web`](core/med_web/README.md), [`apps/pulse_scope`](apps/pulse_scope/README.md))**: Deliver `<.med_session />`, `<.signal_integrity_badge />`, `<.sync_waveform_canvas />`, `<.control_interlock_bar />`, WebAudio `AudioWorklet` Bell/Diaphragm filtering, and `ex_webrtc_dashboard` telemetry for `PulseScope` (#1 + #4).
+5. **Phase 1D — LiveView Clinical Workbench & First Vertical Slice ([`core/med_web`](core/med_web/README.md), [`apps/med_pulse`](apps/med_pulse/README.md))**: Deliver `<.med_session />`, `<.signal_integrity_badge />`, `<.sync_waveform_canvas />`, `<.control_interlock_bar />`, WebAudio `AudioWorklet` Bell/Diaphragm filtering, and `ex_webrtc_dashboard` telemetry for `MedPulse` (#1 + #4).
 
 ---
 

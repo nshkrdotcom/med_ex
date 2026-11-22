@@ -152,7 +152,7 @@ defmodule MedEx.Workspace.MixProject do
         {"core/med_rtc/README.md", filename: "med_rtc", title: "MedRTC"},
         {"core/med_adapters/README.md", filename: "med_adapters", title: "MedAdapters"},
         {"core/med_web/README.md", filename: "med_web", title: "MedWeb"},
-        {"apps/pulse_scope/README.md", filename: "pulse_scope", title: "PulseScope"}
+        {"apps/med_pulse/README.md", filename: "med_pulse", title: "MedPulse"}
       ],
       groups_for_extras: [
         Overview: ["README.md", "CHANGELOG.md", "LICENSE"],
@@ -163,7 +163,7 @@ defmodule MedEx.Workspace.MixProject do
           "core/med_web/README.md"
         ],
         "Reference Apps": [
-          "apps/pulse_scope/README.md"
+          "apps/med_pulse/README.md"
         ]
       ]
     ]

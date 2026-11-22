@@ -70,7 +70,7 @@ Immutable aggregate owning the complete clinical state of a live session:
 
 ### `MedCore.Profile`
 
-Behaviour implemented by product apps (such as [`apps/pulse_scope`](../../apps/pulse_scope/README.md)) to compose clinical transport archetypes without touching low-level WebRTC plumbing:
+Behaviour implemented by product apps (such as [`apps/med_pulse`](../../apps/med_pulse/README.md)) to compose clinical transport archetypes without touching low-level WebRTC plumbing:
 
 - `topology/0` — Declares `:server_terminated`, `:sfu`, or `:hybrid`
 - `streams/0` — Returns `[%MedCore.StreamSpec{}]`
@@ -123,4 +123,4 @@ When implementation begins, `med_core` will be verified via deterministic trace 
 - [MedRTC (OTP Effect Runtime)](../med_rtc/README.md)
 - [MedAdapters (Clinical OSS Ports)](../med_adapters/README.md)
 - [MedWeb (LiveView Workbench)](../med_web/README.md)
-- [PulseScope (First Reference App)](../../apps/pulse_scope/README.md)
+- [MedPulse (First Reference App)](../../apps/med_pulse/README.md)

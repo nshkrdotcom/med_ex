@@ -1,4 +1,4 @@
-defmodule PulseScope.MixProject do
+defmodule MedPulse.MixProject do
   use Mix.Project
 
   @version "0.1.0"
@@ -6,7 +6,7 @@ defmodule PulseScope.MixProject do
 
   def project do
     [
-      app: :pulse_scope,
+      app: :med_pulse,
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
@@ -14,7 +14,7 @@ defmodule PulseScope.MixProject do
       dialyzer: dialyzer(),
       docs: docs(),
       package: package(),
-      name: "PulseScope",
+      name: "MedPulse",
       description:
         "First MedEx vertical-slice clinical application combining Use Case #1 (Remote Digital Stethoscope) and Use Case #4 (Remote Patient Monitoring: ECG/SpO2).",
       source_url: @source_url,
@@ -50,7 +50,7 @@ defmodule PulseScope.MixProject do
   defp docs do
     [
       main: "readme",
-      logo: "assets/pulse_scope.svg",
+      logo: "assets/med_pulse.svg",
       assets: %{"assets" => "assets"},
       source_ref: "main",
       source_url: @source_url,
@@ -64,12 +64,12 @@ defmodule PulseScope.MixProject do
 
   defp package do
     [
-      name: "pulse_scope",
+      name: "med_pulse",
       licenses: ["MIT"],
       maintainers: ["nshkrdotcom"],
       links: %{
         "GitHub" => @source_url,
-        "Changelog" => "#{@source_url}/blob/main/apps/pulse_scope/CHANGELOG.md"
+        "Changelog" => "#{@source_url}/blob/main/apps/med_pulse/CHANGELOG.md"
       },
       files: ~w(lib assets mix.exs .formatter.exs README.md CHANGELOG.md LICENSE)
     ]

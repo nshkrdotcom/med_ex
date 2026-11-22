@@ -82,4 +82,4 @@ core/med_adapters/lib/
 - [MedCore (Pure Functional Core)](../med_core/README.md)
 - [MedRTC (OTP Effect Runtime)](../med_rtc/README.md)
 - [MedWeb (LiveView Workbench)](../med_web/README.md)
-- [PulseScope (First Reference App)](../../apps/pulse_scope/README.md)
+- [MedPulse (First Reference App)](../../apps/med_pulse/README.md)

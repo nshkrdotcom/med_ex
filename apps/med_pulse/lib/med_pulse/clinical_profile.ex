@@ -1,6 +1,6 @@
-defmodule PulseScope.ClinicalProfile do
+defmodule MedPulse.ClinicalProfile do
   @moduledoc """
-  Declarative `MedCore.Profile` skeleton for PulseScope (#1 Stethoscope + #4 RPM).
+  Declarative `MedCore.Profile` skeleton for MedPulse (#1 Stethoscope + #4 RPM).
   """
 
   @behaviour MedCore.Profile
@@ -31,7 +31,7 @@ defmodule PulseScope.ClinicalProfile do
         id: "vitals_telemetry",
         archetype: :telemetry,
         modality: :ecg,
-        codec_profile: {:binary_frame, PulseScope.VitalsFrame},
+        codec_profile: {:binary_frame, MedPulse.VitalsFrame},
         priority: 1,
         integrity_policy: %{
           require_dsp_disabled: false,
@@ -45,7 +45,7 @@ defmodule PulseScope.ClinicalProfile do
         id: "device_control",
         archetype: :control,
         modality: :stethoscope,
-        codec_profile: {:cbor_signed, PulseScope.ControlSchema},
+        codec_profile: {:cbor_signed, MedPulse.ControlSchema},
         priority: 0,
         integrity_policy: %{
           require_dsp_disabled: false,
@@ -75,11 +75,11 @@ defmodule PulseScope.ClinicalProfile do
   @impl true
   def inference_hooks do
     [
-      {"auscultation", PulseScope.Adapters.OpenStethoscopeOrtex, window_ms: 8_000, hop_ms: 2_000},
-      {"vitals_telemetry", PulseScope.Adapters.NeuroKitWorker, window_ms: 5_000, hop_ms: 1_000}
+      {"auscultation", MedPulse.Adapters.OpenStethoscopeOrtex, window_ms: 8_000, hop_ms: 2_000},
+      {"vitals_telemetry", MedPulse.Adapters.NeuroKitWorker, window_ms: 5_000, hop_ms: 1_000}
     ]
   end
 
   @impl true
-  def control_policy, do: PulseScope.ControlPolicy
+  def control_policy, do: MedPulse.ControlPolicy
 end

@@ -5,7 +5,7 @@
   ],
   classify: [
     tooling: ["."],
-    proofs: ["apps/pulse_scope"]
+    proofs: ["apps/med_pulse"]
   ],
   publication: [
     internal_only: ["."]
