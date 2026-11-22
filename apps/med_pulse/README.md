@@ -13,83 +13,41 @@
 
 # MedPulse
 
-`med_pulse` is the **first vertical-slice clinical product application** built on top of the [MedEx](../../README.md) poncho framework.
+`med_pulse` is the **minimal standalone SDK reference application** inside the [MedEx](../../README.md) workspace.
 
-It implements Use Case **#1 (Remote Digital Stethoscope)** and Use Case **#4 (Remote Patient Monitoring: Live ECG & SpO₂)** inside one synchronized live session—exercising **3 of the 4 Clinical Transport Archetypes** simultaneously (`A: Diagnostic Signal`, `B: Lossless Telemetry & Audited Control`, `C: Interactive Opus Talkback`).
-
----
-
-## Why #1 + #4 Is the First Vertical Slice
-
-1. **High architectural coverage**: Immediately proves `med_core`, `med_rtc`, `med_adapters`, and `med_web` across diagnostic audio, lossless sensor framing, audited device control, and real-time voice talkback—making expansion to Use Case **#3 (Connected Telehealth)** a single `StreamSpec` + topology change (`:server_terminated` → `:hybrid`).
-2. **Testable Day-1 with real clinical data**: Streams real PhysioNet-2022 CirCor heart sounds (`open-stethoscope`) and MIT-BIH ECG records (`wfdb-python`) over live WebRTC + SCTP via a browser simulator or `pion/webrtc` Go edge binary—no custom FDA hardware required to validate the full stack.
-3. **Clean, high-leverage OSS composition**:
-   - `ex_webrtc` + `ex_sctp` + `membrane_core` / `membrane_opus_plugin` / `membrane_wav_plugin`
-   - `elixir-nx/ortex` + `NoahIsARider/open-stethoscope` (1.6 MB ONNX heart murmur & position-QC in-BEAM)
-   - `neuropsychology/NeuroKit` + `MIT-LCP/wfdb-python` (supervised Python Port for 5s ECG/PPG windows & WFDB formatting)
-   - `pion/webrtc` (Go bedside/fixture edge gateway)
-
-*(When composed into an EHR/encounter workflow, durable observation persistence, transactional outbox retries, and FHIR delivery are handled by `med_fabric`'s `mf_store` and `mf_interop` rather than duplicated inside `med_pulse`.)*
+Its job is intentionally narrow: prove that an independent consumer can adopt the `:med_ex` public API without adopting `med_fabric`'s durable encounter workflow, PostgreSQL outbox, or FHIR stack. Full clinical product workflows (connected examination, clinician review/acceptance, and full stethoscope products) live in `med_fabric`.
 
 ---
 
-## Key Engineering Decision: 4 kHz PCM-over-SCTP for Auscultation
+## First Reference Slice (Before Hardware-Specific Transport Optimization)
 
-Heart and lung sounds live almost entirely between **20 Hz and 2,000 Hz** (Nyquist satisfied cleanly at **4,000 Hz**). Uncompressed 16-bit PCM at 4 kHz requires only **64 kbps** (`4000 * 2 * 8`).
+The first executable proof in `med_pulse` exercises the canonical reconnect & duplicate-delivery contract defined in [`core/med_core/README.md`](../../core/med_core/README.md):
 
-Transporting auscultation audio as **20 ms PCM chunks (80 samples = 160 bytes) over a WebRTC SCTP DataChannel (`ex_sctp`)** alongside a standard **Opus RTP track** for clinician–patient talkback eliminates the hardest browser WebRTC pitfall:
+1. Open a **two-browser WebRTC talkback session** (`session_id`) with a deterministic simulated capture (`acquisition_id`, `encounter_ref: nil`).
+2. Drop the listener's live preview (`connection_id: "conn_a"`) while simulated capture continues independently.
+3. Rejoin the browser to the same `session_id` (`connection_id: "conn_b"`).
+4. Deliver `capture_completed` twice and confirm the reference UI renders:
+   - the live preview interruption interval separately from
+   - the recording artifact's independently measured continuity (`:observed_continuous | :observed_gap | :unknown`), and
+   - one deduplicated finalized capture.
 
-- The human talkback track keeps browser **AEC/NS/AGC turned ON** for natural conversation.
-- The diagnostic auscultation path bypasses browser voice DSP and lossy psychoacoustic compression entirely, feeding a dedicated client-side WebAudio `AudioWorklet` with non-destructive **Bell / Diaphragm / Wideband** biquad filters.
-
----
-
-## Declarative `MedCore.Profile` Composition
-
-`MedPulse.ClinicalProfile` implements `@behaviour MedCore.Profile` with zero boilerplate WebRTC plumbing:
-
-| Stream ID | Archetype | Modality | Codec / Framing | Priority | Key Policy Invariant |
-| --- | --- | --- | --- | --- | --- |
-| `"device_control"` | `:control` | `:stethoscope` | `{:cbor_signed, MedPulse.ControlSchema}` | `0` | Clinician RBAC + exclusive lease + 2s ACK deadman timeout |
-| `"vitals_telemetry"` | `:telemetry` | `:ecg` | `{:binary_frame, MedPulse.VitalsFrame}` | `1` | `0.0%` loss tolerance (exact monotonic `sample_seq` gap detection), 250 Hz ECG + 50 Hz SpO₂ |
-| `"auscultation"` | `:diagnostic_audio` | `:stethoscope` | `{:pcm_s16le, 4_000}` | `2` | `require_dsp_disabled: true`, `allow_plc: false`, `max_packet_loss_pct: 0.05` |
-| `"talkback_voice"` | `:interactive_media` | `:voice` | `{:opus, bitrate: 32_000, fec: true, dtx: true}` | `3` | Adaptive speech Opus with AEC/NS/AGC enabled |
-
-### Configured Inference Hooks
-
-- `"auscultation"` → `MedPulse.Adapters.OpenStethoscopeOrtex` (`window_ms: 8_000, hop_ms: 2_000`) — gated by `integrity_state == :validated`
-- `"vitals_telemetry"` → `MedPulse.Adapters.NeuroKitWorker` (`window_ms: 5_000, hop_ms: 1_000`) — R-peaks, HR, HRV, SQI
+Hardware-specific diagnostic transport choices (such as 4 kHz uncompressed PCM over `ex_sctp` DataChannels for auscultation, or 250 Hz ECG framing + `Ortex`/`NeuroKit2` hooks) are sketched in `MedPulse.ClinicalProfile` as a target multi-stream profile and will be exercised in focused transport checks once a concrete device path requires them.
 
 ---
 
-## End-to-End Live Session Dataflow
+## Target Multi-Stream Profile Skeleton (`MedPulse.ClinicalProfile`)
 
-1. **Session Init**: Clinician opens `/sessions/:id` (Phoenix LiveView). `MedRTC` boots a `SessionSupervisor` parameterized by `MedPulse.ClinicalProfile` (with optional `encounter_ref`) and issues short-lived DTLS/signaling credentials.
-2. **Edge Connect**: Bedside gateway (`pion/webrtc` Go binary or browser fixture streamer) connects over WebRTC (using `rel` TURN behind hospital NATs), opens the Opus RTP track + 3 SCTP DataChannels (`auscultation`, `vitals_telemetry`, `device_control`), and sends a `StreamAttestation` frame certifying hardware sample rates and DSP bypass.
-3. **Hot-Path Processing (BEAM)**:
-   - `vitals_telemetry` binary frames (`sample_seq :: 64, device_ts_us :: 64, ecg_i16[], spo2_u16`) pass through `MedCore.TimelineAligner` for zero-gap verification, broadcast to LiveView Canvas via `PubSub`, and analyze in 5s overlapping windows via `NeuroKit2`.
-   - `auscultation` 20 ms PCM chunks forward to the clinician's `AudioWorklet`, tee into a `membrane_wav_plugin` lossless capture buffer (surviving clinician browser reconnects), and score every 2s via `Ortex` (`open-stethoscope` ONNX).
-   - `talkback_voice` Opus RTP flows bidirectionally through `ex_webrtc` with sub-150 ms latency.
-4. **Audited Control & Capture Completion**: Clinician clicks **"Capture 10s Mitral Clip + Switch Filter: Bell"** → `MedCore.ControlInterlock` verifies role/lease → appends hash-chained audit record → sends signed CBOR command over `device_control` SCTP → receives device ACK → finalizes `.wav` + WFDB artifact with an independent `{:recording_artifact, acquisition_id}` continuity verdict.
-
----
-
-## Planned Module Layout
-
-```text
-apps/med_pulse/lib/
-├── med_pulse.ex
-└── med_pulse/
-    ├── clinical_profile.ex
-    ├── vitals_frame.ex
-    ├── control_schema.ex
-    └── control_policy.ex
-```
+| Stream ID | Archetype | Modality | Target Codec / Framing | Priority |
+| --- | --- | --- | --- | --- |
+| `"device_control"` | `:control` | `:stethoscope` | `{:cbor_signed, MedPulse.ControlSchema}` | `0` |
+| `"vitals_telemetry"` | `:telemetry` | `:ecg` | `{:binary_frame, MedPulse.VitalsFrame}` | `1` |
+| `"auscultation"` | `:diagnostic_audio` | `:stethoscope` | `{:pcm_s16le, 4_000}` | `2` |
+| `"talkback_voice"` | `:interactive_media` | `:voice` | `{:opus, bitrate: 32_000, fec: true, dtx: true}` | `3` |
 
 ## Related Packages
 
 - [MedEx Workspace Overview](../../README.md)
 - [MedCore (Pure Functional Core)](../../core/med_core/README.md)
 - [MedRTC (OTP Effect Runtime)](../../core/med_rtc/README.md)
-- [MedAdapters (Clinical Signal & Media Ports)](../../core/med_adapters/README.md)
 - [MedWeb (LiveView Workbench)](../../core/med_web/README.md)
+- [MedAdapters (Opt-In Signal & Media Ports)](../../core/med_adapters/README.md)

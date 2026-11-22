@@ -8,7 +8,7 @@
     proofs: ["apps/med_pulse"]
   ],
   publication: [
-    internal_only: ["."]
+    internal_only: [".", "core/med_adapters"]
   ],
   artifacts: [
     med_ex: [
@@ -16,7 +16,6 @@
       roots: [
         "core/med_core",
         "core/med_rtc",
-        "core/med_adapters",
         "core/med_web"
       ],
       package: [
@@ -25,7 +24,7 @@
         version: "0.1.0",
         elixir: "~> 1.18",
         description:
-          "Clinical-grade Elixir/Phoenix/LiveView/WebRTC/Opus framework for connected medical devices",
+          "Browser-capable clinical WebRTC/Opus/SCTP live-session and signal-integrity SDK for connected medical devices",
         licenses: ["MIT"],
         maintainers: ["nshkrdotcom"],
         links: %{"GitHub" => "https://github.com/nshkrdotcom/med_ex"},

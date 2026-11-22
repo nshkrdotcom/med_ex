@@ -15,9 +15,9 @@
 
 `med_adapters` defines the **behaviour-driven adapter contracts and isolated real-time signal, AI, and external media integrations** for the [MedEx](../../README.md) framework.
 
-Rather than leaking NIFs, Python subprocesses, or external SFU/voice-AI protocols into `med_core` or `med_rtc`, every live compute or external media capability sits behind a narrow Elixir `@behaviour` with explicit timeouts, fault isolation, and SaMD advisory metadata.
-
-> **Ownership Boundary**: `med_adapters` is scoped strictly to **real-time signal/AI compute and external media planes**. Durable clinical observation persistence, transactional outbox retry, and HL7 FHIR (plus future DICOM) delivery live outside `med_ex` in `med_fabric` (`mf_store` and `mf_interop`) so clinical delivery has a single authoritative implementation.
+> **Packaging & Ownership Boundary**:
+> - `med_adapters` is currently an **opt-in source project excluded from the default welded `:med_ex` SDK projection** (`internal_only` in `build_support/weld.exs`). It is intentionally **not** separately published yet: once a concrete adapter ships, we will verify that a clean consumer can combine it with the published `:med_ex` SDK through `:med_ex`'s public API without pulling duplicate `MedCore` modules.
+> - `med_adapters` is scoped strictly to **real-time signal/AI compute and external media planes**. Durable clinical observation persistence, transactional outbox retry, and HL7 FHIR (plus future DICOM) delivery live in `med_fabric` (`mf_store` and `mf_interop`).
 
 ---
 
@@ -75,4 +75,4 @@ core/med_adapters/lib/
 - [MedCore (Pure Functional Core)](../med_core/README.md)
 - [MedRTC (OTP Effect Runtime)](../med_rtc/README.md)
 - [MedWeb (LiveView Workbench)](../med_web/README.md)
-- [MedPulse (First Reference App)](../../apps/med_pulse/README.md)
+- [MedPulse (Minimal SDK Reference App)](../../apps/med_pulse/README.md)
