@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+[[ $# == 0 || ( $# == 1 && "$1" == "--fixture" ) ]] || { echo "Usage: $0 [--fixture]" >&2; exit 2; }
+
 for tool in git curl tar make cc mix elixir erl; do
   command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 1; }
 done

@@ -46,7 +46,6 @@ defmodule MedRTC.PreviewTest do
     pcm = :binary.copy(<<0, 0>>, 320)
     wav_path = Path.join(dir, "input.wav")
     preview_path = Path.join(dir, "input.opus")
-    artifact_path = Path.join(dir, "recording.wav")
     File.write!(wav_path, WavCapture.encode_pcm16_wav(pcm, 4_000))
 
     {:ok, writer} = ExWebRTC.Media.Ogg.Writer.open(preview_path)
@@ -62,7 +61,7 @@ defmodule MedRTC.PreviewTest do
 
     task =
       Task.async(fn ->
-        WavCapture.record(wav_path, preview_path, artifact_path,
+        WavCapture.record(wav_path, preview_path, dir,
           acquisition_id: "capture",
           on_preview_frame: fn _, _ ->
             send(test_pid, :preview_entered)
@@ -73,8 +72,30 @@ defmodule MedRTC.PreviewTest do
 
     assert_receive :preview_entered, 2_000
 
-    assert {:ok, %{sample_count: 320, duration_ms: 80, continuity: :observed_continuous}} =
+    assert {:ok,
+            %{
+              artifact_path: artifact_path,
+              sample_count: 320,
+              duration_ms: 80,
+              continuity: :observed_continuous
+            }} =
              Task.await(task, 500)
+
+    owner =
+      spawn(fn ->
+        WavCapture.record(wav_path, preview_path, dir,
+          acquisition_id: "cancel",
+          on_preview_frame: fn _, _ ->
+            send(test_pid, {:worker, self()})
+            Process.sleep(:infinity)
+          end
+        )
+      end)
+
+    assert_receive {:worker, worker}, 2_000
+    monitor = Process.monitor(worker)
+    Process.exit(owner, :kill)
+    assert_receive {:DOWN, ^monitor, :process, ^worker, _}
 
     assert {:ok, %{pcm: ^pcm}} = artifact_path |> File.read!() |> WavCapture.parse_wav()
   end

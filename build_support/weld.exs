@@ -13,7 +13,6 @@
     med_ex: [
       mode: :monolith,
       roots: [
-        "core/med_core",
         "core/med_rtc",
         "core/med_web"
       ],

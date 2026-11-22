@@ -85,18 +85,19 @@ defmodule MedRTC.WavCapture do
   to receive `(frame_index, opus_payload)` from the preview worker.
   """
   @spec record(Path.t(), Path.t(), Path.t(), keyword()) :: {:ok, map()} | {:error, term()}
-  def record(wav_path, opus_path, artifact_path, opts) do
+  def record(wav_path, opus_path, artifact_dir, opts) do
     acquisition_id = Keyword.fetch!(opts, :acquisition_id)
     started_at_ms = Keyword.get(opts, :started_at_ms, 0)
 
     with {:ok, input} <- File.read(wav_path),
          {:ok, wav} <- parse_wav(input),
          :ok <- pace_recording(wav.duration_ms, opus_path, opts[:on_preview_frame]),
-         :ok <- finalize_wav(artifact_path, wav) do
+         {:ok, artifact_path, file_digest} <- finalize_wav(artifact_dir, wav) do
       {:ok,
        %{
          acquisition_id: acquisition_id,
          artifact_path: artifact_path,
+         file_sha256: file_digest,
          artifact_sha256: :crypto.hash(:sha256, wav.pcm) |> Base.encode16(case: :lower),
          sample_count: wav.sample_count,
          sample_rate_hz: wav.sample_rate_hz,
@@ -120,16 +121,36 @@ defmodule MedRTC.WavCapture do
 
       wait_until(start + duration_ms)
     after
-      if preview, do: Process.exit(preview, :kill)
+      if preview do
+        Process.unlink(preview)
+        send(preview, :stop)
+        ref = Process.monitor(preview)
+
+        receive do
+          {:DOWN, ^ref, :process, _, _} -> :ok
+        after
+          20 -> Process.exit(preview, :kill)
+        end
+
+        Process.demonitor(ref, [:flush])
+      end
     end
   end
 
   defp start_preview(_path, nil), do: nil
 
   defp start_preview(path, on_frame) when is_function(on_frame, 2) do
-    spawn(fn ->
+    spawn_link(fn ->
       with {:ok, reader} <- Reader.open(path) do
-        preview_frames(reader, 0, on_frame)
+        try do
+          preview_frames(reader, 0, on_frame)
+        rescue
+          _ -> :ok
+        catch
+          _, _ -> :ok
+        after
+          Reader.close(reader)
+        end
       end
     end)
   end
@@ -144,13 +165,16 @@ defmodule MedRTC.WavCapture do
 
   defp preview_frames(reader, index, on_frame) do
     receive do
+      :stop ->
+        :ok
+
       {:preview_frame, target} ->
         with {:ok, packet, reader} <- read_preview_frame(reader, index, target) do
           on_frame.(target, packet)
           preview_frames(reader, target + 1, on_frame)
         end
     after
-      5_000 -> Reader.close(reader)
+      5_000 -> :ok
     end
   end
 
@@ -166,12 +190,28 @@ defmodule MedRTC.WavCapture do
     Process.sleep(max(deadline - System.monotonic_time(:millisecond), 0))
   end
 
-  defp finalize_wav(path, wav) do
+  defp finalize_wav(dir, wav) do
+    bytes = encode_pcm16_wav(wav.pcm, wav.sample_rate_hz)
+    digest = :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
+    path = Path.join(dir, digest <> ".wav")
     temp = path <> ".part-" <> Integer.to_string(System.unique_integer([:positive]))
 
     try do
-      with :ok <- File.write(temp, encode_pcm16_wav(wav.pcm, wav.sample_rate_hz)),
-           do: File.rename(temp, path)
+      with :ok <- File.write(temp, bytes, [:exclusive, :sync]) do
+        case File.ln(temp, path) do
+          :ok ->
+            {:ok, path, digest}
+
+          {:error, :eexist} ->
+            case File.read(path) do
+              {:ok, ^bytes} -> {:ok, path, digest}
+              _ -> {:error, :artifact_conflict}
+            end
+
+          error ->
+            error
+        end
+      end
     after
       File.rm(temp)
     end
@@ -193,12 +233,24 @@ defmodule MedRTC.WavCapture do
         do: binary_part(tail, 1, byte_size(tail) - 1),
         else: tail
 
+    consume_chunk(id, body, next_rest, fmt, pcm)
+  end
+
+  defp scan_chunks(_other, _fmt, _pcm), do: {:error, :truncated_wav_chunk}
+
+  defp consume_chunk(id, body, next_rest, fmt, pcm) do
     case id do
+      "fmt " when not is_nil(fmt) ->
+        {:error, :duplicate_format}
+
       "fmt " ->
         case parse_fmt(body) do
           {:ok, parsed_fmt} -> scan_chunks(next_rest, parsed_fmt, pcm)
           error -> error
         end
+
+      "data" when not is_nil(pcm) ->
+        {:error, :duplicate_data}
 
       "data" ->
         scan_chunks(next_rest, fmt, body)
@@ -207,8 +259,6 @@ defmodule MedRTC.WavCapture do
         scan_chunks(next_rest, fmt, pcm)
     end
   end
-
-  defp scan_chunks(_other, _fmt, _pcm), do: {:error, :truncated_wav_chunk}
 
   defp parse_fmt(
          <<1::little-16, 1::little-16, sample_rate_hz::little-32, byte_rate::little-32,
