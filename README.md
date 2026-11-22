@@ -45,17 +45,9 @@ The repository is a non-umbrella Elixir poncho managed with Blitz (parallel chec
 
 ---
 
-## Walkthrough: Reconnect & Independent Capture Integrity
+## Capture walkthrough
 
-Trace this path in `core/med_rtc/test/wav_capture_test.exs` and `core/med_core/test/med_core_test.exs`:
-
-1. Start a `MedCore.Session` inside `MedRTC.SessionServer` and connect a real `ExWebRTC` loopback peer (`conn_a`).
-2. Start an acquisition (`acq_1`) and replay a 4 kHz 16-bit mono PCM WAV (such as PhysioNet CirCor DigiScope `2530_AV.wav`) through `MedRTC.WavCapture.replay/2`.
-3. Drop the live WebRTC preview (`conn_a`) mid-capture so 40 preview chunks fail while the lossless collector records all 94,400 samples with an unchanged SHA-256 digest.
-4. Dispatch `capture_completed` (and dispatch it a second time with a new `delivery_id`), then reconnect the clinician on `conn_b`.
-5. `MedCore.Session` records one closed preview interruption on `{:preview_stream, "auscultation"}`, marks `{:recording_artifact, "acq_1"}` as `:observed_continuous`, ignores late disconnects from replaced `conn_a`, deduplicates identical completion deliveries, and flags conflicting digests as `:conflict`.
-
----
+`MedRTC.Preview` negotiates receive-only browser audio and sends Opus RTP. `MedRTC.WavCapture.record/4` paces the CirCor recording, feeds its preview independently, and finalizes the original PCM with a digest. The pure session reducer checks acquisition identity and protects completed captures from conflicting redelivery.
 
 ## Commands & Verification
 
@@ -79,7 +71,6 @@ mix weld.release.prepare
 mix weld.release.track --push
 
 # Optional: download real PhysioNet CirCor 2530_AV.wav (gitignored) & verify PCM SHA-256 via uv
-./fixtures/circor/prepare.sh
 bash fixtures/circor/prepare.sh fixtures/circor
 ```
 
