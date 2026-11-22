@@ -2,7 +2,9 @@ MedCore.Profile.md
 MedCore.Session.md
 MedCore.StreamSpec.md
 MedCore.md
+MedRTC.SessionServer.md
 MedRTC.md
+MedWeb.Signaling.md
 MedWeb.md
 api-reference.md
 changelog.md

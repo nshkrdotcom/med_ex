@@ -1,13 +1,12 @@
 # `MedCore.Session`
 [🔗](https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L1)
 
-Immutable live clinical transport session aggregate and pure reducer seam.
+Immutable live clinical transport session aggregate and pure reducer (`step/2`).
 
-A `Session` owns live participants, WebRTC connection attempts, signal
-integrity state, device capture continuity, and control interlocks. It can
-outlast individual browser peer connections (`connection_id`) and supports
-standalone capture (`acquisition_id`) with or without an external clinical
-`encounter_ref`.
+A `Session` owns live participants, WebRTC connection attempts (`connection_id`),
+transient preview interruptions, independent recording continuity, and device
+acquisitions (`acquisition_id`). It can outlast individual browser reconnects
+and supports standalone capture with `encounter_ref: nil` and no connected peer.
 
 # `acquisition_id`
 
@@ -37,10 +36,56 @@ standalone capture (`acquisition_id`) with or without an external clinical
   | :critical_telemetry_only
 ```
 
+# `effect`
+
+```elixir
+@type effect() ::
+  {:emit_fact, atom(), map()}
+  | {:publish_ui, atom(), map()}
+  | {:start_lossless_capture, String.t(), acquisition_id()}
+  | {:append_audit_log, map()}
+```
+
 # `encounter_ref`
 
 ```elixir
 @type encounter_ref() :: String.t() | nil
+```
+
+# `event`
+
+```elixir
+@type event() ::
+  {:peer_connected,
+   %{
+     :peer_id =&gt; String.t(),
+     :connection_id =&gt; connection_id(),
+     :role =&gt; atom(),
+     :t_ms =&gt; non_neg_integer(),
+     optional(:stream_id) =&gt; String.t()
+   }}
+  | {:peer_disconnected,
+     %{
+       :peer_id =&gt; String.t(),
+       :connection_id =&gt; connection_id(),
+       :t_ms =&gt; non_neg_integer(),
+       optional(:stream_id) =&gt; String.t()
+     }}
+  | {:acquisition_started,
+     %{
+       acquisition_id: acquisition_id(),
+       stream_id: String.t(),
+       t_ms: non_neg_integer()
+     }}
+  | {:capture_completed,
+     %{
+       acquisition_id: acquisition_id(),
+       artifact_sha256: String.t(),
+       interval_ms: {non_neg_integer(), non_neg_integer()},
+       continuity: continuity_state(),
+       delivery_id: String.t(),
+       t_ms: non_neg_integer()
+     }}
 ```
 
 # `integrity_report`
@@ -83,12 +128,30 @@ standalone capture (`acquisition_id`) with or without an external clinical
   degradation_level: degradation_level(),
   encounter_ref: encounter_ref(),
   id: session_id(),
+  integrity_reports: %{required(integrity_subject()) =&gt; integrity_report()},
   integrity_state: %{required(integrity_subject()) =&gt; integrity_status()},
   participants: %{required(String.t()) =&gt; map()},
+  preview_interruptions: [map()],
   streams: %{required(String.t()) =&gt; MedCore.StreamSpec.t()},
   topology: MedCore.Profile.topology()
 }
 ```
+
+# `new`
+
+```elixir
+@spec new(keyword()) :: t()
+```
+
+Constructs a new live clinical session. `encounter_ref` is optional (`nil` for standalone capture).
+
+# `step`
+
+```elixir
+@spec step(t(), event()) :: {t(), [effect()]}
+```
+
+Pure state transition function `{next_session, effects} = step(session, event)`.
 
 ---
 

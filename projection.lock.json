@@ -89,8 +89,11 @@
       "lib/med_core/session.ex",
       "lib/med_core/stream_spec.ex",
       "lib/med_rtc.ex",
+      "lib/med_rtc/session_server.ex",
       "lib/med_web.ex",
+      "lib/med_web/signaling.ex",
       "mix.exs",
+      "priv/static/med_web/session_hook.js",
       "test/core_med_core/med_core_test.exs",
       "test/core_med_rtc/med_rtc_test.exs",
       "test/core_med_web/med_web_test.exs",
@@ -109,10 +112,11 @@
       "config",
       "lib",
       "mix.exs",
+      "priv",
       "projection.lock.json"
     ],
-    "git_revision": "dec4431657ea08e4d80c0697c6b51321283d7e2e",
-    "tree_digest": "8c1846f8f5968843775f82b2bac89cd0b16217f962bcd64e2bd4df296265bfb1"
+    "git_revision": "9058e841b4877717e7612c1af5df9cca1b92482e",
+    "tree_digest": "3cf192eaeaa2572129b22a50958866399c58e5bdcfc79e0b1a77081e928676f6"
   },
   "manifest": {
     "path": "/home/home/p/g/n/med_ex/build_support/weld.exs",
@@ -152,7 +156,7 @@
       "env": "test",
       "status": "ok",
       "task": "selected_tests_baseline",
-      "test_count": 3,
+      "test_count": 5,
       "project_test_counts": [
         {
           "app": "med_web",
@@ -166,7 +170,7 @@
         },
         {
           "app": "med_core",
-          "test_count": 1,
+          "test_count": 3,
           "project_id": "core/med_core"
         }
       ]
@@ -186,7 +190,7 @@
       "status": "ok",
       "task": "test",
       "failure_count": 0,
-      "test_count": 3
+      "test_count": 5
     },
     {
       "env": "dev",

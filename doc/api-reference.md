@@ -6,10 +6,16 @@
 - [MedCore.Profile](MedCore.Profile.md): Behaviour implemented by clinical product applications to compose MedEx
 transport archetypes, streams, inference hooks, and device control policies.
 
-- [MedCore.Session](MedCore.Session.md): Immutable live clinical transport session aggregate and pure reducer seam.
+- [MedCore.Session](MedCore.Session.md): Immutable live clinical transport session aggregate and pure reducer (`step/2`).
 - [MedCore.StreamSpec](MedCore.StreamSpec.md): Declarative contract for a clinical media, telemetry, or device control stream.
 
 - [MedRTC](MedRTC.md): OTP effect shell and WebRTC/Opus/SCTP runtime boundary for MedEx.
+- [MedRTC.SessionServer](MedRTC.SessionServer.md): OTP `GenServer` owning a live `%MedCore.Session{}` and dispatching emitted
+producer facts to registered subscribers.
+
 - [MedWeb](MedWeb.md): Reusable Phoenix signaling, clinical LiveComponents, and WebAudio workbench
 primitives for MedEx applications.
+
+- [MedWeb.Signaling](MedWeb.Signaling.md): Browser signaling message normalization and reconnect handshake contract for
+MedEx live sessions.
 

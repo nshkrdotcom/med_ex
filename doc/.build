@@ -3,7 +3,9 @@ MedCore.Profile.html
 MedCore.Session.html
 MedCore.StreamSpec.html
 MedCore.html
+MedRTC.SessionServer.html
 MedRTC.html
+MedWeb.Signaling.html
 MedWeb.html
 api-reference.html
 assets/logo.svg
@@ -16,8 +18,8 @@ dist/lato-latin-700-normal-2XVSBPG4.woff2
 dist/lato-latin-ext-400-normal-N27NCBWW.woff2
 dist/lato-latin-ext-700-normal-Q2L5DVMW.woff2
 dist/remixicon-ZWU5GQ4X.woff2
-dist/search_data-84DF7F61.js
-dist/sidebar_items-62C652AC.js
+dist/search_data-04E06AA2.js
+dist/sidebar_items-41A241DF.js
 index.html
 license.html
 readme.html

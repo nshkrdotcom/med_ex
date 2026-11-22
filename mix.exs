@@ -55,6 +55,7 @@ defmodule MedEx.MixProject do
         "config",
         "lib",
         "mix.exs",
+        "priv",
         "projection.lock.json"
       ]
     ]
