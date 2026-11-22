@@ -4,11 +4,10 @@
     project_globs: ["core/*", "apps/*"]
   ],
   classify: [
-    tooling: ["."],
-    proofs: ["apps/med_pulse"]
+    tooling: ["."]
   ],
   publication: [
-    internal_only: [".", "core/med_adapters"]
+    internal_only: ["."]
   ],
   artifacts: [
     med_ex: [

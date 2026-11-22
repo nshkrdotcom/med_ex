@@ -25,8 +25,6 @@ The repository is a non-umbrella Elixir poncho managed with Blitz (parallel chec
 - Pure live-session state transitions (`MedCore.Session`) with a four-level identity model (`encounter_ref`, `session_id`, `connection_id`, `acquisition_id`) and separate integrity tracking for `{:preview_stream, stream_id}` vs. `{:recording_artifact, acquisition_id}`.
 - OTP runtime and WebRTC/audio transport (`MedRTC.Preview` over ExWebRTC and `MedRTC.WavCapture`).
 - Reusable signaling event helpers and the shipped browser WebRTC JavaScript hook (`MedWeb.Signaling`, `priv/static/med_web/session_hook.js`).
-- Opt-in real-time signal/inference contracts (`MedAdapters.Inference`, excluded from the default `:med_ex` projection).
-- A minimal standalone reference app (`apps/med_pulse`) proving `:med_ex` works without `encounter_ref` or `med_fabric`.
 
 **`med_ex` does not own:**
 - Durable clinical encounters, clinician observation acceptance, transactional outbox storage, HL7 FHIR delivery, or production Phoenix endpoints/LiveViews/signaling channels. Those live in the companion `med_fabric` workspace (`med_fabric/apps/exam` consumes `:med_ex` one-way).
@@ -40,8 +38,6 @@ The repository is a non-umbrella Elixir poncho managed with Blitz (parallel chec
 | **MedCore** | `core/med_core` | Yes | `MedCore.Session`, `MedCore.StreamSpec`, `MedCore.Profile` | [core/med_core/README.md](core/med_core/README.md) |
 | **MedRTC** | `core/med_rtc` | Yes | `MedRTC.SessionServer`, `MedRTC.PeerLoopback` (`ExWebRTC`), `MedRTC.WavCapture` | [core/med_rtc/README.md](core/med_rtc/README.md) |
 | **MedWeb** | `core/med_web` | Yes | `MedWeb.Signaling`, `priv/static/med_web/session_hook.js` | [core/med_web/README.md](core/med_web/README.md) |
-| **MedAdapters** | `core/med_adapters` | No (opt-in source) | `MedAdapters.Inference` behaviour + advisory envelope | [core/med_adapters/README.md](core/med_adapters/README.md) |
-| **MedPulse** | `apps/med_pulse` | No (proof app) | `MedPulse.ClinicalProfile` + standalone WAV/reconnect test | [apps/med_pulse/README.md](apps/med_pulse/README.md) |
 
 ---
 
@@ -54,7 +50,7 @@ The repository is a non-umbrella Elixir poncho managed with Blitz (parallel chec
 Toolchain pins live in `.tool-versions` (`erlang 29.1.2`, `elixir 1.20.5-otp-29`). Ordinary Elixir, Blitz, and Weld checks run without external services once dependencies are installed.
 
 ```bash
-# Inner dev loop (parallel across all 5 child projects via Blitz)
+# Inner dev loop (parallel across all three child projects via Blitz)
 mix deps.get
 mix monorepo.deps.get
 mix ci
@@ -111,7 +107,7 @@ The reusable browser hook is created by `createMedExHook(Socket)` from the packa
 
 ## Native onboarding on Ubuntu 26.04
 
-Install Git, curl, tar, build-essential, pkg-config, and uv. Activate the exact Erlang and Elixir versions in `.tool-versions` with asdf or mise. Run `./onboard.sh --fixture` to verify the toolchain, fetch Mix dependencies, and prepare the verified WAV and its Opus preview. Then run `mix ci` and `mix weld.verify`. The reference app contains the example profile. Fabric owns the browser integration test.
+Install Git, curl, tar, build-essential, pkg-config, and uv. Activate the exact Erlang and Elixir versions in `.tool-versions` with asdf or mise. Run `./onboard.sh --fixture` to verify the toolchain, fetch Mix dependencies, and prepare the verified WAV and its Opus preview. Then run `mix ci` and `mix weld.verify`. Fabric owns the browser integration test.
 
 ```mermaid
 flowchart LR

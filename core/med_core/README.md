@@ -72,5 +72,3 @@ Dedicated sub-reducers for multi-stream clock alignment (`TimelineAligner`), act
 - [MedEx Workspace](../../README.md)
 - [MedRTC](../med_rtc/README.md)
 - [MedWeb](../med_web/README.md)
-- [MedAdapters](../med_adapters/README.md)
-- [MedPulse](../../apps/med_pulse/README.md)

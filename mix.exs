@@ -150,20 +150,14 @@ defmodule MedEx.Workspace.MixProject do
         {"LICENSE", filename: "license", title: "License"},
         {"core/med_core/README.md", filename: "med_core", title: "MedCore"},
         {"core/med_rtc/README.md", filename: "med_rtc", title: "MedRTC"},
-        {"core/med_adapters/README.md", filename: "med_adapters", title: "MedAdapters"},
-        {"core/med_web/README.md", filename: "med_web", title: "MedWeb"},
-        {"apps/med_pulse/README.md", filename: "med_pulse", title: "MedPulse"}
+        {"core/med_web/README.md", filename: "med_web", title: "MedWeb"}
       ],
       groups_for_extras: [
         Overview: ["README.md", "CHANGELOG.md", "LICENSE"],
         "Core Framework": [
           "core/med_core/README.md",
           "core/med_rtc/README.md",
-          "core/med_adapters/README.md",
           "core/med_web/README.md"
-        ],
-        "Reference Apps": [
-          "apps/med_pulse/README.md"
         ]
       ]
     ]

@@ -68,5 +68,3 @@ Reusable LiveView function components (`<.signal_integrity_badge />`, `<.sync_wa
 - [MedEx Workspace](../../README.md)
 - [MedCore](../med_core/README.md)
 - [MedRTC](../med_rtc/README.md)
-- [MedAdapters](../med_adapters/README.md)
-- [MedPulse](../../apps/med_pulse/README.md)
