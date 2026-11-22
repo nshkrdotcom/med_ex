@@ -19,7 +19,7 @@ defmodule MedEx.MixProject do
   end
 
   def application do
-    [extra_applications: [:crypto, :logger]]
+    [extra_applications: [:logger]]
   end
 
   def elixirc_paths(:test) do

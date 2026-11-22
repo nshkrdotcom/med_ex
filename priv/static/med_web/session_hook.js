@@ -1,19 +1,19 @@
 // The exam supplies its Phoenix Socket constructor and server-issued token.
-export function createMedExHook(Socket) {
+export function createMedExHook({ Socket, socketPath, topic, play, disconnect, reconnect }) {
   return {
     mounted() {
       this.buttons = new AbortController();
       this.audio = this.el.querySelector("audio");
       const options = { signal: this.buttons.signal };
 
-      this.el.querySelector("#preview-play").addEventListener("click", () => {
+      this.el.querySelector(play).addEventListener("click", () => {
         if (this.pc) this.audio.play().catch(() => {});
         else this.connectPreview();
       }, options);
-      this.el.querySelector("#preview-disconnect").addEventListener("click", () => {
+      this.el.querySelector(disconnect).addEventListener("click", () => {
         this.closePreview("disconnected");
       }, options);
-      this.el.querySelector("#preview-reconnect").addEventListener("click", () => {
+      this.el.querySelector(reconnect).addEventListener("click", () => {
         this.connectPreview();
       }, options);
     },
@@ -21,9 +21,9 @@ export function createMedExHook(Socket) {
     async connectPreview() {
       this.closePreview("connecting");
       const pc = new RTCPeerConnection();
-      const socket = new Socket("/socket", { params: { token: this.el.dataset.token } });
+      const socket = new Socket(socketPath, { params: { token: this.el.dataset.token } });
       const connectionId = crypto.randomUUID();
-      const channel = socket.channel(`signaling:${this.el.dataset.encounterId}`, {
+      const channel = socket.channel(topic(this.el), {
         connection_id: connectionId
       });
 
@@ -53,6 +53,7 @@ export function createMedExHook(Socket) {
       try {
         socket.connect();
         const { session_id } = await reply(channel.join());
+        if (this.pc !== pc) return;
         this.el.dataset.sessionId = session_id;
         pc.addTransceiver("audio", { direction: "recvonly" });
         await pc.setLocalDescription(await pc.createOffer());
