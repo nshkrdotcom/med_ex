@@ -371,11 +371,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
 
       <div class="specs">
 
-          <pre translate="no"><span class="attribute">@type</span> effect() ::
-  {:emit_fact, <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()}
-  | {:publish_ui, <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()}
-  | {:start_lossless_capture, <a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>(), <a href="#t:acquisition_id/0">acquisition_id</a>()}
-  | {:append_audit_log, <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()}</pre>
+          <pre translate="no"><span class="attribute">@type</span> effect() :: {:emit_fact, <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">atom</a>(), <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()}</pre>
 
       </div>
 
@@ -568,7 +564,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">t()</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L70" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L66" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -581,7 +577,6 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
 
           <pre translate="no"><span class="attribute">@type</span> t() :: %MedCore.Session{
   acquisitions: %{required(<a href="#t:acquisition_id/0">acquisition_id</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()},
-  audit_seq: <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">non_neg_integer</a>(),
   connections: %{required(<a href="#t:connection_id/0">connection_id</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()},
   encounter_ref: <a href="#t:encounter_ref/0">encounter_ref</a>(),
   id: <a href="#t:session_id/0">session_id</a>(),
@@ -648,7 +643,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">new(opts)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L101" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L95" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 
@@ -676,7 +671,7 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
       <h1 class="signature" translate="no">step(session, arg)</h1>
 
 
-        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L119" class="icon-action" rel="help nofollow" aria-label="View Source">
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L113" class="icon-action" rel="help nofollow" aria-label="View Source">
           <i class="ri-code-s-slash-line" aria-hidden="true"></i>
         </a>
 

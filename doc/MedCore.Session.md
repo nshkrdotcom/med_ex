@@ -29,11 +29,7 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
 # `effect`
 
 ```elixir
-@type effect() ::
-  {:emit_fact, atom(), map()}
-  | {:publish_ui, atom(), map()}
-  | {:start_lossless_capture, String.t(), acquisition_id()}
-  | {:append_audit_log, map()}
+@type effect() :: {:emit_fact, atom(), map()}
 ```
 
 # `encounter_ref`
@@ -107,7 +103,6 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
 ```elixir
 @type t() :: %MedCore.Session{
   acquisitions: %{required(acquisition_id()) =&gt; map()},
-  audit_seq: non_neg_integer(),
   connections: %{required(connection_id()) =&gt; map()},
   encounter_ref: encounter_ref(),
   id: session_id(),

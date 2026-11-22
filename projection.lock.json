@@ -83,8 +83,8 @@
       "priv",
       "projection.lock.json"
     ],
-    "git_revision": "5ff7976e2b1ec7f879ccc49c1ed8b001070b996c",
-    "tree_digest": "e48183616e77c7a71af40d6e7703a010448fcc84af648ffa3153ed0723b703f9"
+    "git_revision": "75ec51864ce09919a21db487e585756122172ef0",
+    "tree_digest": "9df7beaf0f2ac9256adfff9582047286b20b6fba23cbddeb7ebb3726778eaaa8"
   },
   "manifest": {
     "path": "/home/home/p/g/n/med_ex/build_support/weld.exs",

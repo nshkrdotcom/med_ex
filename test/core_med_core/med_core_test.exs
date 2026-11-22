@@ -36,13 +36,13 @@ defmodule MedCoreTest do
          %{peer_id: "clin_1", connection_id: "conn_a", role: :clinician, t_ms: 9_000}}
       )
 
-    {s2, acq_effects} =
+    {s2, []} =
       Session.step(
         s1,
         {:acquisition_started, %{acquisition_id: "acq1", stream_id: "auscultation", t_ms: 10_000}}
       )
 
-    assert {:start_lossless_capture, "auscultation", "acq1"} in acq_effects
+    assert s2.acquisitions["acq1"].state == :active
 
     # Clinician loses live preview while capture continues
     {s3, drop_effects} =
@@ -99,25 +99,14 @@ defmodule MedCoreTest do
            end)
 
     # Browser rejoins the SAME session with a new connection_id
-    {s5, rejoin_effects} =
+    {s5, _} =
       Session.step(
         s4,
         {:peer_connected,
          %{peer_id: "clin_1", connection_id: "conn_b", role: :clinician, t_ms: 21_000}}
       )
 
-    assert Enum.any?(rejoin_effects, fn
-             {:publish_ui, :session_snapshot,
-              %{
-                connection_id: "conn_b",
-                preview_interruption: %{started_at_ms: 14_200, ended_at_ms: 21_000},
-                completed_acquisitions: ["acq1"]
-              }} ->
-               true
-
-             _ ->
-               false
-           end)
+    assert [%{started_at_ms: 14_200, ended_at_ms: 21_000}] = s5.preview_interruptions
 
     # Duplicate capture_completed arrives with same digest -> idempotent no-op for consumers
     {s6, dup_effects} =
@@ -134,15 +123,8 @@ defmodule MedCoreTest do
          }}
       )
 
-    refute Enum.any?(dup_effects, fn
-             {:emit_fact, :capture_completed, _} -> true
-             _ -> false
-           end)
-
-    assert Enum.any?(dup_effects, fn
-             {:append_audit_log, %{action: :duplicate_capture_ignored}} -> true
-             _ -> false
-           end)
+    assert dup_effects == []
+    assert s6 == s5
 
     assert s6.integrity_reports[{:recording_artifact, "acq1"}].continuity == :observed_continuous
   end
