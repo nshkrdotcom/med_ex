@@ -30,6 +30,7 @@ defmodule MedRTC.MixProject do
   defp deps do
     [
       {:med_core, path: "../med_core"},
+      {:ex_webrtc, "~> 0.18.0"},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4.9", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
