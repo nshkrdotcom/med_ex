@@ -14,7 +14,6 @@ defmodule MedRTC.WavCapture do
   """
 
   alias ExWebRTC.Media.Ogg.Reader
-  alias MedCore.Session
 
   @frame_ms 20
 
@@ -25,18 +24,6 @@ defmodule MedRTC.WavCapture do
           required(:sample_count) => non_neg_integer(),
           required(:duration_ms) => non_neg_integer(),
           required(:pcm) => binary()
-        }
-
-  @type capture_summary :: %{
-          required(:acquisition_id) => String.t(),
-          required(:sample_rate_hz) => pos_integer(),
-          required(:sample_count) => non_neg_integer(),
-          required(:duration_ms) => non_neg_integer(),
-          required(:artifact_sha256) => String.t(),
-          required(:interval_ms) => {non_neg_integer(), non_neg_integer()},
-          required(:continuity) => Session.continuity_state(),
-          required(:preview_chunks_sent) => non_neg_integer(),
-          required(:preview_chunks_dropped) => non_neg_integer()
         }
 
   @doc """
@@ -87,71 +74,6 @@ defmodule MedRTC.WavCapture do
         block_align::little-16, bits_per_sample::little-16, "data", data_size::little-32>>
 
     IO.iodata_to_binary([header, pcm])
-  end
-
-  @doc """
-  Replays a parsed WAV through one input into two independent outputs:
-  a live preview sink (`:on_preview_chunk`) and a lossless capture collector.
-
-  Options:
-  - `:acquisition_id` (required)
-  - `:started_at_ms` (default `0`)
-  - `:chunk_ms` (default `20`)
-  - `:on_preview_chunk` (`fn chunk_idx, pcm_chunk -> :ok | {:error, term()} end`, optional)
-  - `:drop_capture_indices` (`MapSet` or list of chunk indices simulating real capture loss)
-  - `:continuity_observable?` (default `true`; when `false`, reports `:unknown`)
-  """
-  @spec replay(parsed_wav(), keyword()) :: capture_summary()
-  def replay(%{pcm: pcm, sample_rate_hz: sr, channels: ch, bits_per_sample: bps} = wav, opts) do
-    acq_id = Keyword.fetch!(opts, :acquisition_id)
-    started_at_ms = Keyword.get(opts, :started_at_ms, 0)
-    chunk_ms = Keyword.get(opts, :chunk_ms, 20)
-    on_preview = Keyword.get(opts, :on_preview_chunk, fn _idx, _chunk -> :ok end)
-    drop_capture = opts |> Keyword.get(:drop_capture_indices, []) |> MapSet.new()
-    observable? = Keyword.get(opts, :continuity_observable?, true)
-
-    bytes_per_frame = ch * div(bps, 8)
-    chunk_bytes = max(1, div(sr * chunk_ms, 1000)) * bytes_per_frame
-    chunks = chunk_binary(pcm, chunk_bytes)
-
-    {captured_iodata, sent_preview, dropped_preview, capture_gaps} =
-      chunks
-      |> Enum.with_index()
-      |> Enum.reduce({[], 0, 0, 0}, fn {chunk, idx}, {acc_cap, sent, dropped, gaps} ->
-        {sent2, dropped2} =
-          case on_preview.(idx, chunk) do
-            :ok -> {sent + 1, dropped}
-            _ -> {sent, dropped + 1}
-          end
-
-        if MapSet.member?(drop_capture, idx) do
-          {acc_cap, sent2, dropped2, gaps + 1}
-        else
-          {[chunk | acc_cap], sent2, dropped2, gaps}
-        end
-      end)
-
-    captured_pcm = captured_iodata |> Enum.reverse() |> IO.iodata_to_binary()
-    captured_samples = div(byte_size(captured_pcm), bytes_per_frame)
-
-    continuity =
-      cond do
-        not observable? -> :unknown
-        capture_gaps > 0 -> :observed_gap
-        true -> :observed_continuous
-      end
-
-    %{
-      acquisition_id: acq_id,
-      sample_rate_hz: sr,
-      sample_count: captured_samples,
-      duration_ms: round(captured_samples / sr * 1_000),
-      artifact_sha256: :crypto.hash(:sha256, captured_pcm) |> Base.encode16(case: :lower),
-      interval_ms: {started_at_ms, started_at_ms + wav.duration_ms},
-      continuity: continuity,
-      preview_chunks_sent: sent_preview,
-      preview_chunks_dropped: dropped_preview
-    }
   end
 
   @doc """
@@ -302,13 +224,4 @@ defmodule MedRTC.WavCapture do
   end
 
   defp parse_fmt(_other), do: {:error, :unsupported_wav_format}
-
-  defp chunk_binary(<<>>, _size), do: []
-
-  defp chunk_binary(bin, size) when byte_size(bin) <= size, do: [bin]
-
-  defp chunk_binary(bin, size) do
-    <<head::binary-size(^size), tail::binary>> = bin
-    [head | chunk_binary(tail, size)]
-  end
 end

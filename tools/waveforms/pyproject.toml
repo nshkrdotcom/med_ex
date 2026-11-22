@@ -1,9 +1,0 @@
-[project]
-name = "med-ex-waveforms"
-version = "0.1.0"
-description = "Offline waveform verification and WFDB conversion helper for MedEx fixtures (managed strictly via uv)."
-requires-python = ">=3.12"
-dependencies = []
-
-[project.optional-dependencies]
-wfdb = ["wfdb>=4.2.0"]

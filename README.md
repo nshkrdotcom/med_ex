@@ -23,7 +23,7 @@ The repository is a non-umbrella Elixir poncho managed with Blitz (parallel chec
 
 **`med_ex` owns:**
 - Pure live-session state transitions (`MedCore.Session`) with a four-level identity model (`encounter_ref`, `session_id`, `connection_id`, `acquisition_id`) and separate integrity tracking for `{:preview_stream, stream_id}` vs. `{:recording_artifact, acquisition_id}`.
-- OTP runtime and WebRTC/audio transport (`MedRTC.SessionServer`, `MedRTC.PeerLoopback` over `ExWebRTC`, `MedRTC.WavCapture` one-input/two-output WAV replay).
+- OTP runtime and WebRTC/audio transport (`MedRTC.Preview` over ExWebRTC and `MedRTC.WavCapture`).
 - Reusable signaling event helpers and the shipped browser WebRTC JavaScript hook (`MedWeb.Signaling`, `priv/static/med_web/session_hook.js`).
 - Opt-in real-time signal/inference contracts (`MedAdapters.Inference`, excluded from the default `:med_ex` projection).
 - A minimal standalone reference app (`apps/med_pulse`) proving `:med_ex` works without `encounter_ref` or `med_fabric`.
@@ -70,8 +70,7 @@ mix monorepo.dialyzer
 mix monorepo.docs && mix docs
 
 # Welded :med_ex SDK projection & provenance checks
-mix med_ex.projection.refresh
-mix med_ex.projection.status --strict
+mix weld.project
 mix weld.inspect
 mix weld.verify
 
@@ -81,16 +80,8 @@ mix weld.release.track --push
 
 # Optional: download real PhysioNet CirCor 2530_AV.wav (gitignored) & verify PCM SHA-256 via uv
 ./fixtures/circor/prepare.sh
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/med_ex/waveforms-venv" \
-  uv run --locked --project tools/waveforms \
-  python tools/waveforms/check_wav.py fixtures/circor/2530_AV.wav
+bash fixtures/circor/prepare.sh fixtures/circor
 ```
-
-> **Note on `UV_PROJECT_ENVIRONMENT`**: Keeping the Python venv under `~/.cache/med_ex/waveforms-venv` avoids placing external interpreter symlinks inside the Git working tree, keeping `mix_workspace_ops doctor` clean.
-
-> **Current verification boundary**: ExWebRTC peer negotiation, WAV replay across preview drops, JS hook syntax (`node --check`), and Weld packaging are verified automatically in CI. A live desktop-browser audio run (MedEx server → real Chromium/Firefox browser via `session_hook.js`) remains an open desktop-browser exit criterion because this headless host has no Chromium/Playwright installed.
-
----
 
 ## Upstream Ecosystem
 
@@ -126,3 +117,18 @@ The host starts `MedRTC.WavCapture.record/4` in an acquisition task. A separate 
 To prepare the real fixture with the shipped lock, install curl and uv and run `./fixtures/circor/prepare.sh /path/to/cache` from the source checkout. For a Welded SDK, run `bash <sdk checkout>/priv/fixtures/prepare.sh /path/to/cache`. uv resolves Python 3.12.14 and the pinned FFmpeg wheel for the host. The script verifies the original WAV before producing its 20 ms Opus preview. The fixture is distributed separately from the SDK and retains the attribution recorded in `priv/fixtures/MANIFEST.json`.
 
 The reusable browser hook is created by `createMedExHook(Socket)` from the packaged `priv/static/med_web/session_hook.js`. The host supplies its Phoenix Socket constructor, a signed token in the hook element, and an encounter topic. The preview owns the browser connection. The host authorizes it and hands the gathered offer to `MedRTC.Preview.answer/1`.
+
+## Native onboarding on Ubuntu 26.04
+
+Install Git, curl, tar, build-essential, pkg-config, and uv. Activate the exact Erlang and Elixir versions in `.tool-versions` with asdf or mise. Run `./onboard.sh --fixture` to verify the toolchain, fetch Mix dependencies, and prepare the verified WAV and its Opus preview. Then run `mix ci` and `mix weld.verify`. The reference app contains the example profile. Fabric owns the browser integration test.
+
+```mermaid
+flowchart LR
+  W["Verified fixture WAV"] --> R["Acquisition task"]
+  O["Prepared Opus frames"] --> R
+  R --> A["Finalized original PCM artifact"]
+  R -->|"Best-effort preview frames"| P["Replaceable ExWebRTC peer"]
+  P --> B["Clinician browser"]
+```
+
+The acquisition task owns the recording deadline and finalized artifact. A bounded preview worker forwards frames independently. A browser peer can be replaced during capture. The Fabric host owns authorization and clinical acceptance.
