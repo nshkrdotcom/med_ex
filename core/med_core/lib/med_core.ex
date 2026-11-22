@@ -1,9 +1,9 @@
 defmodule MedCore do
   @moduledoc """
-  Pure functional clinical domain core for the MedEx framework.
+  Pure functional clinical signal and live-session domain core for MedEx.
 
-  Defines clinical stream specifications, encounter state contracts,
-  product profile behaviours, and deterministic state-machine seams.
+  Defines stream contracts, live session state, preview vs. recording integrity
+  types, product profile behaviours, and deterministic state-machine seams.
   """
 
   @spec version() :: String.t()

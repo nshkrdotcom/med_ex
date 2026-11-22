@@ -13,9 +13,11 @@
 
 # MedAdapters
 
-`med_adapters` defines the **behaviour-driven adapter contracts and isolated clinical OSS integrations** for the [MedEx](../../README.md) framework.
+`med_adapters` defines the **behaviour-driven adapter contracts and isolated real-time signal, AI, and external media integrations** for the [MedEx](../../README.md) framework.
 
-Rather than leaking NIFs, Python subprocesses, FHIR HTTP payloads, or external SFU protocols into `med_core` or `med_rtc`, every external capability sits behind a narrow Elixir `@behaviour` with explicit timeouts, fault isolation, and SaMD advisory metadata.
+Rather than leaking NIFs, Python subprocesses, or external SFU/voice-AI protocols into `med_core` or `med_rtc`, every live compute or external media capability sits behind a narrow Elixir `@behaviour` with explicit timeouts, fault isolation, and SaMD advisory metadata.
+
+> **Ownership Boundary**: `med_adapters` is scoped strictly to **real-time signal/AI compute and external media planes**. Durable clinical observation persistence, transactional outbox retry, and HL7 FHIR (plus future DICOM) delivery live outside `med_ex` in `med_fabric` (`mf_store` and `mf_interop`) so clinical delivery has a single authoritative implementation.
 
 ---
 
@@ -38,23 +40,16 @@ Every inference result returned by `MedAdapters.Inference` MUST emit an envelope
 - `advisory_only: true`
 - `model_sha256` — Cryptographic digest of the exact loaded ONNX weights
 - `signal_quality_score` — Position/signal quality index for the analyzed window
-- `integrity_state` — Snapshot of `MedCore.SignalIntegrity` for the input window (UI suppresses display if `integrity_state != :validated`)
+- `integrity_state` — Snapshot of `MedCore.Session` integrity for the input window (UI suppresses display if `integrity_state != :validated`)
 
 ### 2. Biosignal Sidecar Workers (`MedAdapters.Biosignal`)
 
 Wraps established clinical signal-processing toolkits behind supervised Erlang `Port`s (or gRPC pools) using length-prefixed binary frames (CBOR/MessagePack), strict per-request timeouts, and supervisor restart budgets:
 
 - **NeuroKit2** (<https://github.com/neuropsychology/NeuroKit>) — Sliding 5-second ECG/PPG/RSP analysis returning R-peak offsets, HR, HRV, and Signal Quality Index (SQI).
-- **WFDB-Python (MIT PhysioNet)** (<https://github.com/MIT-LCP/wfdb-python>) — Exports synchronized clinical clips into standard PhysioNet `.dat`/`.hea` WFDB records and replays MIT-BIH fixtures.
+- **WFDB-Python (MIT PhysioNet)** (<https://github.com/MIT-LCP/wfdb-python>) — Reads MIT-BIH / PhysioNet fixtures and formats waveform capture artifacts into standard `.dat`/`.hea` WFDB files.
 
-### 3. Clinical Archive Sinks (`MedAdapters.Archive`)
-
-Asynchronous, durable clinical persistence off the real-time media hot path:
-
-- **HAPI FHIR** (<https://github.com/hapifhir/hapi-fhir>) and **Medplum** (<https://github.com/medplum/medplum>) — Persists HL7 FHIR R4/R5 `Encounter`, `Device`, `Observation` (HR, SpO₂, screening SQI), and `DiagnosticReport` resources on clinician sign-off.
-- **Orthanc** (<https://github.com/jodogne/OrthancMirror> & <https://github.com/orthanc-server/orthanc-setup-samples>) — DICOM/DICOMweb PACS archival for Archetype C remote ultrasound and imaging (Use Case #6).
-
-### 4. Optional External Media & Voice-AI Planes (`MedAdapters.ExternalMedia`)
+### 3. Optional External Media & Voice-AI Planes (`MedAdapters.ExternalMedia`)
 
 - **LiveKit** (<https://github.com/livekit/livekit>) — Optional external Go SFU adapter when Use Case #12 clinical training scales to hundreds of simultaneous observers.
 - **Pipecat** (<https://github.com/pipecat-ai/pipecat>) and **whisper.cpp** (<https://github.com/ggml-org/whisper.cpp>) — Full conversational voice-AI pipelines for Use Cases #2 and #5 bridged over WebRTC/gRPC with deterministic clinician escalation back into `med_rtc`.
@@ -69,11 +64,9 @@ core/med_adapters/lib/
 └── med_adapters/
     ├── inference.ex            # @behaviour + AdvisoryResult envelope
     ├── biosignal.ex            # @behaviour for supervised Port/gRPC biosignal workers
-    ├── archive.ex              # @behaviour for FHIR / WFDB / DICOMweb sinks
     ├── external_media.ex       # @behaviour for optional LiveKit / Pipecat bridges
     ├── ortex_runner.ex         # Phase 1C: Ortex + Nx preprocessing bridge
-    ├── neurokit_port.ex        # Phase 1C: Length-prefixed binary Port to NeuroKit2/WFDB
-    └── fhir_sink.ex            # Phase 1C: HAPI FHIR / Medplum R4 exporter
+    └── neurokit_port.ex        # Phase 1C: Length-prefixed binary Port to NeuroKit2/WFDB
 ```
 
 ## Related Packages

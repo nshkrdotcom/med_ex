@@ -16,7 +16,7 @@ defmodule MedAdapters.MixProject do
       package: package(),
       name: "MedAdapters",
       description:
-        "Behaviour-driven clinical OSS adapters for MedEx: Ortex/ONNX, NeuroKit2/WFDB ports, FHIR, Orthanc DICOMweb, and external SFU/voice-AI bridges.",
+        "Behaviour-driven real-time clinical signal and media adapters for MedEx: Ortex/ONNX, NeuroKit2/WFDB ports, and optional external SFU/voice-AI bridges.",
       source_url: @source_url,
       homepage_url: @source_url
     ]

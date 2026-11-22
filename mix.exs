@@ -125,7 +125,7 @@ defmodule MedEx.Workspace.MixProject do
         compile: [args: ["compile", "--warnings-as-errors"]],
         test: [args: ["test"], mix_env: "test", color: true],
         credo: [args: ["credo"]],
-        dialyzer: [args: ["dialyzer"]],
+        dialyzer: [args: ["dialyzer", "--force-check"]],
         docs: [args: ["docs"]]
       ]
     ]

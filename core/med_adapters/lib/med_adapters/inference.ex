@@ -6,13 +6,13 @@ defmodule MedAdapters.Inference do
   signal integrity state so degraded windows are never surfaced clinically.
   """
 
-  alias MedCore.Encounter
+  alias MedCore.Session
 
   @type advisory_result :: %{
           required(:advisory_only) => true,
           required(:model_sha256) => String.t(),
           required(:signal_quality_score) => float(),
-          required(:integrity_state) => Encounter.integrity_status(),
+          required(:integrity_state) => Session.integrity_status(),
           required(:payload) => map()
         }
 

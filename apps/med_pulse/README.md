@@ -15,7 +15,7 @@
 
 `med_pulse` is the **first vertical-slice clinical product application** built on top of the [MedEx](../../README.md) poncho framework.
 
-It implements Use Case **#1 (Remote Digital Stethoscope)** and Use Case **#4 (Remote Patient Monitoring: Live ECG & SpO₂)** inside one synchronized clinical session—exercising **3 of the 4 Clinical Transport Archetypes** simultaneously (`A: Diagnostic Signal`, `B: Lossless Telemetry & Audited Control`, `C: Interactive Opus Talkback`).
+It implements Use Case **#1 (Remote Digital Stethoscope)** and Use Case **#4 (Remote Patient Monitoring: Live ECG & SpO₂)** inside one synchronized live session—exercising **3 of the 4 Clinical Transport Archetypes** simultaneously (`A: Diagnostic Signal`, `B: Lossless Telemetry & Audited Control`, `C: Interactive Opus Talkback`).
 
 ---
 
@@ -26,9 +26,10 @@ It implements Use Case **#1 (Remote Digital Stethoscope)** and Use Case **#4 (Re
 3. **Clean, high-leverage OSS composition**:
    - `ex_webrtc` + `ex_sctp` + `membrane_core` / `membrane_opus_plugin` / `membrane_wav_plugin`
    - `elixir-nx/ortex` + `NoahIsARider/open-stethoscope` (1.6 MB ONNX heart murmur & position-QC in-BEAM)
-   - `neuropsychology/NeuroKit` + `MIT-LCP/wfdb-python` (supervised Python Port for 5s ECG/PPG windows & WFDB export)
+   - `neuropsychology/NeuroKit` + `MIT-LCP/wfdb-python` (supervised Python Port for 5s ECG/PPG windows & WFDB formatting)
    - `pion/webrtc` (Go bedside/fixture edge gateway)
-   - `hapifhir/hapi-fhir` (or `medplum`) for FHIR R4 `Observation` and `DiagnosticReport` sign-off
+
+*(When composed into an EHR/encounter workflow, durable observation persistence, transactional outbox retries, and FHIR delivery are handled by `med_fabric`'s `mf_store` and `mf_interop` rather than duplicated inside `med_pulse`.)*
 
 ---
 
@@ -61,15 +62,15 @@ Transporting auscultation audio as **20 ms PCM chunks (80 samples = 160 bytes) o
 
 ---
 
-## End-to-End Clinical Dataflow
+## End-to-End Live Session Dataflow
 
-1. **Session Init**: Clinician opens `/sessions/:id` (Phoenix LiveView). `MedRTC` boots a session supervisor parameterized by `MedPulse.ClinicalProfile` and issues short-lived DTLS/signaling credentials.
+1. **Session Init**: Clinician opens `/sessions/:id` (Phoenix LiveView). `MedRTC` boots a `SessionSupervisor` parameterized by `MedPulse.ClinicalProfile` (with optional `encounter_ref`) and issues short-lived DTLS/signaling credentials.
 2. **Edge Connect**: Bedside gateway (`pion/webrtc` Go binary or browser fixture streamer) connects over WebRTC (using `rel` TURN behind hospital NATs), opens the Opus RTP track + 3 SCTP DataChannels (`auscultation`, `vitals_telemetry`, `device_control`), and sends a `StreamAttestation` frame certifying hardware sample rates and DSP bypass.
 3. **Hot-Path Processing (BEAM)**:
    - `vitals_telemetry` binary frames (`sample_seq :: 64, device_ts_us :: 64, ecg_i16[], spo2_u16`) pass through `MedCore.TimelineAligner` for zero-gap verification, broadcast to LiveView Canvas via `PubSub`, and analyze in 5s overlapping windows via `NeuroKit2`.
-   - `auscultation` 20 ms PCM chunks forward to the clinician's `AudioWorklet`, tee into a `membrane_wav_plugin` ring buffer for lossless archival, and score every 2s via `Ortex` (`open-stethoscope` ONNX).
+   - `auscultation` 20 ms PCM chunks forward to the clinician's `AudioWorklet`, tee into a `membrane_wav_plugin` lossless capture buffer (surviving clinician browser reconnects), and score every 2s via `Ortex` (`open-stethoscope` ONNX).
    - `talkback_voice` Opus RTP flows bidirectionally through `ex_webrtc` with sub-150 ms latency.
-4. **Audited Control & Clinical Export**: Clinician clicks **"Capture 10s Mitral Clip + Switch Filter: Bell"** → `MedCore.ControlInterlock` verifies role/lease → appends hash-chained audit record → sends signed CBOR command over `device_control` SCTP → receives device ACK → triggers synchronized `.wav` + PhysioNet WFDB `.dat/.hea` export.
+4. **Audited Control & Capture Completion**: Clinician clicks **"Capture 10s Mitral Clip + Switch Filter: Bell"** → `MedCore.ControlInterlock` verifies role/lease → appends hash-chained audit record → sends signed CBOR command over `device_control` SCTP → receives device ACK → finalizes `.wav` + WFDB artifact with an independent `{:recording_artifact, acquisition_id}` continuity verdict.
 
 ---
 
@@ -90,5 +91,5 @@ apps/med_pulse/lib/
 - [MedEx Workspace Overview](../../README.md)
 - [MedCore (Pure Functional Core)](../../core/med_core/README.md)
 - [MedRTC (OTP Effect Runtime)](../../core/med_rtc/README.md)
-- [MedAdapters (Clinical OSS Ports)](../../core/med_adapters/README.md)
+- [MedAdapters (Clinical Signal & Media Ports)](../../core/med_adapters/README.md)
 - [MedWeb (LiveView Workbench)](../../core/med_web/README.md)
