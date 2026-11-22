@@ -16,3 +16,7 @@ erl_crash.dump
 # Editor / OS artifacts
 .DS_Store
 *.swp
+
+# Local Python uv venv and cached clinical fixture binaries
+/tools/waveforms/.venv/
+/fixtures/circor/*.wav
