@@ -1,7 +1,7 @@
 {
   "dataset": "The CirCor DigiScope Phonocardiogram Dataset (PhysioNet v1.0.3)",
   "dataset_url": "https://physionet.org/content/circor-heart-sound/1.0.3/",
-  "license": "CC-BY-4.0",
+  "license": "Open Data Commons Attribution License v1.0",
   "citation": "Oliveira, J., Renna, F., Costa, P., Nogueira, M., Oliveira, A. C., Ferreira, C., Jorge, A., Mattos, S., Hatem, T., Tavares, T., Elola, A., Rad, A. B., Sameni, R., Clifford, G. D., & Coimbra, M. T. (2022). The CirCor DigiScope Phonocardiogram Dataset (version 1.0.3). PhysioNet.",
   "fixtures": [
     {

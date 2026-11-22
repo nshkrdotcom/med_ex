@@ -59,7 +59,7 @@ Trace this path in `core/med_rtc/test/wav_capture_test.exs` and `core/med_core/t
 
 ## Commands & Verification
 
-Toolchain pins live in `.tool-versions` (`erlang 29.1.2`, `elixir 1.20.5-otp-29`). All ordinary Elixir, Blitz, and Weld checks run completely offline with no Docker containers.
+Toolchain pins live in `.tool-versions` (`erlang 29.1.2`, `elixir 1.20.5-otp-29`). Ordinary Elixir, Blitz, and Weld checks run without external services once dependencies are installed.
 
 ```bash
 # Inner dev loop (parallel across all 5 child projects via Blitz)
@@ -80,7 +80,7 @@ mix weld.release.prepare
 mix weld.release.track --push
 
 # Optional: download real PhysioNet CirCor 2530_AV.wav (gitignored) & verify PCM SHA-256 via uv
-./fixtures/circor/fetch.sh
+./fixtures/circor/prepare.sh
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/med_ex/waveforms-venv" \
   uv run --locked --project tools/waveforms \
   python tools/waveforms/check_wav.py fixtures/circor/2530_AV.wav
@@ -105,3 +105,24 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/med_ex/waveforms-venv" \
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Browser capture architecture
+
+```mermaid
+flowchart LR
+    WAV["Verified PCM WAV"] --> Capture["Paced capture task"]
+    Capture --> Artifact["Finalized WAV + PCM digest"]
+    Opus["Opus preview from the same fixture"] --> Preview["Bounded preview worker"]
+    Capture -->|"20 ms frame index"| Preview
+    Preview --> Peer["Replaceable ExWebRTC peer"]
+    Peer --> Browser["Clinician audio track"]
+    Browser <-->|"SDP with gathered ICE"| Host["Authorized host signaling channel"]
+    Host --> Peer
+    Artifact --> Host
+```
+
+The host starts `MedRTC.WavCapture.record/4` in an acquisition task. A separate worker supplies best-effort Opus preview frames. The browser's peer can close or rejoin without interrupting the acquisition. The task returns a finalized WAV path, decoded PCM SHA-256, retained frame count, duration and measured continuity. The host owns access to the artifact and starts any review or clinical persistence.
+
+To prepare the real fixture with the shipped lock, install uv and run `./fixtures/circor/prepare.sh /path/to/cache` from the source checkout. For a Welded SDK, run `bash <sdk checkout>/priv/fixtures/prepare.sh /path/to/cache`. uv resolves Python 3.12.14 and the pinned FFmpeg wheel for the host. The script verifies the original WAV before producing its 20 ms Opus preview. The fixture is distributed separately from the SDK and retains the attribution recorded in `priv/fixtures/MANIFEST.json`.
+
+The reusable browser hook is created by `createMedExHook(Socket)` from the packaged `priv/static/med_web/session_hook.js`. The host supplies its Phoenix Socket constructor, a signed token in the hook element, and an encounter topic. The preview owns the browser connection. The host authorizes it and hands the gathered offer to `MedRTC.Preview.answer/1`.

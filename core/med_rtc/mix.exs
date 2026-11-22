@@ -8,7 +8,7 @@ defmodule MedRTC.MixProject do
     [
       app: :med_rtc,
       version: @version,
-      elixir: "~> 1.18",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),
@@ -31,6 +31,7 @@ defmodule MedRTC.MixProject do
     [
       {:med_core, path: "../med_core"},
       {:ex_webrtc, "~> 0.18.0"},
+      {:ex_rtp, "~> 0.4"},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4.9", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}

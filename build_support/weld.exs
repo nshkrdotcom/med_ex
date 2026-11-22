@@ -22,7 +22,7 @@
         name: "med_ex",
         otp_app: :med_ex,
         version: "0.1.0",
-        elixir: "~> 1.18",
+        elixir: "~> 1.20",
         description:
           "Browser-capable clinical WebRTC/Opus/SCTP live-session and signal-integrity SDK for connected medical devices",
         licenses: ["MIT"],

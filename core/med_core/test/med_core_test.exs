@@ -262,4 +262,27 @@ defmodule MedCoreTest do
     assert next.preview_interruptions == []
     refute Enum.any?(effects, &match?({:emit_fact, :integrity_reported, _}, &1))
   end
+
+  test "a repeated acquisition start cannot erase the first acquisition" do
+    session = Session.new(id: "s1")
+    event = {:acquisition_started, %{acquisition_id: "a1", stream_id: "preview", t_ms: 20}}
+    {active, _effects} = Session.step(session, event)
+    assert {^active, []} = Session.step(active, event)
+
+    {completed, _effects} =
+      Session.step(
+        active,
+        {:capture_completed,
+         %{
+           acquisition_id: "a1",
+           artifact_sha256: "digest",
+           interval_ms: {20, 40},
+           continuity: :observed_continuous,
+           delivery_id: "1",
+           t_ms: 40
+         }}
+      )
+
+    assert {^completed, []} = Session.step(completed, event)
+  end
 end

@@ -8,7 +8,7 @@ defmodule MedEx.Workspace.MixProject do
     [
       app: :med_ex_workspace,
       version: @version,
-      elixir: "~> 1.18",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       aliases: aliases(),

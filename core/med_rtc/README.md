@@ -33,7 +33,7 @@
 ## Walkthrough
 
 In `test/wav_capture_test.exs`:
-- When `fixtures/circor/2530_AV.wav` (PhysioNet CirCor DigiScope 4 kHz phonocardiogram) is cached locally via `./fixtures/circor/fetch.sh`, `MedRTC.WavCapture` parses all 94,400 samples (`23,600 ms`) and matches the independent `uv`-locked Python checker's exact PCM SHA-256 (`7c8c93ee4602072aa5c0e4c81a5a9e28d926b278f701218ea588bde9644efc66`).
+- When `fixtures/circor/2530_AV.wav` (PhysioNet CirCor DigiScope 4 kHz phonocardiogram) is cached locally via `./fixtures/circor/prepare.sh`, `MedRTC.WavCapture` parses all 94,400 samples (`23,600 ms`) and matches the independent `uv`-locked Python checker's exact PCM SHA-256 (`7c8c93ee4602072aa5c0e4c81a5a9e28d926b278f701218ea588bde9644efc66`).
 - Mid-replay, `PeerLoopback.close_pair/1` tears down `conn_a` and drops 40 preview chunks while the lossless collector captures every sample and emits `:observed_continuous`, after which `conn_b` negotiates a fresh `ExWebRTC` connection to the same `SessionServer`.
 - When the gitignored WAV isn't cached (such as inside `mix weld.verify`), the test falls back to an encoded 4 kHz PCM WAV exercising the exact same code path.
 

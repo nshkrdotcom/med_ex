@@ -20,3 +20,6 @@ erl_crash.dump
 # Local Python uv venv and cached clinical fixture binaries
 /tools/waveforms/.venv/
 /fixtures/circor/*.wav
+/fixtures/circor/*.opus
+/fixtures/circor/.circor-venv/
+/core/med_rtc/tmp/
