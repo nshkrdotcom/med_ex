@@ -137,7 +137,7 @@ This worked trace is the shared contract test between `med_ex` (producer of live
 ### Resulting Invariants
 
 - **Clinician UI** displays two distinct facts: (a) live preview was interrupted from `14.2s` to `21.0s`, and (b) recording `"acq1"` (`10.0s–20.0s`) has independently observed continuity (`:observed_continuous`, `0` missing samples).
-- **Downstream Consumer (`med_fabric` / `mf_domain`)** receives one idempotent `capture_completed` fact correlated by `(encounter_ref, session_id, acquisition_id)` and owns the separate clinician decision to accept or reject the resulting observation.
+- **Downstream Consumer (`med_fabric` / `mf_domain`)** receives one idempotent `capture_completed` fact correlated by `(encounter_ref, session_id, acquisition_id)` and owns the separate clinician decision to accept or reject the resulting observation (see `med_fabric`'s `core/domain/README.md` for the paired consumer acceptance rules).
 
 ---
 
