@@ -51,8 +51,7 @@ defmodule MedCoreTest do
         {:peer_disconnected, %{peer_id: "clin_1", connection_id: "conn_a", t_ms: 14_200}}
       )
 
-    assert s3.integrity_state[{:preview_stream, "auscultation"}] ==
-             {:degraded, [:preview_disconnected]}
+    assert s3.integrity_reports[{:preview_stream, "auscultation"}].continuity == :unknown
 
     assert s3.acquisitions["acq1"].state == :active
 
@@ -80,11 +79,9 @@ defmodule MedCoreTest do
          }}
       )
 
-    assert s4.integrity_state[{:recording_artifact, "acq1"}] == :validated
     assert s4.integrity_reports[{:recording_artifact, "acq1"}].continuity == :observed_continuous
     # Preview interruption remains distinct until reconnect
-    assert s4.integrity_state[{:preview_stream, "auscultation"}] ==
-             {:degraded, [:preview_disconnected]}
+    assert s4.integrity_reports[{:preview_stream, "auscultation"}].continuity == :unknown
 
     assert Enum.any?(complete_effects, fn
              {:emit_fact, :capture_completed,
@@ -175,7 +172,6 @@ defmodule MedCoreTest do
 
     assert s2.encounter_ref == nil
     assert s2.connections == %{}
-    assert s2.integrity_state[{:recording_artifact, "acq_u"}] == :unverified
     assert s2.integrity_reports[{:recording_artifact, "acq_u"}].continuity == :unknown
 
     assert Enum.any?(effects, fn
@@ -220,6 +216,23 @@ defmodule MedCoreTest do
 
     assert s2.acquisitions["acq_c"].state == :conflict
 
+    {next, effects} =
+      Session.step(
+        s2,
+        {:capture_completed,
+         %{
+           acquisition_id: "acq_c",
+           artifact_sha256: "sha_first",
+           interval_ms: {0, 4_000},
+           continuity: :observed_continuous,
+           delivery_id: "d3",
+           t_ms: 4_030
+         }}
+      )
+
+    assert next.acquisitions["acq_c"].state == :conflict
+    refute Enum.any?(effects, &match?({:emit_fact, :capture_completed, _}, &1))
+
     assert Enum.any?(conflict_effects, fn
              {:emit_fact, :capture_conflict,
               %{existing_sha256: "sha_first", incoming_sha256: "sha_other"}} ->
@@ -228,5 +241,25 @@ defmodule MedCoreTest do
              _ ->
                false
            end)
+  end
+
+  test "a delayed disconnect cannot interrupt a replacement connection" do
+    session = Session.new(id: "s", streams: [sample_stream()])
+    join = %{peer_id: "peer", role: :clinician, connection_id: "old", t_ms: 1}
+    {session, _} = Session.step(session, {:peer_connected, join})
+
+    {session, _} =
+      Session.step(session, {:peer_connected, %{join | connection_id: "new", t_ms: 2}})
+
+    {next, effects} =
+      Session.step(
+        session,
+        {:peer_disconnected, %{peer_id: "peer", connection_id: "old", t_ms: 3}}
+      )
+
+    assert next.connections["old"].state == :disconnected
+    assert next.participants["peer"].active_connection_id == "new"
+    assert next.preview_interruptions == []
+    refute Enum.any?(effects, &match?({:emit_fact, :integrity_reported, _}, &1))
   end
 end
