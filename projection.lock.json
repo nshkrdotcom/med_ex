@@ -28,8 +28,8 @@
       "priv",
       "projection.lock.json"
     ],
-    "git_revision": "5c83932137431a5df995d1cf599a0ff3ece75cd1",
-    "tree_digest": "a54abedda95b3df66d3435be8a42e38b90c96f733e542bec78e0f77569449661",
+    "git_revision": "9c3da1c3968e8836e63556a93635a332f2784e86",
+    "tree_digest": "eb1b895d5258b564ee47765d6502c52706425b7a2d44669e13d60eba87e11c82",
     "copied_files": [
       ".credo.exs",
       ".formatter.exs",
