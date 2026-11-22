@@ -3,9 +3,6 @@
 ## Modules
 
 - [MedCore](MedCore.md): Pure functional clinical signal and live-session domain core for MedEx.
-- [MedCore.Profile](MedCore.Profile.md): Behaviour implemented by clinical product applications to compose MedEx
-transport archetypes, streams, inference hooks, and device control policies.
-
 - [MedCore.Session](MedCore.Session.md): Immutable live clinical transport session aggregate and pure reducer (`step/2`).
 - [MedCore.StreamSpec](MedCore.StreamSpec.md): Declarative contract for a clinical media, telemetry, or device control stream.
 

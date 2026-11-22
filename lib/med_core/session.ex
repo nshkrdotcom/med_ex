@@ -8,9 +8,9 @@ defmodule MedCore.Session do
   and supports standalone capture with `encounter_ref: nil` and no connected peer.
   """
 
-  alias MedCore.Profile
   alias MedCore.StreamSpec
 
+  @type topology :: :server_terminated | :sfu | :hybrid
   @type session_id :: String.t()
   @type encounter_ref :: String.t() | nil
   @type connection_id :: String.t()
@@ -70,7 +70,7 @@ defmodule MedCore.Session do
   @type t :: %__MODULE__{
           id: session_id(),
           encounter_ref: encounter_ref(),
-          topology: Profile.topology(),
+          topology: topology(),
           streams: %{String.t() => StreamSpec.t()},
           participants: %{String.t() => map()},
           connections: %{connection_id() => map()},

@@ -115,8 +115,14 @@ and supports standalone capture with `encounter_ref: nil` and no connected peer.
   participants: %{required(String.t()) =&gt; map()},
   preview_interruptions: [map()],
   streams: %{required(String.t()) =&gt; MedCore.StreamSpec.t()},
-  topology: MedCore.Profile.topology()
+  topology: topology()
 }
+```
+
+# `topology`
+
+```elixir
+@type topology() :: :server_terminated | :sfu | :hybrid
 ```
 
 # `new`

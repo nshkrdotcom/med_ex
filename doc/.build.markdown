@@ -1,4 +1,3 @@
-MedCore.Profile.md
 MedCore.Session.md
 MedCore.StreamSpec.md
 MedCore.md

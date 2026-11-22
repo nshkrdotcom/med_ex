@@ -3,41 +3,6 @@
     "edges": [
       {
         "kind": "runtime",
-        "app": "med_adapters",
-        "to": "core/med_adapters",
-        "requirement": null,
-        "from": "apps/med_pulse"
-      },
-      {
-        "kind": "runtime",
-        "app": "med_core",
-        "to": "core/med_core",
-        "requirement": null,
-        "from": "apps/med_pulse"
-      },
-      {
-        "kind": "runtime",
-        "app": "med_rtc",
-        "to": "core/med_rtc",
-        "requirement": null,
-        "from": "apps/med_pulse"
-      },
-      {
-        "kind": "runtime",
-        "app": "med_web",
-        "to": "core/med_web",
-        "requirement": null,
-        "from": "apps/med_pulse"
-      },
-      {
-        "kind": "runtime",
-        "app": "med_core",
-        "to": "core/med_core",
-        "requirement": null,
-        "from": "core/med_adapters"
-      },
-      {
-        "kind": "runtime",
         "app": "med_core",
         "to": "core/med_core",
         "requirement": null,
@@ -58,11 +23,9 @@
         "from": "core/med_web"
       }
     ],
-    "digest": "4a0ea7c1b8899e040b6c0997971f37737f25942c34658610c7f9cd0a073a74eb",
+    "digest": "8e8ab0b8c23256967e03f6597bc6eb5a723087ea3cc6c8c07951f9136d44009f",
     "excluded_projects": [
-      ".",
-      "apps/med_pulse",
-      "core/med_adapters"
+      "."
     ],
     "selected_projects": [
       "core/med_core",
@@ -85,7 +48,6 @@
       "config/prod.exs",
       "config/test.exs",
       "lib/med_core.ex",
-      "lib/med_core/profile.ex",
       "lib/med_core/session.ex",
       "lib/med_core/stream_spec.ex",
       "lib/med_rtc.ex",
@@ -121,12 +83,12 @@
       "priv",
       "projection.lock.json"
     ],
-    "git_revision": "cb850e0f5d719741510726e94a38f13ba6f66845",
-    "tree_digest": "c31d6a33a6d932f49327b3f273e2ecd9135f518cdc2a539bf0c8ae9d732404fe"
+    "git_revision": "5ff7976e2b1ec7f879ccc49c1ed8b001070b996c",
+    "tree_digest": "e48183616e77c7a71af40d6e7703a010448fcc84af648ffa3153ed0723b703f9"
   },
   "manifest": {
     "path": "/home/home/p/g/n/med_ex/build_support/weld.exs",
-    "digest": "aefd6c655f1bf1747721bb25b4f9ab77ef6fad9f7166f8affe4024cbefee2f0a"
+    "digest": "d039f09a60ff7cb959321114c33dcc99bba2c014d3442341b6c4b7618790b8a2"
   },
   "artifact": {
     "id": "med_ex",
@@ -142,8 +104,6 @@
       "source": "manifest",
       "project_ids": [
         ".",
-        "apps/med_pulse",
-        "core/med_adapters",
         "core/med_core",
         "core/med_rtc",
         "core/med_web"
@@ -155,7 +115,7 @@
       ],
       "root_project?": true
     },
-    "project_count": 6
+    "project_count": 4
   },
   "verification": [
     {

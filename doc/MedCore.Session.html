@@ -12,7 +12,7 @@
 
     <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
 
-    <script defer src="dist/sidebar_items-78D20011.js"></script>
+    <script defer src="dist/sidebar_items-AF145008.js"></script>
     <script defer src="docs_config.js"></script>
     <script defer src="dist/html-LBCGAQQV.js"></script>
 
@@ -213,6 +213,14 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
     <div class="summary-row">
       <div class="summary-signature">
         <a href="#t:t/0" data-no-tooltip="" translate="no">t()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:topology/0" data-no-tooltip="" translate="no">topology()</a>
 
       </div>
 
@@ -581,8 +589,36 @@ and supports standalone capture with <code class="inline">encounter_ref: nil</co
   participants: %{required(<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()) =&gt; <a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()},
   preview_interruptions: [<a href="https://elixir.hexdocs.pm/typespecs.html#basic-types">map</a>()],
   streams: %{required(<a href="https://elixir.hexdocs.pm/String.html#t:t/0">String.t</a>()) =&gt; <a href="MedCore.StreamSpec.html#t:t/0">MedCore.StreamSpec.t</a>()},
-  topology: <a href="MedCore.Profile.html#t:topology/0">MedCore.Profile.topology</a>()
+  topology: <a href="#t:topology/0">topology</a>()
 }</pre>
+
+      </div>
+
+
+  </section>
+</section>
+<section class="detail" id="t:topology/0">
+
+  <div class="detail-header">
+    <a href="#t:topology/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">topology()</h1>
+
+
+        <a href="https://github.com/nshkrdotcom/med_ex/blob/v0.1.0/lib/med_core/session.ex#L13" class="icon-action" rel="help nofollow" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> topology() :: :server_terminated | :sfu | :hybrid</pre>
 
       </div>
 
