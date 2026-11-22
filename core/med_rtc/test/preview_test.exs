@@ -27,8 +27,16 @@ defmodule MedRTC.PreviewTest do
 
     assert_receive {:ex_webrtc, ^receiver, {:connection_state_change, :connected}}, 5_000
 
+    assert_receive {:ex_webrtc, sender, {:connection_state_change, :connected}}
+                   when sender == preview.pid,
+                   5_000
+
     silence = <<0xF8, 0xFF, 0xFE>>
-    :ok = Preview.send_opus(preview, silence, 12)
+
+    for index <- 12..17 do
+      :ok = Preview.send_opus(preview, silence, index)
+      Process.sleep(20)
+    end
 
     assert_receive {:ex_webrtc, ^receiver, {:rtp, _track_id, nil, %{payload: ^silence}}}, 2_000
   end
