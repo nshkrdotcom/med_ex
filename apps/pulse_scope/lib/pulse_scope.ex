@@ -6,6 +6,6 @@ defmodule PulseScope do
 
   alias PulseScope.ClinicalProfile
 
-  @spec profile() :: module()
+  @spec profile() :: ClinicalProfile
   def profile, do: ClinicalProfile
 end
