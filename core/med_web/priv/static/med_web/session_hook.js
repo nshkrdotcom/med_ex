@@ -7,7 +7,7 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
       const options = { signal: this.buttons.signal };
 
       this.el.querySelector(play).addEventListener("click", () => {
-        if (this.pc) this.audio.play().catch(() => {});
+        if (this.pc) this.playAudio(this.pc);
         else this.connectPreview();
       }, options);
       this.el.querySelector(disconnect).addEventListener("click", () => {
@@ -16,6 +16,14 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
       this.el.querySelector(reconnect).addEventListener("click", () => {
         this.connectPreview();
       }, options);
+    },
+
+    playAudio(pc) {
+      this.audio.play().then(() => {
+        if (this.pc === pc) delete this.el.dataset.error;
+      }).catch(() => {
+        if (this.pc === pc) this.el.dataset.error = "Select play to enable audio";
+      });
     },
 
     async connectPreview() {
@@ -36,7 +44,7 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
       pc.ontrack = ({ track, streams }) => {
         if (this.pc !== pc) return;
         this.audio.srcObject = streams[0] || new MediaStream([track]);
-        this.audio.play().catch(() => {});
+        this.playAudio(pc);
       };
 
       pc.onconnectionstatechange = () => {

@@ -1,16 +1,8 @@
 defmodule MedRTC.WavCapture do
   @moduledoc """
-  Pure-Elixir 16-bit PCM WAV parser and one-input / two-output clinical capture
-  runner.
-
-  Streams chunks from a real WAV recording (such as a PhysioNet CirCor
-  DigiScope phonocardiogram) to two independent outputs:
-
-  1. An optional live preview callback (which may drop or reconnect with a
-     browser/WebRTC peer mid-capture).
-  2. An independent lossless PCM collector that computes the exact decoded
-     sample count, duration, SHA-256 digest, and continuity state
-     (`:observed_continuous | :observed_gap | :unknown`) for `MedCore.Session`.
+  Replays a finite mono PCM16 WAV and its prepared 20 ms Opus preview.
+  Recording integrity describes the retained file payload. Each final artifact
+  is identified by its canonical WAV digest and its decoded PCM digest.
   """
 
   alias ExWebRTC.Media.Ogg.Reader
@@ -194,26 +186,40 @@ defmodule MedRTC.WavCapture do
     bytes = encode_pcm16_wav(wav.pcm, wav.sample_rate_hz)
     digest = :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
     path = Path.join(dir, digest <> ".wav")
-    temp = path <> ".part-" <> Integer.to_string(System.unique_integer([:positive]))
+    temp = path <> ".part-" <> Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
 
-    try do
-      with :ok <- File.write(temp, bytes, [:exclusive, :sync]) do
-        case File.ln(temp, path) do
-          :ok ->
-            {:ok, path, digest}
-
-          {:error, :eexist} ->
-            case File.read(path) do
-              {:ok, ^bytes} -> {:ok, path, digest}
-              _ -> {:error, :artifact_conflict}
-            end
-
-          error ->
-            error
+    with :ok <- File.write(temp, bytes, [:exclusive, :sync]) do
+      try do
+        with :ok <- install(temp, path, bytes),
+             :ok <- sync_directory(dir) do
+          {:ok, path, digest}
         end
+      after
+        File.rm(temp)
       end
-    after
-      File.rm(temp)
+    end
+  end
+
+  defp install(temp, path, bytes) do
+    case File.ln(temp, path) do
+      {:error, :eexist} ->
+        case File.read(path) do
+          {:ok, ^bytes} -> :ok
+          _ -> {:error, :artifact_conflict}
+        end
+
+      result ->
+        result
+    end
+  end
+
+  defp sync_directory(dir) do
+    with {:ok, fd} <- :file.open(String.to_charlist(dir), [:read, :raw, :directory]) do
+      try do
+        :file.sync(fd)
+      after
+        :file.close(fd)
+      end
     end
   end
 
