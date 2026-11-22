@@ -13,93 +13,56 @@
 
 # MedRTC
 
-`med_rtc` is the **OTP effect shell and WebRTC/Opus/SCTP transport runtime** for the [MedEx](../../README.md) framework.
-
-It owns process supervision, network sockets, Membrane media pipelines, lossless capture tees, timers, PubSub dispatch, and effect interpretation—while delegating every live-session state decision to the pure functional reducer in [`med_core`](../med_core/README.md).
+`med_rtc` is the OTP runtime and WebRTC/audio transport layer of [MedEx](../../README.md). It holds live session state in a `GenServer`, negotiates real `ExWebRTC` peer connections, and runs one-input/two-output PCM WAV capture replays while delegating all session state decisions to [`med_core`](../med_core/README.md).
 
 ---
 
-## Per-Session OTP Supervision Architecture
+## What This Owns (and Does Not Own)
 
-Each active live session (`session_id`) is isolated under a `PartitionSupervisor` + `Registry` inside its own `MedRTC.SessionSupervisor` using a **`:rest_for_one`** restart strategy:
+**`med_rtc` owns:**
+- `MedRTC.SessionServer` — Lightweight `GenServer` holding `%MedCore.Session{}`, dispatching events through `MedCore.Session.step/2`, and forwarding emitted effects to subscribers.
+- `MedRTC.PeerLoopback` — Real `ExWebRTC.PeerConnection` SDP offer/answer + ICE `:connected` loopback harness and teardown helper used to verify live WebRTC peer lifecycles and reconnects.
+- `MedRTC.WavCapture` — Pure-Elixir 16-bit PCM WAV parser (`parse_wav/1`), encoder (`encode_pcm16_wav/2`), and one-input/two-output `replay/2` splitting a recording stream into an optional live preview sink (which may drop mid-capture) and an independent lossless PCM collector reporting exact `sample_count`, `duration_ms`, `artifact_sha256`, and `continuity` (`:observed_continuous | :observed_gap | :unknown`).
 
-```text
-MedRTC.SessionRegistry (Registry)
-MedRTC.SessionPool (PartitionSupervisor -> DynamicSupervisor)
-└── MedRTC.SessionSupervisor (:rest_for_one, per session_id)
-    ├── 1. MedRTC.AuditBuffer
-    │      Flushes hash-chained session audit records even if media crashes.
-    ├── 2. MedRTC.SessionServer (GenServer)
-    │      Holds %MedCore.Session{}, invokes the pure reducer,
-    │      and delegates emitted effects to MedRTC.EffectInterpreter.
-    ├── 3. MedRTC.PeerSupervisor (DynamicSupervisor)
-    │      Supervises ExWebRTC.PeerConnection + Membrane.Pipeline workers
-    │      keyed by connection_id. A dropped browser isolates cleanly,
-    │      emits :peer_disconnected for that connection_id, and lets the
-    │      session and any active device acquisition continue uninterrupted.
-    └── 4. MedRTC.InferenceSupervisor (Task.Supervisor, bounded concurrency)
-           Dispatches Ortex / Python biosignal windows. A slow or crashing ML
-           worker degrades to :inference_unavailable without stalling media.
+**`med_rtc` does not own:**
+- Pure session reducer rules (those live in `med_core`).
+- Browser signaling hooks or Phoenix endpoints (`core/med_web` ships the browser JS hook; `med_fabric/apps/exam` owns the Phoenix endpoint and signaling channel).
+
+---
+
+## Walkthrough
+
+In `test/wav_capture_test.exs`:
+- When `fixtures/circor/2530_AV.wav` (PhysioNet CirCor DigiScope 4 kHz phonocardiogram) is cached locally via `./fixtures/circor/fetch.sh`, `MedRTC.WavCapture` parses all 94,400 samples (`23,600 ms`) and matches the independent `uv`-locked Python checker's exact PCM SHA-256 (`7c8c93ee4602072aa5c0e4c81a5a9e28d926b278f701218ea588bde9644efc66`).
+- Mid-replay, `PeerLoopback.close_pair/1` tears down `conn_a` and drops 40 preview chunks while the lossless collector captures every sample and emits `:observed_continuous`, after which `conn_b` negotiates a fresh `ExWebRTC` connection to the same `SessionServer`.
+- When the gitignored WAV isn't cached (such as inside `mix weld.verify`), the test falls back to an encoded 4 kHz PCM WAV exercising the exact same code path.
+
+---
+
+## Commands & Verification
+
+```bash
+cd core/med_rtc
+mix test
+mix credo --strict
+mix dialyzer --force-check
 ```
 
----
+## Planned Extensions (Deferred Until Needed)
 
-## Effect Interpreter Routing
+Per-session `:rest_for_one` supervision trees, Membrane audio pipelines (`membrane_opus_plugin`, `membrane_wav_plugin`), `ExSCTP` telemetry channels, and TURN relay integration (`coturn` / `rel`) will be added as real device hardware and live browser media paths require them.
 
-Effects returned by the pure `MedCore.Session` reducer are plain data structures executed by `MedRTC.EffectInterpreter`:
+## Upstream Libraries
 
-| Effect Family | Example Tuples | Runtime Target |
-| --- | --- | --- |
-| **Network / WebRTC** | `{:rtc_apply_offer, ...}`, `{:rtc_send_datachannel, ...}`, `{:rtc_set_bitrate, ...}` | Supervised `ExWebRTC.PeerConnection` & `ExSCTP` channels (keyed by `connection_id`) |
-| **Media Pipelines & Capture** | `{:start_lossless_capture, stream_id, acquisition_id}`, `{:tee_to_inference, stream_id, adapter}` | Dynamic pad linking in `Membrane.Pipeline` (zero-copy BEAM binary refs) |
-| **Compute / OSS** | `{:run_inference, adapter, window}`, `{:analyze_biosignal, adapter, batch}` | Bounded `InferenceSupervisor` → `med_adapters` NIFs or Ports |
-| **Boundary Facts & UI Deltas** | `{:emit_fact, kind, payload}`, `{:publish_ui, topic, delta}` | `Phoenix.PubSub` / registered consumer callbacks (e.g., `med_fabric` `mf_rtc` adapter + coalesced 30–60 Hz LiveView updates) |
-| **Audit & Timers** | `{:append_audit_log, record}`, `{:schedule_timeout, ref, ms}` | `AuditBuffer` and OTP process timers |
-
----
-
-## Target Open-Source Transport Stack (Phase 1B)
-
-- **ExWebRTC** (<https://github.com/elixir-webrtc/ex_webrtc>): Native Elixir W3C WebRTC implementation supporting DTLS-SRTP, ICE, RTP/RTCP, `remote-inbound-rtp` packet-loss telemetry, and custom per-session DTLS `key_cert` injection.
-- **ExSCTP** (<https://github.com/elixir-webrtc/ex_sctp>): Rust-backed (`sctp_proto`) DataChannel transport for lossless ECG/SpO₂ telemetry, 4 kHz diagnostic PCM audio, and audited device control channels.
-- **Membrane Core & Plugins** (<https://github.com/membraneframework/membrane_core>):
-  - `membrane_webrtc_plugin` (<https://github.com/membraneframework/membrane_webrtc_plugin>)
-  - `membrane_opus_plugin` (<https://github.com/membraneframework/membrane_opus_plugin>)
-  - `membrane_wav_plugin` (<https://github.com/membraneframework/membrane_wav_plugin>) — lossless PCM/WAV capture tee independent of live clinician preview drops
-  - `membrane_rtc_engine` (<https://github.com/fishjam-dev/membrane_rtc_engine>) — in-BEAM SFU for multi-clinician Archetype C sessions (2–8 peers)
-- **Rel** (<https://github.com/elixir-webrtc/rel>): Standalone Elixir TURN/STUN server for hospital NAT traversal when direct UDP P2P fails.
-- **ExWebRTC Recorder** (<https://github.com/elixir-webrtc/ex_webrtc_recorder>): Raw RTP packet capture for deterministic incident replay.
-
----
-
-## Security & PHI Isolation Guarantees
-
-1. **Per-Session DTLS Certificates**: Inject ephemeral `key_cert` pairs into `ExWebRTC.PeerConnection` bound to `(session_id, connection_id, peer_id)`.
-2. **Transient Media by Default**: RTP and SCTP waveform buffers remain in volatile RAM unless an audited capture command triggers lossless recording.
-3. **Never P2P Control**: Control DataChannels always terminate in the BEAM `SessionServer` so RBAC, nonce idempotency, and audit hashing cannot be bypassed.
-
----
-
-## Planned Module Layout
-
-```text
-core/med_rtc/lib/
-├── med_rtc.ex
-└── med_rtc/
-    ├── session_supervisor.ex
-    ├── session_server.ex
-    ├── effect_interpreter.ex
-    ├── audit_buffer.ex
-    ├── peer_supervisor.ex
-    ├── media_pipeline.ex
-    ├── signal_router.ex
-    └── turn_config.ex
-```
+- ExWebRTC: https://github.com/elixir-webrtc/ex_webrtc
+- ExSCTP: https://github.com/elixir-webrtc/ex_sctp
+- Membrane Core: https://github.com/membraneframework/membrane_core
+- Rel (TURN/STUN): https://github.com/elixir-webrtc/rel
 
 ## Related Packages
 
-- [MedEx Workspace Overview](../../README.md)
-- [MedCore (Pure Functional Core)](../med_core/README.md)
-- [MedAdapters (Clinical Signal & Media Ports)](../med_adapters/README.md)
-- [MedWeb (LiveView Workbench)](../med_web/README.md)
-- [MedPulse (First Reference App)](../../apps/med_pulse/README.md)
+- [MedEx Workspace](../../README.md)
+- [MedCore](../med_core/README.md)
+- [MedWeb](../med_web/README.md)
+- [MedAdapters](../med_adapters/README.md)
+- [MedPulse](../../apps/med_pulse/README.md)

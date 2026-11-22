@@ -13,56 +13,60 @@
 
 # MedWeb
 
-`med_web` is the reusable **Phoenix, LiveView, Signaling, and Browser Audio/Waveform Workbench** package for the [MedEx](../../README.md) framework.
-
-Product apps (such as [`apps/med_pulse`](../../apps/med_pulse/README.md) and external encounter hosts like `med_fabric`'s `mf_web`) compose `med_web` LiveComponents and JS hooks directly so live-session UI primitives—signal integrity badges, time-aligned multi-stream waveform canvases, audited control bars, and DSP-safe WebAudio worklets—are never re-implemented per product.
+`med_web` is the reusable browser-integration boundary of [MedEx](../../README.md). It translates WebRTC signaling lifecycles into `MedCore.Session` events and ships the browser-side `RTCPeerConnection` JavaScript hook inside `priv/static/med_web/session_hook.js`.
 
 ---
 
-## Core Surface Area (Phase 1D)
+## What This Owns (and Does Not Own)
 
-### 1. Authenticated WebRTC Signaling (`MedWeb.Signaling`)
+**`med_web` owns:**
+- `MedWeb.Signaling.to_session_event/1` — Maps signaling join/leave tuples into `MedCore.Session` `:peer_connected` / `:peer_disconnected` events.
+- `MedWeb.Signaling.hook_asset_path/0` and `hook_asset_full_path/0` — Resolves `priv/static/med_web/session_hook.js` using `Application.get_application(__MODULE__)`, so the exact same code locates the asset in both `:med_web` source mode and the Welded `:med_ex` SDK monolith.
+- `priv/static/med_web/session_hook.js` — Reusable browser hook managing `RTCPeerConnection` SDP offer/answer negotiation, ICE candidates, and reconnect lifecycle without duplicating WebRTC plumbing in host apps.
 
-- Issues and verifies short-lived signed Phoenix tokens bound to `(session_id, participant_role, allowed_stream_ids)` (with optional `encounter_ref` metadata).
-- Bridges browser SDP offers/answers, ICE candidates, reconnect `connection_id` handshakes, and `MediaStreamTrack.getSettings()` DSP-off attestations directly into `MedRTC.SessionServer`.
-- Integrates with **LiveExWebRTC** (<https://github.com/elixir-webrtc/live_ex_webrtc>) and **Membrane WebRTC Plugin** JS hooks (<https://github.com/membraneframework/membrane_webrtc_plugin>).
-
-### 2. Reusable Clinical LiveComponents (`MedWeb.Components`)
-
-| Component | Role |
-| --- | --- |
-| `<.med_session />` | Manages live session subscription, WebRTC signaling hook, reconnect status, and graceful degradation banners (`:nominal` → `:critical_telemetry_only`). |
-| `<.signal_integrity_badge />` | Real-time diagnostic attestation indicator distinguishing **live preview integrity** (`{:preview_stream, id}`) from **recording artifact integrity** (`{:recording_artifact, acquisition_id}`), surfacing exact continuity (`:observed_continuous`, `:observed_gap`, `:unknown`) and gating advisory AI readouts. |
-| `<.sync_waveform_canvas />` | 30–60 Hz Canvas/WebGL hook rendering time-aligned multi-stream traces (e.g., 250 Hz Lead-II ECG + 50 Hz SpO₂ PPG + 4 kHz phonocardiogram) anchored on `session_t_ms` from `MedCore.TimelineAligner`. |
-| `<.control_interlock_bar />` | Role-gated clinician control bar acquiring exclusive device leases, dispatching nonce-tracked commands, rendering ACK countdowns, and displaying `:safe_fallback` alerts. |
-
-### 3. Browser Diagnostic Audio (`WebAudio AudioWorklet`)
-
-- Dedicated `AudioWorklet` ring buffer for zero-glitch 4 kHz 16-bit PCM playback delivered over `ex_sctp` DataChannels—completely decoupled from browser AEC/NS/AGC used by the simultaneous Opus talkback track.
-- Non-destructive client-side biquad filters (**Bell**, **Diaphragm**, **Wideband**) that never mutate the raw archived PCM stream.
-
-### 4. Operational Telemetry (`LiveDashboard`)
-
-- Integrates **ExWebRTC Dashboard** (<https://github.com/elixir-webrtc/ex_webrtc_dashboard>) into Phoenix LiveDashboard for live ICE state, DTLS handshakes, RTCP jitter, and packet-loss observability per session and connection.
+**`med_web` does not own:**
+- The Phoenix endpoint, HTTP routes, encounter authorization, or clinical exam LiveViews. Those belong to host applications such as `med_fabric/apps/exam`, which mounts the shipped `session_hook.js` inside a `phx-update="ignore"` container and serves it at `/med_ex/session_hook.js`.
 
 ---
 
-## Planned Module Layout
+## Walkthrough
 
-```text
-core/med_web/lib/
-├── med_web.ex
-└── med_web/
-    ├── token.ex
-    ├── signaling_channel.ex
-    ├── components.ex
-    └── telemetry.ex
+```elixir
+# Resolve the shipped browser hook (works identically in :med_web and Welded :med_ex)
+path = MedWeb.Signaling.hook_asset_full_path()
+true = File.regular?(path)
+
+# Translate a Phoenix Channel join into a pure MedCore.Session event
+event = MedWeb.Signaling.to_session_event({:join, "clin_1", "conn_a", :clinician, 100})
 ```
+
+See `test/med_web_test.exs` and `med_fabric/apps/exam/test/mf_exam_web_test.exs` for end-to-end verification of asset serving, Phoenix Channel signaling, and LiveView `phx-update="ignore"` hook mounting.
+
+---
+
+## Commands & Verification
+
+```bash
+cd core/med_web
+mix test
+mix credo --strict
+mix dialyzer --force-check
+node --check priv/static/med_web/session_hook.js
+```
+
+## Planned Extensions (Deferred Until Needed)
+
+Reusable LiveView function components (`<.signal_integrity_badge />`, `<.sync_waveform_canvas />`) and a WebAudio `AudioWorklet` ring buffer for raw 4 kHz PCM playback will be added once a live desktop browser test exercises them.
+
+## Upstream References
+
+- LiveExWebRTC: https://github.com/elixir-webrtc/live_ex_webrtc
+- ExWebRTC Dashboard: https://github.com/elixir-webrtc/ex_webrtc_dashboard
 
 ## Related Packages
 
-- [MedEx Workspace Overview](../../README.md)
-- [MedCore (Pure Functional Core)](../med_core/README.md)
-- [MedRTC (OTP Effect Runtime)](../med_rtc/README.md)
-- [MedAdapters (Clinical Signal & Media Ports)](../med_adapters/README.md)
-- [MedPulse (First Reference App)](../../apps/med_pulse/README.md)
+- [MedEx Workspace](../../README.md)
+- [MedCore](../med_core/README.md)
+- [MedRTC](../med_rtc/README.md)
+- [MedAdapters](../med_adapters/README.md)
+- [MedPulse](../../apps/med_pulse/README.md)
