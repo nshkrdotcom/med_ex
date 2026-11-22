@@ -4,6 +4,7 @@ MedCore.StreamSpec.md
 MedCore.md
 MedRTC.PeerLoopback.md
 MedRTC.SessionServer.md
+MedRTC.WavCapture.md
 MedRTC.md
 MedWeb.Signaling.md
 MedWeb.md

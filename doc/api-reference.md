@@ -17,6 +17,8 @@ establishment against `MedRTC.SessionServer`.
 - [MedRTC.SessionServer](MedRTC.SessionServer.md): OTP `GenServer` owning a live `%MedCore.Session{}` and dispatching emitted
 producer facts to registered subscribers.
 
+- [MedRTC.WavCapture](MedRTC.WavCapture.md): Pure-Elixir 16-bit PCM WAV parser and one-input / two-output clinical capture
+runner.
 - [MedWeb](MedWeb.md): Reusable Phoenix signaling contract (`MedWeb.Signaling`) and shipped browser
 `RTCPeerConnection` hook assets for MedEx live sessions.
 
