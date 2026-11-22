@@ -12,7 +12,7 @@
 </p>
 
 # MedEx
-MedEx provides two source projects, `core/med_rtc` for replay and WebRTC peers, and `core/med_web` for browser signaling. Fabric owns clinical decisions. Consumers depend on one private Git SDK named `:med_ex`.
+MedEx provides two source projects, `core/med_rtc` for replay and WebRTC peers, and `core/med_web` for browser signaling. Fabric owns clinical decisions. Consumers depend on one commit-pinned Git SDK named `:med_ex`.
 
 On Ubuntu 26.04 install Git, curl, tar, build-essential, shasum and uv. Activate the exact Erlang and Elixir in .tool-versions through asdf or mise. Run `./onboard.sh --fixture`, `mix ci` and `mix weld.verify`.
 
