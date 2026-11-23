@@ -5,6 +5,8 @@ class IndexedPCM extends AudioWorkletProcessor {
   firstSourceFrame;
   frameIndex;
   emptySince;
+  startedAt;
+  emitted = false;
   credits = 8;
   stopped = false;
   nextSourceFrame;
@@ -33,6 +35,7 @@ class IndexedPCM extends AudioWorkletProcessor {
     if (!this.credits) return this.abort("capture_overflow");
     this.view.setBigUint64(0, BigInt(this.frameIndex));
     const frame = this.used === 960 ? this.frame : this.frame.slice(0, 8 + this.used * 2);
+    this.emitted = true;
     this.credits--;
     this.used = 0;
     this.frame = new ArrayBuffer(1928);
@@ -43,14 +46,22 @@ class IndexedPCM extends AudioWorkletProcessor {
 
   process(inputs) {
     if (this.stopped) return false;
+    this.startedAt ??= currentFrame;
+    if (!this.emitted && currentFrame - this.startedAt >= sampleRate) {
+      return this.abort("capture_source_timeout");
+    }
     const samples = inputs[0]?.[0];
     if (!samples?.length) {
       this.emptySince ??= currentFrame;
       return currentFrame - this.emptySince < sampleRate || this.abort("capture_source_timeout");
     }
     this.emptySince = undefined;
+    if (this.nextSourceFrame !== undefined && currentFrame !== this.nextSourceFrame) {
+      if (this.emitted) return this.abort("capture_gap");
+      this.used = 0;
+      this.firstSourceFrame = currentFrame;
+    }
     this.firstSourceFrame ??= currentFrame;
-    if (this.nextSourceFrame !== undefined && currentFrame !== this.nextSourceFrame) return this.abort("capture_gap");
     this.nextSourceFrame = currentFrame + samples.length;
 
     for (const [offset, sample] of samples.entries()) {
