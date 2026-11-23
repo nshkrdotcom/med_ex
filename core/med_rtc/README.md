@@ -19,5 +19,3 @@ Provides `MedEx.Capture` (indexed 48 kHz mono PCM16LE WAV writer with bounded
 live `Membrane.Opus.Encoder` preview fan-out), `MedEx.Evidence` (finalized
 artifact struct), and `MedEx.Preview` (replaceable send-only `ExWebRTC` peer).
 Projected with `core/med_web` into the single `:med_ex` Hex package.
-
-See the [host integration guide](../../guides/host_integration.md).

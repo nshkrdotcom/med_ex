@@ -51,7 +51,4 @@ flowchart LR
 | Out-of-band signal analysis & inference workers (NeuroKit2, WFDB-Python, ONNX, voice AI) | **Planned** | Separately installed/deployed packages or workers consuming finalized `MedEx.Evidence` outside capture and emitting derived results with source digest and algorithm provenance. |
 | Multiparty SFU topologies (e.g. LiveKit) & managed TURN deployments | **Planned** | External media services integrated when a product topology requires multiparty forwarding or NAT relay. |
 
-See [Host integration](host_integration.md) for the current SDK contract and the
-[Med Fabric architecture and roadmap](https://github.com/nshkrdotcom/med_fabric/blob/main/guides/architecture_and_roadmap.md)
-for the clinical encounter composition, four capability families, and 12 target
-use cases.
+See [Host integration](host_integration.md) for the current SDK contract.

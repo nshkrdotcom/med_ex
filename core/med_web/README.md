@@ -19,5 +19,3 @@ Provides `MedEx.Web.asset_path/1` to locate the three packaged JavaScript assets
 (`session_hook.js`, `pcm_capture.js`, and `pcm_worklet.js`) for LiveView preview
 signaling and browser `AudioWorklet` PCM16LE capture. Projected with
 `core/med_rtc` into the single `:med_ex` Hex package.
-
-See the [host integration guide](../../guides/host_integration.md).
