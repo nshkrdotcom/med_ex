@@ -49,8 +49,8 @@ defmodule MedEx.Wav do
 
   @doc false
   def header(data_size, sample_rate_hz) do
-    <<"RIFF", (@header_size - 8 + data_size)::little-32, "WAVEfmt ", 16::little-32, 1::little-16,
-      1::little-16, sample_rate_hz::little-32, (sample_rate_hz * @sample_bytes)::little-32,
+    <<"RIFF", @header_size - 8 + data_size::little-32, "WAVEfmt ", 16::little-32, 1::little-16,
+      1::little-16, sample_rate_hz::little-32, sample_rate_hz * @sample_bytes::little-32,
       @sample_bytes::little-16, 16::little-16, "data", data_size::little-32>>
   end
 

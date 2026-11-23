@@ -41,7 +41,8 @@ defmodule MedEx.WavTest do
       tail_offset = offset + byte_size(replacement)
 
       malformed =
-        binary_part(header, 0, offset) <> replacement <>
+        binary_part(header, 0, offset) <>
+          replacement <>
           binary_part(header, tail_offset, 44 - tail_offset)
 
       assert {:error, :invalid_wav} = Wav.parse_header(malformed, 46)
@@ -64,8 +65,7 @@ defmodule MedEx.WavTest do
   end
 
   defp canonical_header(size) do
-    <<"RIFF", (size + 36)::little-32, "WAVEfmt ", 16::little-32, 1::little-16, 1::little-16,
-      48_000::little-32, 96_000::little-32, 2::little-16, 16::little-16, "data",
-      size::little-32>>
+    <<"RIFF", size + 36::little-32, "WAVEfmt ", 16::little-32, 1::little-16, 1::little-16,
+      48_000::little-32, 96_000::little-32, 2::little-16, 16::little-16, "data", size::little-32>>
   end
 end
