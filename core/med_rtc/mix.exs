@@ -41,6 +41,7 @@ defmodule MedRTC.MixProject do
   defp dialyzer do
     [
       plt_add_deps: :apps_direct,
+      plt_add_apps: [:membrane_core],
       flags: [:error_handling, :underspecs, :unknown]
     ]
   end
