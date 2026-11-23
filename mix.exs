@@ -58,8 +58,7 @@ defmodule MedEx.MixProject do
         "guides",
         "lib",
         "mix.exs",
-        "priv",
-        "projection.lock.json"
+        "priv"
       ]
     ]
   end

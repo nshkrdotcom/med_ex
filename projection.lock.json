@@ -55,7 +55,7 @@
       "test/support/weld_helpers/core_med_web_test_helper.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "c3f999e187d5f16de63dbe8be5f9fe72ad82c91c",
+    "git_revision": "2c51157b509c9ddc5bc2a2d4a93ae53d8d1e6e01",
     "package_files": [
       ".credo.exs",
       ".formatter.exs",
@@ -67,10 +67,9 @@
       "guides",
       "lib",
       "mix.exs",
-      "priv",
-      "projection.lock.json"
+      "priv"
     ],
-    "tree_digest": "59a4d25e8f2a820f702ec586ae76b0414d871e93a0dba8bbbfd33ebdaf907446"
+    "tree_digest": "92021a6eccb66e49d6522ad9d491155359082edc09c4d2d761c03d1988108686"
   },
   "verification": [
     {
