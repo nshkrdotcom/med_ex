@@ -23,3 +23,5 @@ flowchart LR
   WAV --> Capture --> ImmutableWAV
   Capture --> Preview --> Peer --> Browser
 ```
+
+Read the [host integration guide](guides/host_integration.md) and the [architecture and roadmap](guides/architecture_and_roadmap.md).

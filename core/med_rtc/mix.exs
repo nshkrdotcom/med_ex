@@ -31,6 +31,7 @@ defmodule MedRTC.MixProject do
     [
       {:ex_webrtc, "~> 0.18.0"},
       {:ex_rtp, "~> 0.4"},
+      {:membrane_opus_plugin, "~> 0.21.0"},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4.9", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
