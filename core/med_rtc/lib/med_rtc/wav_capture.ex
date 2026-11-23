@@ -55,19 +55,14 @@ defmodule MedRTC.WavCapture do
   def encode_pcm16_wav(pcm, sample_rate_hz)
       when is_binary(pcm) and rem(byte_size(pcm), 2) == 0 and is_integer(sample_rate_hz) and
              sample_rate_hz > 0 do
-    channels = 1
-    bits_per_sample = 16
-    byte_rate = sample_rate_hz * channels * div(bits_per_sample, 8)
-    block_align = channels * div(bits_per_sample, 8)
-    data_size = byte_size(pcm)
-    riff_size = 36 + data_size
+    IO.iodata_to_binary([header(byte_size(pcm), sample_rate_hz), pcm])
+  end
 
-    header =
-      <<"RIFF", riff_size::little-32, "WAVE", "fmt ", 16::little-32, 1::little-16,
-        channels::little-16, sample_rate_hz::little-32, byte_rate::little-32,
-        block_align::little-16, bits_per_sample::little-16, "data", data_size::little-32>>
-
-    IO.iodata_to_binary([header, pcm])
+  @doc false
+  def header(data_size, sample_rate_hz) do
+    <<"RIFF", 36 + data_size::little-32, "WAVE", "fmt ", 16::little-32, 1::little-16,
+      1::little-16, sample_rate_hz::little-32, sample_rate_hz * 2::little-32, 2::little-16,
+      16::little-16, "data", data_size::little-32>>
   end
 
   @doc """
@@ -223,7 +218,8 @@ defmodule MedRTC.WavCapture do
     end
   end
 
-  defp sync_directory(dir) do
+  @doc false
+  def sync_directory(dir) do
     with {:ok, fd} <- :file.open(String.to_charlist(dir), [:read, :raw, :directory]) do
       try do
         :file.sync(fd)
