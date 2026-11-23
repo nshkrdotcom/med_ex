@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.1.0] - 2026-11-22
+## 0.1.0
 
-### Added
-
-- Initialized `med_rtc` OTP runtime & WebRTC transport shell skeleton and architecture specification.
+- Implemented `MedEx.Capture`, `MedEx.Evidence`, and `MedEx.Preview` for indexed
+  48 kHz mono PCM16LE WAV recording and independent live Opus/WebRTC preview.
+- Added host-configurable `:ice_servers` and bounded `Membrane.Opus.Encoder`
+  preview isolation.

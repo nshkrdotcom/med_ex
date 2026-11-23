@@ -1,7 +1,7 @@
 # Changelog
 
-## [0.1.0] - 2026-11-22
+## 0.1.0
 
-### Added
-
-- Initialized `med_web` Phoenix/LiveView clinical workbench package skeleton and architecture specification.
+- Added `MedEx.Web.asset_path/1` and packaged browser assets (`session_hook.js`,
+  `pcm_capture.js`, and `pcm_worklet.js`) for LiveView preview hooks and
+  AudioWorklet PCM16LE capture.

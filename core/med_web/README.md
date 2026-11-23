@@ -13,4 +13,11 @@
 
 # med_web
 
-The SDK ships a browser hook and resolves its packaged asset with MedEx.Web.asset_path/1. The host supplies its Phoenix Socket constructor, endpoint, topic function and control selectors. See the [host integration guide](../../guides/host_integration.md).
+Internal browser assets package for [MedEx](../../README.md).
+
+Provides `MedEx.Web.asset_path/1` to locate the three packaged JavaScript assets
+(`session_hook.js`, `pcm_capture.js`, and `pcm_worklet.js`) for LiveView preview
+signaling and browser `AudioWorklet` PCM16LE capture. Projected with
+`core/med_rtc` into the single `:med_ex` Hex package.
+
+See the [host integration guide](../../guides/host_integration.md).
