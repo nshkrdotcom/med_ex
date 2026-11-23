@@ -13,10 +13,14 @@ defmodule MedEx.Preview do
   @type t :: %__MODULE__{pid: pid(), track_id: MediaStreamTrack.id()}
 
   @doc "Answers a receive-only audio offer containing the browser's ICE candidates."
-  @spec answer(String.t()) :: {:ok, t(), String.t()} | {:error, term()}
-  def answer(offer_sdp) when is_binary(offer_sdp) do
+  @spec answer(String.t(), keyword()) :: {:ok, t(), String.t()} | {:error, term()}
+  def answer(offer_sdp, opts \\ []) when is_binary(offer_sdp) do
     with {:ok, pid} <-
-           PeerConnection.start_link(ice_servers: [], audio_codecs: [:opus], video_codecs: []) do
+           PeerConnection.start_link(
+             ice_servers: Keyword.get(opts, :ice_servers, []),
+             audio_codecs: [:opus],
+             video_codecs: []
+           ) do
       track = MediaStreamTrack.new(:audio)
       peer = %__MODULE__{pid: pid, track_id: track.id}
 
