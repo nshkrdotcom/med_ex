@@ -1,11 +1,7 @@
 # Changelog
 
-All notable changes to the `med_ex` poncho workspace will be documented in this file.
+## 0.1.0
 
-## [0.1.0] - 2026-11-22
-
-### Added
-
-- Initialized the `med_ex` non-umbrella Elixir poncho workspace with Blitz and Weld orchestration.
-- Added architecture documentation and skeleton packages under `core/` (`med_core`, `med_rtc`, `med_adapters`, `med_web`) and `apps/` (`med_pulse`).
-- Configured Credo, Dialyxir, ExDoc, custom SVG branding assets, and per-package metadata across every child Mix project.
+- Record indexed browser PCM as content-addressed WAV evidence.
+- Encode live Opus on a bounded preview branch with replaceable WebRTC peers.
+- Provide host-configurable ICE, browser capture assets, and standalone integration guides.

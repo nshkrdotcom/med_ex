@@ -96,6 +96,7 @@ defmodule MedEx.Capture do
                 pipeline: pipeline,
                 idle?: false,
                 subscriber: subscriber,
+                subscriber_ref: Process.monitor(subscriber),
                 demand?: true
               }
 
@@ -104,7 +105,14 @@ defmodule MedEx.Capture do
           end
 
         preview ->
-          %{preview | subscriber: subscriber, demand?: true}
+          Process.demonitor(preview.subscriber_ref, [:flush])
+
+          %{
+            preview
+            | subscriber: subscriber,
+              subscriber_ref: Process.monitor(subscriber),
+              demand?: true
+          }
       end
 
     {:reply, if(preview, do: :ok, else: {:error, :preview_unavailable}),
@@ -122,6 +130,14 @@ defmodule MedEx.Capture do
     do: {:stop, :normal, state}
 
   def handle_info(
+        {:DOWN, ref, :process, _, _},
+        %{preview: %{subscriber_ref: ref} = preview} = state
+      ) do
+    stop_preview(preview)
+    {:noreply, %{state | preview: nil}}
+  end
+
+  def handle_info(
         {:preview_ready, pipeline},
         %{preview: %{pipeline: pipeline} = preview} = state
       ),
@@ -137,11 +153,14 @@ defmodule MedEx.Capture do
 
   def handle_info(
         {:EXIT, supervisor, reason},
-        %{preview: %{supervisor: supervisor, subscriber: subscriber}} = state
+        %{preview: %{supervisor: supervisor, subscriber: subscriber, subscriber_ref: ref}} = state
       ) do
+    Process.demonitor(ref, [:flush])
     send(subscriber, {:med_ex_preview_failed, self(), reason})
     {:noreply, %{state | preview: nil}}
   end
+
+  def handle_info(_, state), do: {:noreply, state}
 
   defp offer_preview(%{preview: %{idle?: true, demand?: true} = preview} = state, index, pcm)
        when byte_size(pcm) == @frame_bytes do
@@ -153,13 +172,15 @@ defmodule MedEx.Capture do
 
   @impl true
   def terminate(_reason, state) do
-    if state.preview do
-      Membrane.Pipeline.terminate(state.preview.pipeline, asynchronous?: true, force?: true)
-    end
+    if state.preview, do: stop_preview(state.preview)
 
     :file.close(state.fd)
     File.rm(state.temp)
     :ok
+  end
+
+  defp stop_preview(preview) do
+    Membrane.Pipeline.terminate(preview.pipeline, asynchronous?: true, force?: true)
   end
 
   defp finalize(state) do
