@@ -28,3 +28,7 @@ its last frame. Return a terminal outcome after durable intake, then close
 the connection. A disconnect before finish aborts the acquisition.
 
 Pass `:ice_servers` to `MedEx.Preview.answer/2` and `iceServers` to the browser hook for host-managed ICE configuration. The verified lab uses direct local candidates.
+
+The browser PCM helper calls its recording callback after the host acknowledges
+the first full frame. Allow up to one second for a continuous microphone start.
+A source gap after the first frame ends the capture with `capture_gap`.
