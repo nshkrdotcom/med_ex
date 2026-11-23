@@ -15,7 +15,7 @@ defmodule MedRTC.MixProject do
       docs: docs(),
       package: package(),
       name: "MedRTC",
-      description: "OTP effect runtime and clinical WebRTC/Opus/SCTP transport shell for MedEx.",
+      description: "Indexed PCM capture and independent Opus/WebRTC preview.",
       source_url: @source_url,
       homepage_url: @source_url
     ]

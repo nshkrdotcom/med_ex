@@ -15,8 +15,7 @@ defmodule MedWeb.MixProject do
       docs: docs(),
       package: package(),
       name: "MedWeb",
-      description:
-        "Reusable Phoenix signaling channels, clinical LiveComponents, WebAudio AudioWorklet hooks, and LiveDashboard telemetry for MedEx.",
+      description: "Browser PCM capture and WebRTC preview assets for MedEx.",
       source_url: @source_url,
       homepage_url: @source_url
     ]
