@@ -23,12 +23,15 @@ defmodule MedEx.Preview do
 
     * `:ice_servers` — list of ICE server maps passed to `ExWebRTC.PeerConnection`
       (defaults to `[]` for direct local candidates).
+    * `:ice_transport_policy` — `:all` (default) or `:relay`. For relay-only
+      preview, supply TURN credentials and select relay on the browser too.
   """
   @spec answer(String.t(), keyword()) :: {:ok, t(), String.t()} | {:error, term()}
   def answer(offer_sdp, opts \\ []) when is_binary(offer_sdp) do
     with {:ok, pid} <-
            PeerConnection.start_link(
              ice_servers: Keyword.get(opts, :ice_servers, []),
+             ice_transport_policy: Keyword.get(opts, :ice_transport_policy, :all),
              audio_codecs: [:opus],
              video_codecs: []
            ) do

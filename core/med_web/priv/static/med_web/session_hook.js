@@ -1,5 +1,8 @@
 // The exam supplies its Phoenix Socket constructor and server-issued token.
-export function createMedExHook({ Socket, socketPath, topic, play, disconnect, reconnect, iceServers = [] }) {
+export function createMedExHook({
+  Socket, socketPath, topic, play, disconnect, reconnect,
+  iceServers = [], iceTransportPolicy = "all", rtcConfig = () => ({iceServers, iceTransportPolicy}),
+}) {
   return {
     mounted() {
       this.buttons = new AbortController();
@@ -28,18 +31,26 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
 
     async connectPreview() {
       this.closePreview("connecting");
-      const pc = new RTCPeerConnection({ iceServers });
       const socket = new Socket(socketPath, { params: { token: this.el.dataset.token } });
       const connectionId = crypto.randomUUID();
       const channel = socket.channel(topic(this.el), {
         connection_id: connectionId
       });
 
-      this.pc = pc;
       this.socket = socket;
       this.channel = channel;
-      this.el.medExPeer = pc;
       this.el.dataset.connectionId = connectionId;
+
+      let pc;
+      try {
+        const config = await rtcConfig(this.el);
+        if (this.socket !== socket) return;
+        pc = new RTCPeerConnection(config);
+      } catch (error) {
+        if (this.socket === socket) this.closePreview("failed", error.message);
+        return;
+      }
+      this.el.medExPeer = this.pc = pc;
 
       pc.ontrack = ({ track, streams }) => {
         if (this.pc !== pc) return;
@@ -51,6 +62,9 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
         if (this.pc === pc) this.showStatus(pc.connectionState);
       };
 
+      channel.on("preview_replaced", () => {
+        if (this.pc === pc) this.closePreview("replaced", "Another listener took over this preview.");
+      });
       channel.on("preview_failed", () => {
         if (this.pc === pc) this.closePreview("failed", "Preview unavailable. Reconnect to retry.");
       });
