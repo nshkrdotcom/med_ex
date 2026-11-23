@@ -20,14 +20,14 @@ class IndexedPCM extends AudioWorkletProcessor {
     };
   }
 
-  abort() {
+  abort(reason) {
     this.stopped = true;
-    this.port.postMessage("abort");
+    this.port.postMessage(reason);
     return false;
   }
 
   emit() {
-    if (!this.credits) return this.abort();
+    if (!this.credits) return this.abort("capture_overflow");
     this.view.setBigUint64(0, BigInt(this.index));
     const frame = this.used === 960 ? this.frame : this.frame.slice(0, 8 + this.used * 2);
     this.credits--;
@@ -42,8 +42,8 @@ class IndexedPCM extends AudioWorkletProcessor {
   process(inputs) {
     if (this.stopped) return false;
     const samples = inputs[0]?.[0];
-    if (!samples?.length) return this.nextSourceFrame === undefined || this.abort();
-    if (this.nextSourceFrame !== undefined && currentFrame !== this.nextSourceFrame) return this.abort();
+    if (!samples?.length) return this.nextSourceFrame === undefined || this.abort("capture_gap");
+    if (this.nextSourceFrame !== undefined && currentFrame !== this.nextSourceFrame) return this.abort("capture_gap");
     this.nextSourceFrame = currentFrame + samples.length;
 
     for (const sample of samples) {
