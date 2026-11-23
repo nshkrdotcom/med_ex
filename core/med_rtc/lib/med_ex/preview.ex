@@ -1,4 +1,4 @@
-defmodule MedRTC.Preview do
+defmodule MedEx.Preview do
   @moduledoc """
   One replaceable, send-only WebRTC peer for an Opus preview. The caller owns
   the peer and receives its ExWebRTC state changes. Capture has its own lifetime.
@@ -44,16 +44,12 @@ defmodule MedRTC.Preview do
     end
   end
 
-  @doc "Sends one 20 ms Opus frame. Frame indices are relative to the acquisition."
-  @spec send_opus(t(), binary(), non_neg_integer()) :: :ok
-  def send_opus(peer, payload, index), do: send_opus(peer, payload, index, index)
-
-  @doc "Sends one Opus frame using separate packet and media indices."
-  def send_opus(%__MODULE__{pid: pid, track_id: id}, payload, sequence, media_index) do
+  @doc "Sends one Opus packet with separate packet sequence and sample clock positions."
+  def send_opus(%__MODULE__{pid: pid, track_id: id}, payload, sequence, sample_index) do
     packet =
       Packet.new(payload,
         sequence_number: rem(sequence, 65_536),
-        timestamp: rem(media_index * 960, 4_294_967_296)
+        timestamp: rem(sample_index, 4_294_967_296)
       )
 
     PeerConnection.send_rtp(pid, id, packet)

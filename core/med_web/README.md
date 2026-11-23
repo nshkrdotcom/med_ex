@@ -13,4 +13,4 @@
 
 # med_web
 
-The SDK ships a browser hook and resolves its packaged asset with MedWeb.Signaling.hook_asset_full_path/0. The host supplies its Phoenix Socket constructor, endpoint, topic function and control selectors. See the Fabric exam for the working integration.
+The SDK ships a browser hook and resolves its packaged asset with MedEx.Web.asset_path/1. The host supplies its Phoenix Socket constructor, endpoint, topic function and control selectors. See the [host integration guide](../../guides/host_integration.md).

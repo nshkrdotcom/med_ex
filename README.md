@@ -14,8 +14,8 @@
 # MedEx
 
 MedEx is an Elixir SDK for recording clinical audio and sending an independent
-WebRTC preview. The current release candidate reads a mono PCM16 WAV and a
-paired Ogg/Opus preview. The host owns access, signaling, and clinical review.
+WebRTC preview. The SDK accepts indexed mono PCM16 at 48 kHz, writes an immutable WAV,
+and encodes live Opus for a WebRTC listener. The host owns access, signaling, and clinical review.
 
 ## Install and use
 
@@ -33,7 +33,7 @@ toolchain, pkg-config, and OpenSSL development headers.
 Start with [Host integration](guides/host_integration.md) to set up a peer,
 serve the browser hook, and record the input. Read
 [Architecture and roadmap](guides/architecture_and_roadmap.md) for the capture
-and preview boundaries and the planned live-input path.
+and preview boundaries and future integrations.
 
 ## Contribute
 

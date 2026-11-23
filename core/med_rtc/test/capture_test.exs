@@ -12,7 +12,7 @@ defmodule MedEx.CaptureTest do
     assert evidence.end_sample == 961
     assert evidence.kind == :audio_pcm16_wav
     bytes = File.read!(Path.join(dir, evidence.artifact_key))
-    assert {:ok, %{pcm: captured}} = MedRTC.WavCapture.parse_wav(bytes)
+    assert {:ok, %{pcm: captured}} = MedEx.Wav.parse_wav(bytes)
     assert captured == pcm <> <<3, 0>>
     assert evidence.file_sha256 == Base.encode16(:crypto.hash(:sha256, bytes), case: :lower)
     assert File.ls!(dir) == [evidence.artifact_key]

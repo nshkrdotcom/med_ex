@@ -21,8 +21,7 @@
         otp_app: :med_ex,
         version: "0.1.0",
         elixir: "~> 1.20",
-        description:
-          "Browser-capable clinical Send-only WebRTC and Opus preview with independent WAV replay",
+        description: "Live clinical audio capture and independent WebRTC Opus preview",
         licenses: ["MIT"],
         maintainers: ["nshkrdotcom"],
         links: %{"GitHub" => "https://github.com/nshkrdotcom/med_ex"},

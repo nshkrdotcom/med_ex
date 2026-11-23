@@ -1,3 +1,3 @@
 # med_rtc
 
-MedRTC.Preview answers a browser audio offer and sends Opus RTP. MedRTC.WavCapture.record/4 replays prepared PCM and Opus files, installs a content-addressed WAV in an existing directory, and returns recording identity and timing independently of preview.
+MedEx.Capture writes indexed live PCM and produces an independent Opus preview. MedEx.Preview sends preview packets through a replaceable WebRTC peer. See the [host integration guide](../../guides/host_integration.md).

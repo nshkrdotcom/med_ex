@@ -3,7 +3,7 @@ defmodule MedEx.Capture do
   use GenServer, restart: :temporary
 
   alias MedEx.Evidence
-  alias MedRTC.WavCapture
+  alias MedEx.Wav
 
   @frame_bytes 1920
   @max_samples 48_000 * 60 * 30
@@ -28,7 +28,7 @@ defmodule MedEx.Capture do
 
     case :file.open(temp, [:write, :binary, :raw, :exclusive]) do
       {:ok, fd} ->
-        case :file.write(fd, WavCapture.header(0, 48_000)) do
+        case :file.write(fd, Wav.header(0, 48_000)) do
           :ok ->
             {:ok,
              %{
@@ -158,12 +158,12 @@ defmodule MedEx.Capture do
   end
 
   defp finalize(state) do
-    with :ok <- :file.pwrite(state.fd, 0, WavCapture.header(state.count * 2, 48_000)),
+    with :ok <- :file.pwrite(state.fd, 0, Wav.header(state.count * 2, 48_000)),
          :ok <- :file.sync(state.fd),
          digest <- digest_file(state.temp),
          key = digest <> ".wav",
          :ok <- install(state.temp, Path.join(state.dir, key), digest),
-         :ok <- WavCapture.sync_directory(state.dir) do
+         :ok <- Wav.sync_directory(state.dir) do
       {:ok,
        %Evidence{
          acquisition_id: state.acquisition_id,
