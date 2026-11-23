@@ -29,6 +29,9 @@ Activate the exact Erlang and Elixir versions pinned in `.tool-versions`
 
 ## Build, test, and prepare a release bundle
 
+Update the root `VERSION` file when bumping MedEx. The workspace projects and
+the Weld manifest share it, and the manifest derives the HexDocs projection tag.
+
 ```sh
 ./onboard.sh
 mix ci

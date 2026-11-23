@@ -1,7 +1,7 @@
 defmodule MedEx.Workspace.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version __DIR__ |> Path.join("VERSION") |> File.read!() |> String.trim()
   @source_url "https://github.com/nshkrdotcom/med_ex"
 
   def project do
