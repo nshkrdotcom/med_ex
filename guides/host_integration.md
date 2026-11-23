@@ -54,9 +54,15 @@ children = [
 ]
 ```
 
+For the preview example below, start `{Phoenix.PubSub, name: MyApp.PubSub}`
+in the host supervisor as well. Register the encounter in `MyApp.ActiveCapture`
+from the producer process and broadcast after the capture starts.
+
 Each capture process takes `:owner`, `:acquisition_id`, and `:artifact_dir`:
 
 ```elixir
+{:ok, _} = Registry.register(MyApp.ActiveCapture, encounter_id, nil)
+
 {:ok, capture} =
   DynamicSupervisor.start_child(
     MyApp.Captures,
@@ -65,6 +71,9 @@ Each capture process takes `:owner`, `:acquisition_id`, and `:artifact_dir`:
      acquisition_id: acquisition_id,
      artifact_dir: artifact_dir}
   )
+
+Registry.update_value(MyApp.ActiveCapture, encounter_id, fn _ -> capture end)
+Phoenix.PubSub.broadcast(MyApp.PubSub, "preview:" <> encounter_id, {:capture_started, capture})
 ```
 
 `MedEx.Capture` monitors `:owner` and aborts (deleting its temporary `.part`
@@ -171,8 +180,13 @@ defmodule MyAppWeb.PreviewChannel do
         {:ex_webrtc, pid, {:connection_state_change, :connected}},
         %{assigns: %{peer: %{pid: pid}, connected: false}} = socket
       ) do
-    # Subscribe to future capture starts and attach if one is already running.
-    send(self(), :attach_active_capture)
+    encounter_id = socket.assigns.encounter_id
+    :ok = Phoenix.PubSub.subscribe(MyApp.PubSub, "preview:" <> encounter_id)
+
+    case Registry.lookup(MyApp.ActiveCapture, encounter_id) do
+      [{_producer, capture}] when is_pid(capture) -> send(self(), {:capture_started, capture})
+      _ -> :ok
+    end
     {:noreply, assign(socket, :connected, true)}
   end
 
@@ -185,6 +199,8 @@ defmodule MyAppWeb.PreviewChannel do
         push(socket, "preview_failed", %{})
         {:noreply, socket}
     end
+  catch
+    :exit, _ -> {:noreply, socket}
   end
 
   def handle_info(
@@ -258,7 +274,9 @@ import { Socket } from "/assets/phoenix.mjs";
 import { LiveSocket } from "/assets/phoenix_live_view.esm.js";
 import { createMedExHook } from "/med_ex/session_hook.js";
 
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 const liveSocket = new LiveSocket("/live", Socket, {
+  params: { _csrf_token: csrfToken },
   hooks: {
     MedExSessionHook: createMedExHook({
       Socket,
@@ -271,6 +289,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     })
   }
 });
+liveSocket.connect();
 ```
 
 Channel protocol expected by `createMedExHook`:
@@ -284,7 +303,9 @@ Channel protocol expected by `createMedExHook`:
 
 ## 5. Browser live PCM capture (`pcm_capture.js` & `pcm_worklet.js`)
 
-`pcm_capture.js` exports:
+Call `startPCM` from a user gesture, such as clicking Start. Provide separate
+buttons with IDs `finish-capture` and `abort-capture`. Enable Finish from the
+recording callback once the server acknowledges the first frame.
 
 ```js
 import { startPCM } from "/med_ex/pcm_capture.js";
@@ -303,11 +324,9 @@ const handle = await startPCM(
   () => console.log("Recording active (first frame acknowledged)")
 );
 
-// Later, to finalize cleanly (drains remaining samples and sends text "finish"):
-handle.finish();
-
-// Or to abort immediately:
-handle.abort();
+// Use separate buttons for the two terminal actions.
+document.querySelector("#finish-capture").onclick = () => handle.finish();
+document.querySelector("#abort-capture").onclick = () => handle.abort();
 ```
 
 ### Live PCM wire protocol and outcome codes
