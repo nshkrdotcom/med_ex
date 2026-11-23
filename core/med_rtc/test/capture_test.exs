@@ -19,6 +19,35 @@ defmodule MedEx.CaptureTest do
   end
 
   @tag :tmp_dir
+  test "encodes live preview and keeps writing when the subscriber stops demanding", %{
+    tmp_dir: dir
+  } do
+    {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "a", artifact_dir: dir)
+    assert :ok = MedEx.Capture.subscribe(capture)
+    pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
+
+    index =
+      Enum.reduce_while(0..19, nil, fn frame, _ ->
+        assert :ok = MedEx.Capture.push(capture, frame * 960, pcm)
+
+        receive do
+          {:med_ex_preview, ^capture, index, packet} ->
+            assert byte_size(packet) > 0
+            {:halt, {frame, index}}
+        after
+          25 -> {:cont, nil}
+        end
+      end)
+
+    assert {frame, sent} = index
+    assert sent <= frame * 960
+    assert :ok = MedEx.Capture.push(capture, (frame + 1) * 960, pcm)
+    assert {:ok, evidence} = MedEx.Capture.finish(capture)
+    assert evidence.sample_count == (frame + 2) * 960
+    refute_received {:med_ex_preview, ^capture, _, _}
+  end
+
+  @tag :tmp_dir
   test "a source gap ends the attempt without a recording", %{tmp_dir: dir} do
     {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "a", artifact_dir: dir)
     assert {:error, :invalid_frame} = MedEx.Capture.push(capture, 1, <<1, 0>>)

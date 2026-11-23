@@ -11,6 +11,10 @@ defmodule MedEx.Capture do
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
   def push(pid, first_sample, pcm), do: GenServer.call(pid, {:push, first_sample, pcm})
+  def subscribe(pid), do: GenServer.call(pid, {:subscribe, self()})
+
+  def demand(pid), do: GenServer.cast(pid, {:demand, self()})
+
   def finish(pid), do: GenServer.call(pid, :finish, :infinity)
 
   @impl true
@@ -34,6 +38,7 @@ defmodule MedEx.Capture do
                acquisition_id: acquisition_id,
                count: 0,
                tail?: false,
+               preview: nil,
                pcm_hash: :crypto.hash_init(:sha256)
              }}
 
@@ -54,6 +59,8 @@ defmodule MedEx.Capture do
              rem(byte_size(pcm), 2) == 0 and index + div(byte_size(pcm), 2) <= @max_samples do
     case :file.write(state.fd, pcm) do
       :ok ->
+        state = offer_preview(state, index, pcm)
+
         {:reply, :ok,
          %{
            state
@@ -76,8 +83,75 @@ defmodule MedEx.Capture do
   def handle_call(:finish, _from, state),
     do: {:stop, :normal, finalize(state), state}
 
+  def handle_call({:subscribe, subscriber}, _from, state) do
+    preview =
+      case state.preview do
+        nil ->
+          case Membrane.Pipeline.start_link(MedEx.PreviewEncoder, self()) do
+            {:ok, supervisor, pipeline} ->
+              %{
+                supervisor: supervisor,
+                pipeline: pipeline,
+                idle?: false,
+                subscriber: subscriber,
+                demand?: true
+              }
+
+            {:error, _reason} ->
+              nil
+          end
+
+        preview ->
+          %{preview | subscriber: subscriber, demand?: true}
+      end
+
+    {:reply, if(preview, do: :ok, else: {:error, :preview_unavailable}),
+     %{state | preview: preview}}
+  end
+
+  @impl true
+  def handle_cast({:demand, subscriber}, %{preview: %{subscriber: subscriber} = preview} = state),
+    do: {:noreply, %{state | preview: %{preview | demand?: true}}}
+
+  def handle_cast({:demand, _subscriber}, state), do: {:noreply, state}
+
+  @impl true
+  def handle_info(
+        {:preview_ready, pipeline},
+        %{preview: %{pipeline: pipeline} = preview} = state
+      ),
+      do: {:noreply, %{state | preview: %{preview | idle?: true}}}
+
+  def handle_info(
+        {:preview_encoded, pipeline, index, payload},
+        %{preview: %{pipeline: pipeline} = preview} = state
+      ) do
+    send(preview.subscriber, {:med_ex_preview, self(), index, payload})
+    {:noreply, %{state | preview: %{preview | idle?: true}}}
+  end
+
+  def handle_info(
+        {:EXIT, supervisor, reason},
+        %{preview: %{supervisor: supervisor, subscriber: subscriber}} = state
+      ) do
+    send(subscriber, {:med_ex_preview_failed, self(), reason})
+    {:noreply, %{state | preview: nil}}
+  end
+
+  defp offer_preview(%{preview: %{idle?: true, demand?: true} = preview} = state, index, pcm)
+       when byte_size(pcm) == @frame_bytes do
+    send(preview.pipeline, {:pcm, index, pcm})
+    %{state | preview: %{preview | idle?: false, demand?: false}}
+  end
+
+  defp offer_preview(state, _index, _pcm), do: state
+
   @impl true
   def terminate(_reason, state) do
+    if state.preview do
+      Membrane.Pipeline.terminate(state.preview.pipeline, asynchronous?: true, force?: true)
+    end
+
     :file.close(state.fd)
     File.rm(state.temp)
     :ok
