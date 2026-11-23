@@ -2,7 +2,9 @@ class IndexedPCM extends AudioWorkletProcessor {
   frame = new ArrayBuffer(1928);
   view = new DataView(this.frame);
   used = 0;
-  index = 0;
+  firstSourceFrame;
+  frameIndex;
+  emptySince;
   credits = 8;
   stopped = false;
   nextSourceFrame;
@@ -13,6 +15,7 @@ class IndexedPCM extends AudioWorkletProcessor {
       if (this.stopped) return;
       if (data === "ack") this.credits++;
       if (data === "finish") {
+        if (this.emptySince !== undefined) return this.abort("capture_gap");
         if (this.used && !this.emit()) return;
         this.stopped = true;
         this.port.postMessage("finish");
@@ -28,10 +31,9 @@ class IndexedPCM extends AudioWorkletProcessor {
 
   emit() {
     if (!this.credits) return this.abort("capture_overflow");
-    this.view.setBigUint64(0, BigInt(this.index));
+    this.view.setBigUint64(0, BigInt(this.frameIndex));
     const frame = this.used === 960 ? this.frame : this.frame.slice(0, 8 + this.used * 2);
     this.credits--;
-    this.index += this.used;
     this.used = 0;
     this.frame = new ArrayBuffer(1928);
     this.view = new DataView(this.frame);
@@ -42,11 +44,17 @@ class IndexedPCM extends AudioWorkletProcessor {
   process(inputs) {
     if (this.stopped) return false;
     const samples = inputs[0]?.[0];
-    if (!samples?.length) return this.nextSourceFrame === undefined || this.abort("capture_gap");
+    if (!samples?.length) {
+      this.emptySince ??= currentFrame;
+      return currentFrame - this.emptySince < sampleRate || this.abort("capture_source_timeout");
+    }
+    this.emptySince = undefined;
+    this.firstSourceFrame ??= currentFrame;
     if (this.nextSourceFrame !== undefined && currentFrame !== this.nextSourceFrame) return this.abort("capture_gap");
     this.nextSourceFrame = currentFrame + samples.length;
 
-    for (const sample of samples) {
+    for (const [offset, sample] of samples.entries()) {
+      if (!this.used) this.frameIndex = currentFrame + offset - this.firstSourceFrame;
       const clipped = Math.max(-1, Math.min(1, sample));
       this.view.setInt16(8 + 2 * this.used++, Math.round(clipped * (clipped < 0 ? 32768 : 32767)), true);
       if (this.used === 960 && !this.emit()) return false;

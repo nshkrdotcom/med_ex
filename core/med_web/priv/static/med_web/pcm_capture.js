@@ -31,7 +31,7 @@ export async function startPCM(socket, workletURL, onOutcome) {
     };
     node.port.onmessage = ({data}) => {
       if (socket.readyState !== WebSocket.OPEN) close("disconnected");
-      else if (data === "capture_overflow" || data === "capture_gap") close(data);
+      else if (["capture_overflow", "capture_gap", "capture_source_timeout"].includes(data)) close(data);
       else socket.send(data);
     };
     stream.getTracks().forEach(track => { track.onended = () => close("source_ended"); });
