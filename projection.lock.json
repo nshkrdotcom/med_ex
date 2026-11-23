@@ -55,7 +55,7 @@
       "test/support/weld_helpers/core_med_web_test_helper.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "8e6b227141a2cb5c7e17fd5a37dc01e1a92eca86",
+    "git_revision": "68631f9723888c6a3bee66313cd769c51dc90428",
     "package_files": [
       ".credo.exs",
       ".formatter.exs",
@@ -70,7 +70,7 @@
       "priv",
       "projection.lock.json"
     ],
-    "tree_digest": "0d658589795168440ccef4df15802ed6a22505de244a7da8da0c5a5667a3697e"
+    "tree_digest": "2f3cf8cf6d5edc8e6f7c1079455262b4b3501f6bbfa8e6880931a9bfaeb1a2f3"
   },
   "verification": [
     {
@@ -84,12 +84,12 @@
         {
           "app": "med_rtc",
           "project_id": "core/med_rtc",
-          "test_count": 5
+          "test_count": 6
         }
       ],
       "status": "ok",
       "task": "selected_tests_baseline",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "env": "dev",
@@ -106,7 +106,7 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "env": "dev",

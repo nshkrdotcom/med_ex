@@ -19,6 +19,7 @@ defmodule MedEx.Capture do
 
   @impl true
   def init(opts) do
+    owner_ref = Process.monitor(Keyword.fetch!(opts, :owner))
     dir = Keyword.fetch!(opts, :artifact_dir)
     acquisition_id = Keyword.fetch!(opts, :acquisition_id)
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
@@ -32,6 +33,7 @@ defmodule MedEx.Capture do
           :ok ->
             {:ok,
              %{
+               owner_ref: owner_ref,
                fd: fd,
                temp: temp,
                dir: dir,
@@ -116,6 +118,9 @@ defmodule MedEx.Capture do
   def handle_cast({:demand, _subscriber}, state), do: {:noreply, state}
 
   @impl true
+  def handle_info({:DOWN, ref, :process, _, _}, %{owner_ref: ref} = state),
+    do: {:stop, :normal, state}
+
   def handle_info(
         {:preview_ready, pipeline},
         %{preview: %{pipeline: pipeline} = preview} = state

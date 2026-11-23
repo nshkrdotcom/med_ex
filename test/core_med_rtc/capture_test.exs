@@ -2,8 +2,24 @@ defmodule MedEx.CaptureTest do
   use ExUnit.Case, async: true
 
   @tag :tmp_dir
+  test "producer death removes the unfinished recording", %{tmp_dir: dir} do
+    producer = spawn(fn -> Process.sleep(:infinity) end)
+
+    {:ok, capture} =
+      MedEx.Capture.start_link(owner: producer, acquisition_id: "a", artifact_dir: dir)
+
+    ref = Process.monitor(capture)
+    assert :ok = MedEx.Capture.push(capture, 0, :binary.copy(<<1, 0>>, 960))
+    Process.exit(producer, :kill)
+    assert_receive {:DOWN, ^ref, :process, ^capture, :normal}, 1000
+    assert File.ls!(dir) == []
+  end
+
+  @tag :tmp_dir
   test "commits exactly the indexed PCM including the final short frame", %{tmp_dir: dir} do
-    {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "a", artifact_dir: dir)
+    {:ok, capture} =
+      MedEx.Capture.start_link(owner: self(), acquisition_id: "a", artifact_dir: dir)
+
     pcm = :binary.copy(<<2, 0>>, 960)
     assert :ok = MedEx.Capture.push(capture, 0, pcm)
     assert :ok = MedEx.Capture.push(capture, 960, <<3, 0>>)
@@ -22,7 +38,9 @@ defmodule MedEx.CaptureTest do
   test "encodes live preview and keeps writing when the subscriber stops demanding", %{
     tmp_dir: dir
   } do
-    {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "a", artifact_dir: dir)
+    {:ok, capture} =
+      MedEx.Capture.start_link(owner: self(), acquisition_id: "a", artifact_dir: dir)
+
     assert :ok = MedEx.Capture.subscribe(capture)
     pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
 
@@ -49,7 +67,9 @@ defmodule MedEx.CaptureTest do
 
   @tag :tmp_dir
   test "a source gap ends the attempt without a recording", %{tmp_dir: dir} do
-    {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "a", artifact_dir: dir)
+    {:ok, capture} =
+      MedEx.Capture.start_link(owner: self(), acquisition_id: "a", artifact_dir: dir)
+
     assert {:error, :invalid_frame} = MedEx.Capture.push(capture, 1, <<1, 0>>)
     assert File.ls!(dir) == []
   end

@@ -32,7 +32,9 @@ defmodule MedEx.PreviewTest do
                    when sender == preview.pid,
                    5_000
 
-    {:ok, capture} = MedEx.Capture.start_link(acquisition_id: "rtc", artifact_dir: dir)
+    {:ok, capture} =
+      MedEx.Capture.start_link(owner: self(), acquisition_id: "rtc", artifact_dir: dir)
+
     :ok = MedEx.Capture.subscribe(capture)
     pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
 

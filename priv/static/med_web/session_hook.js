@@ -1,5 +1,5 @@
 // The exam supplies its Phoenix Socket constructor and server-issued token.
-export function createMedExHook({ Socket, socketPath, topic, play, disconnect, reconnect }) {
+export function createMedExHook({ Socket, socketPath, topic, play, disconnect, reconnect, iceServers = [] }) {
   return {
     mounted() {
       this.buttons = new AbortController();
@@ -28,7 +28,7 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
 
     async connectPreview() {
       this.closePreview("connecting");
-      const pc = new RTCPeerConnection();
+      const pc = new RTCPeerConnection({ iceServers });
       const socket = new Socket(socketPath, { params: { token: this.el.dataset.token } });
       const connectionId = crypto.randomUUID();
       const channel = socket.channel(topic(this.el), {
@@ -48,9 +48,12 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
       };
 
       pc.onconnectionstatechange = () => {
-        if (this.pc === pc) this.el.dataset.state = pc.connectionState;
+        if (this.pc === pc) this.showStatus(pc.connectionState);
       };
 
+      channel.on("preview_failed", () => {
+        if (this.pc === pc) this.closePreview("failed", "Preview unavailable. Reconnect to retry.");
+      });
       channel.onClose(() => {
         if (this.pc === pc) this.closePreview("disconnected");
       });
@@ -75,17 +78,16 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
         await pc.setRemoteDescription({ type: "answer", sdp });
       } catch (error) {
         if (this.pc === pc) {
-          this.closePreview("failed");
-          this.el.dataset.error = error.message;
+          this.closePreview("failed", error.message);
         }
       }
     },
 
-    closePreview(state) {
+    closePreview(state, detail) {
       const { pc, channel, socket } = this;
       this.pc = this.channel = this.socket = null;
       this.el.medExPeer = null;
-      this.el.dataset.state = state;
+      this.showStatus(state, detail);
       delete this.el.dataset.error;
       pc?.close();
       channel?.leave().receive("ok", () => socket?.disconnect())
@@ -93,6 +95,12 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
         .receive("timeout", () => socket?.disconnect());
       if (!channel) socket?.disconnect();
       this.audio.srcObject = null;
+    },
+
+    showStatus(state, detail) {
+      this.el.dataset.state = state;
+      const status = this.el.querySelector('[role="status"]');
+      if (status) status.textContent = detail || state;
     },
 
     destroyed() {
