@@ -1,5 +1,28 @@
 defmodule MedEx.Capture do
-  @moduledoc "Writes indexed mono PCM16LE to a content-addressed 48 kHz WAV."
+  @moduledoc """
+  GenServer that writes indexed mono 48 kHz PCM16LE audio to an immutable,
+  content-addressed WAV file and fans full frames out to a bounded live Opus
+  preview branch.
+
+  ## Lifecycle & Ownership
+
+  The host starts each capture under its own `DynamicSupervisor` (this module
+  uses `restart: :temporary` and registers no global names). Capture monitors
+  the `:owner` producer process and stops, removing its temporary `.part` file,
+  if `:owner` exits before `finish/1` succeeds.
+
+  ## Preview Messages
+
+  A preview peer owner calls `subscribe/1` (single active subscriber; a newer
+  subscriber replaces the previous one) and receives:
+
+    * `{:med_ex_preview, capture_pid, sample_index, opus_payload}` — one
+      encoded 20 ms Opus packet. After sending it with `MedEx.Preview.send_opus/4`,
+      call `demand/1` to request the next packet.
+    * `{:med_ex_preview_failed, capture_pid, reason}` — sent if the internal
+      Opus encoder exits. Capture itself continues uninterrupted and a new
+      subscriber can re-subscribe.
+  """
   use GenServer, restart: :temporary
 
   alias MedEx.Evidence
@@ -8,13 +31,60 @@ defmodule MedEx.Capture do
   @frame_bytes 1920
   @max_samples 48_000 * 60 * 30
 
+  @doc """
+  Starts a capture process linked to the caller (typically a host `DynamicSupervisor`).
+
+  ## Required options
+
+    * `:owner` — PID of the single PCM producer process. Capture monitors this
+      PID and aborts if it exits before `finish/1`.
+    * `:acquisition_id` — host-assigned string identifying this acquisition.
+    * `:artifact_dir` — existing directory where the temporary `.part` file and
+      final `<file_sha256>.wav` artifact are written.
+  """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
+  @doc """
+  Appends one contiguous mono 48 kHz PCM16LE chunk at `first_sample`.
+
+  Chunks must start at sample `0`, advance contiguously without gaps, contain
+  an even number of bytes in `2..1920` (up to 960 samples / 20 ms), stay within
+  the 30-minute maximum (`86_400_000` samples), and send at most one short tail
+  frame (`< 1920` bytes) immediately before `finish/1`.
+
+  Returns `:ok`, or `{:error, :invalid_frame | File.posix()}` (stopping the
+  capture process and discarding the temporary file).
+  """
+  @spec push(GenServer.server(), non_neg_integer(), binary()) :: :ok | {:error, term()}
   def push(pid, first_sample, pcm), do: GenServer.call(pid, {:push, first_sample, pcm})
+
+  @doc """
+  Subscribes the calling process to bounded live Opus preview frames.
+
+  Only one preview subscriber is active at a time; subscribing from a new
+  process replaces the previous subscriber. Returns `:ok` or
+  `{:error, :preview_unavailable}`.
+  """
+  @spec subscribe(GenServer.server()) :: :ok | {:error, :preview_unavailable}
   def subscribe(pid), do: GenServer.call(pid, {:subscribe, self()})
 
+  @doc """
+  Signals readiness for the next `{:med_ex_preview, ...}` packet from the
+  active preview subscriber.
+  """
+  @spec demand(GenServer.server()) :: :ok
   def demand(pid), do: GenServer.cast(pid, {:demand, self()})
 
+  @doc """
+  Flushes and fsyncs the WAV header, installs the content-addressed
+  `<file_sha256>.wav` file, fsyncs `:artifact_dir`, and stops the capture.
+
+  Returns `{:ok, %MedEx.Evidence{}}`, `{:error, :empty_capture}` if no samples
+  were pushed, `{:error, :artifact_conflict}` if a conflicting file already
+  exists at the target digest path, or `{:error, reason}` on filesystem failure.
+  """
+  @spec finish(GenServer.server()) :: {:ok, Evidence.t()} | {:error, term()}
   def finish(pid), do: GenServer.call(pid, :finish, :infinity)
 
   @impl true

@@ -12,7 +12,18 @@ defmodule MedEx.Preview do
 
   @type t :: %__MODULE__{pid: pid(), track_id: MediaStreamTrack.id()}
 
-  @doc "Answers a receive-only audio offer containing the browser's ICE candidates."
+  @doc """
+  Answers a receive-only browser audio offer containing the browser's ICE candidates.
+
+  The calling process owns the resulting `ExWebRTC.PeerConnection` and receives
+  `{:ex_webrtc, peer.pid, {:connection_state_change, state}}` messages (such as
+  `:connected`, `:failed`, and `:closed`). Call `close/1` on teardown.
+
+  ## Options
+
+    * `:ice_servers` — list of ICE server maps passed to `ExWebRTC.PeerConnection`
+      (defaults to `[]` for direct local candidates).
+  """
   @spec answer(String.t(), keyword()) :: {:ok, t(), String.t()} | {:error, term()}
   def answer(offer_sdp, opts \\ []) when is_binary(offer_sdp) do
     with {:ok, pid} <-
@@ -48,7 +59,11 @@ defmodule MedEx.Preview do
     end
   end
 
-  @doc "Sends one Opus packet with separate packet sequence and sample clock positions."
+  @doc """
+  Sends one Opus RTP packet with separate per-peer `sequence` (wrapped mod
+  `65_536`) and 48 kHz media clock `sample_index` (wrapped mod `2^32`).
+  """
+  @spec send_opus(t(), binary(), non_neg_integer(), non_neg_integer()) :: :ok
   def send_opus(%__MODULE__{pid: pid, track_id: id}, payload, sequence, sample_index) do
     packet =
       Packet.new(payload,
@@ -59,6 +74,7 @@ defmodule MedEx.Preview do
     PeerConnection.send_rtp(pid, id, packet)
   end
 
+  @doc "Stops the underlying WebRTC peer connection if it is still alive."
   @spec close(t()) :: :ok
   def close(%__MODULE__{pid: pid}) do
     if Process.alive?(pid), do: PeerConnection.stop(pid)
