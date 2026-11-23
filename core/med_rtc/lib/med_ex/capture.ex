@@ -9,7 +9,8 @@ defmodule MedEx.Capture do
   The host starts each capture under its own `DynamicSupervisor` (this module
   uses `restart: :temporary` and registers no global names). Capture monitors
   the `:owner` producer process and stops, removing its temporary `.part` file,
-  if `:owner` exits before `finish/1` succeeds.
+  if `:owner` exits before `finish/1` succeeds. Only this PID may call
+  `push/3` and `finish/1`. Other callers receive `{:error, :not_owner}`.
 
   ## Preview Messages
 
@@ -19,6 +20,8 @@ defmodule MedEx.Capture do
     * `{:med_ex_preview, capture_pid, sample_index, opus_payload}` — one
       encoded 20 ms Opus packet. After sending it with `MedEx.Preview.send_opus/4`,
       call `demand/1` to request the next packet.
+    * `{:med_ex_preview_replaced, capture_pid}` — sent to the displaced listener
+      when a different process subscribes.
     * `{:med_ex_preview_failed, capture_pid, reason}` — sent if the internal
       Opus encoder exits. Capture itself continues uninterrupted and a new
       subscriber can re-subscribe.
@@ -53,7 +56,8 @@ defmodule MedEx.Capture do
   the 30-minute maximum (`86_400_000` samples), and send at most one short tail
   frame (`< 1920` bytes) immediately before `finish/1`.
 
-  Returns `:ok`, or `{:error, :invalid_frame | File.posix()}` (stopping the
+  A non-owner receives `{:error, :not_owner}` and recording continues.
+  For the producer, returns `:ok`, or `{:error, :invalid_frame | File.posix()}` (stopping the
   capture process and discarding the temporary file).
   """
   @spec push(GenServer.server(), non_neg_integer(), binary()) :: :ok | {:error, term()}
@@ -67,7 +71,7 @@ defmodule MedEx.Capture do
   `{:error, :preview_unavailable}`.
   """
   @spec subscribe(GenServer.server()) :: :ok | {:error, :preview_unavailable}
-  def subscribe(pid), do: GenServer.call(pid, {:subscribe, self()})
+  def subscribe(pid), do: GenServer.call(pid, :subscribe)
 
   @doc """
   Signals readiness for the next `{:med_ex_preview, ...}` packet from the
@@ -89,7 +93,8 @@ defmodule MedEx.Capture do
 
   @impl true
   def init(opts) do
-    owner_ref = Process.monitor(Keyword.fetch!(opts, :owner))
+    owner = Keyword.fetch!(opts, :owner)
+    owner_ref = Process.monitor(owner)
     dir = Keyword.fetch!(opts, :artifact_dir)
     acquisition_id = Keyword.fetch!(opts, :acquisition_id)
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
@@ -103,6 +108,7 @@ defmodule MedEx.Capture do
           :ok ->
             {:ok,
              %{
+               owner: owner,
                owner_ref: owner_ref,
                fd: fd,
                temp: temp,
@@ -126,6 +132,9 @@ defmodule MedEx.Capture do
   end
 
   @impl true
+  def handle_call({:push, _, _}, {caller, _}, %{owner: owner} = state) when caller != owner,
+    do: {:reply, {:error, :not_owner}, state}
+
   def handle_call({:push, index, pcm}, _from, %{count: index, tail?: false} = state)
       when is_binary(pcm) and byte_size(pcm) in 2..@frame_bytes and
              rem(byte_size(pcm), 2) == 0 and index + div(byte_size(pcm), 2) <= @max_samples do
@@ -149,13 +158,19 @@ defmodule MedEx.Capture do
   def handle_call({:push, _, _}, _from, state),
     do: {:stop, :normal, {:error, :invalid_frame}, state}
 
+  def handle_call(:finish, {caller, _}, %{owner: owner} = state) when caller != owner,
+    do: {:reply, {:error, :not_owner}, state}
+
   def handle_call(:finish, _from, %{count: 0} = state),
     do: {:stop, :normal, {:error, :empty_capture}, state}
 
   def handle_call(:finish, _from, state),
     do: {:stop, :normal, finalize(state), state}
 
-  def handle_call({:subscribe, subscriber}, _from, state) do
+  def handle_call(:subscribe, {subscriber, _}, %{preview: %{subscriber: subscriber}} = state),
+    do: {:reply, :ok, state}
+
+  def handle_call(:subscribe, {subscriber, _}, state) do
     preview =
       case state.preview do
         nil ->
@@ -175,6 +190,7 @@ defmodule MedEx.Capture do
           end
 
         preview ->
+          send(preview.subscriber, {:med_ex_preview_replaced, self()})
           Process.demonitor(preview.subscriber_ref, [:flush])
 
           %{

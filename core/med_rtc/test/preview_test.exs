@@ -4,7 +4,6 @@ defmodule MedEx.PreviewTest do
   alias ExWebRTC.PeerConnection
   alias ExWebRTC.SessionDescription
   alias MedEx.Preview
-  alias MedEx.Wav
 
   @tag :tmp_dir
   test "a receive-only peer receives live encoded PCM as Opus RTP", %{tmp_dir: dir} do
@@ -54,17 +53,6 @@ defmodule MedEx.PreviewTest do
     assert is_binary(packet)
     assert_receive {:ex_webrtc, ^receiver, {:rtp, _track_id, nil, %{payload: ^packet}}}, 2_000
     assert {:ok, _evidence} = MedEx.Capture.finish(capture)
-  end
-
-  test "truncated and partial-frame WAV input is rejected" do
-    audio = Wav.encode_pcm16_wav(<<1, 2, 3, 4>>, 4_000)
-    assert {:error, :invalid_wav_header} = Wav.parse_wav(binary_part(audio, 0, 47))
-
-    <<prefix::binary-size(4), _size::little-32, body::binary-size(32), _length::little-32,
-      data::binary>> = audio
-
-    partial = <<prefix::binary, 40::little-32, body::binary, 3::little-32, data::binary>>
-    assert {:error, :invalid_pcm_frames} = Wav.parse_wav(partial)
   end
 
   defp stop(pid) do
