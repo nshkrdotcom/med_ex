@@ -141,6 +141,7 @@ defmodule MedEx.Workspace.MixProject do
   defp docs do
     [
       main: "readme",
+      before_closing_body_tag: &docs_diagrams/1,
       logo: "assets/med_ex.svg",
       assets: %{"assets" => "assets"},
       source_ref: "main",
@@ -155,14 +156,38 @@ defmodule MedEx.Workspace.MixProject do
         {"core/med_web/README.md", filename: "med_web", title: "MedWeb"}
       ],
       groups_for_extras: [
-        Overview: ["README.md", "CHANGELOG.md", "LICENSE"],
+        Overview: ["README.md"],
         Guides:
           ~w(guides/host_integration.md guides/architecture_and_roadmap.md guides/source_development.md),
-        "Core Framework": [
+        Projects: [
           "core/med_rtc/README.md",
           "core/med_web/README.md"
-        ]
+        ],
+        Release: ~w(CHANGELOG.md LICENSE)
       ]
     ]
   end
+
+  defp docs_diagrams(:html) do
+    """
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const codeBlocks = document.querySelectorAll("pre code.mermaid");
+        if (!codeBlocks.length || !window.mermaid) return;
+        mermaid.initialize({startOnLoad: false, securityLevel: "strict"});
+        const nodes = Array.from(codeBlocks, code => {
+          const diagram = document.createElement("div");
+          diagram.className = "mermaid";
+          diagram.textContent = code.textContent;
+          code.parentElement.replaceWith(diagram);
+          return diagram;
+        });
+        mermaid.run({nodes});
+      });
+    </script>
+    """
+  end
+
+  defp docs_diagrams(_format), do: ""
 end
