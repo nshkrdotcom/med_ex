@@ -12,16 +12,30 @@
 </p>
 
 # MedEx
-MedEx provides two source projects, `core/med_rtc` for replay and WebRTC peers, and `core/med_web` for browser signaling. Fabric owns clinical decisions. Consumers depend on one commit-pinned Git SDK named `:med_ex`.
 
-On Ubuntu 26.04 install Git, curl, tar, build-essential, pkg-config and libssl-dev. Activate the exact Erlang and Elixir in .tool-versions through asdf or mise. Run `./onboard.sh`, `mix ci` and `mix weld.verify`.
+MedEx is an Elixir SDK for recording clinical audio and sending an independent
+WebRTC preview. The current release candidate reads a mono PCM16 WAV and a
+paired Ogg/Opus preview. The host owns access, signaling, and clinical review.
 
-`MedRTC.WavCapture.record/4` takes WAV input, a prepared Opus preview, an existing output directory and acquisition options. The result identifies the complete WAV and its decoded PCM separately. Each peer is owned by its channel. The browser host supplies the socket path, topic and control selectors to `createMedExHook`. See the Fabric exam for the released integration.
+## Install and use
 
-```mermaid
-flowchart LR
-  WAV --> Capture --> ImmutableWAV
-  Capture --> Preview --> Peer --> Browser
+For the prepared candidate, use the generated Mix project from the release
+bundle as a local path dependency. The intended Hex dependency after
+publication is:
+
+```elixir
+{:med_ex, "~> 0.1.0"}
 ```
 
-Read the [host integration guide](guides/host_integration.md) and the [architecture and roadmap](guides/architecture_and_roadmap.md).
+Use Elixir 1.20. On Ubuntu, the native WebRTC dependencies require a C
+toolchain, pkg-config, and OpenSSL development headers.
+
+Start with [Host integration](guides/host_integration.md) to set up a peer,
+serve the browser hook, and record the input. Read
+[Architecture and roadmap](guides/architecture_and_roadmap.md) for the capture
+and preview boundaries and the planned live-input path.
+
+## Contribute
+
+The source checkout contains the separate Mix projects and release tooling.
+See [Source development](guides/source_development.md).

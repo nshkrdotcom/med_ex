@@ -41,7 +41,12 @@
           },
           groups_for_extras: [
             {"Overview", ["README.md"]},
-            {"Guides", ["guides/host_integration.md", "guides/architecture_and_roadmap.md"]},
+            {"Guides",
+             [
+               "guides/host_integration.md",
+               "guides/architecture_and_roadmap.md",
+               "guides/source_development.md"
+             ]},
             {"Release", ["CHANGELOG.md", "LICENSE"]}
           ]
         ]
@@ -51,6 +56,7 @@
           "README.md",
           "guides/host_integration.md",
           "guides/architecture_and_roadmap.md",
+          "guides/source_development.md",
           "CHANGELOG.md",
           "LICENSE"
         ],
