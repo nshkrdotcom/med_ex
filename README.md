@@ -21,12 +21,12 @@ and clinical review.
 
 ## Installation
 
-Add `:med_ex` to your list of dependencies in `mix.exs`:
+The source tree targets 0.2.0. For a released 0.2.x package, declare the dependency in `mix.exs`.
 
 ```elixir
 def deps do
   [
-    {:med_ex, "~> 0.1.0"}
+    {:med_ex, "~> 0.2.0"}
   ]
 end
 ```
@@ -60,13 +60,20 @@ end
   MedEx.Capture.finish(capture)
 ```
 
-## Scope in 0.1.0
+## Capture and preview in 0.2.0
 
-- **Supported audio profile:** Mono 48 kHz signed PCM16LE (up to 30 minutes per
-  capture) with independent send-only WebRTC Opus preview and packaged browser
-  capture/preview JS assets (`MedEx.Web.asset_path/1`).
-- **Out of scope in 0.1.0:** Video tracks, multi-channel ECG/PPG waveforms,
-  bundled TURN servers, clinical persistence, and FHIR export.
+Only the configured producer PID can push samples or finish the recording.
+The host can reserve an acquisition ID and directory before opening the microphone
+and recover a finalized file under that ID. One listener at a time receives Opus.
+Replacing it sends the previous subscriber `{:med_ex_preview_replaced, capture}`.
+
+The browser's `startPCM` takes an optional fifth argument with `deviceId` and
+`onSource`. It reports the diagnostic track's actual settings before recording,
+so the host can select a separate conversation microphone. The PCM transport
+budget is 250 ms of writer acknowledgement delay plus 50 ms of jitter. The
+client reports its peak buffered wire bytes and maximum observed WebSocket
+acknowledgement delay. WebRTC preview supports host-provided TURN servers and
+relay-only ICE policy.
 
 ## Guides
 

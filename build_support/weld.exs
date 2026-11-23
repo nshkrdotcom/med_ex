@@ -19,7 +19,7 @@
       package: [
         name: "med_ex",
         otp_app: :med_ex,
-        version: "0.1.0",
+        version: "0.2.0",
         elixir: "~> 1.20",
         description: "Live clinical audio capture and independent WebRTC Opus preview",
         licenses: ["MIT"],
@@ -31,7 +31,7 @@
           logo: "assets/med_ex.svg",
           homepage_url: "https://github.com/nshkrdotcom/med_ex",
           source_url: "https://github.com/nshkrdotcom/med_ex",
-          source_ref: "med_ex-v0.1.0",
+          source_ref: "med_ex-v0.2.0",
           assets: %{"assets" => "assets"},
           extra_titles: %{
             "README.md" => "Overview",

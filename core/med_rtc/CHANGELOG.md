@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- Limit capture writes and finish to the owner. Signal subscriber replacement.
+- Add `:ice_transport_policy` to `MedEx.Preview.answer/2`.
+- Remove the unused internal whole-WAV encoding and RIFF import helpers.
+
 ## 0.1.0
 
 - Implemented `MedEx.Capture`, `MedEx.Evidence`, and `MedEx.Preview` for indexed

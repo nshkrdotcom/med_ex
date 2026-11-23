@@ -7,10 +7,10 @@ defmodule MedEx.Web do
 
     * `"session_hook.js"` — LiveView hook helper (`createMedExHook/1`) for the
       clinician's receive-only WebRTC preview peer.
-    * `"pcm_capture.js"` — patient-browser capture helper (`startPCM/4`) for
+    * `"pcm_capture.js"` — patient-browser capture helper (`startPCM` with optional input and settings callback) for
       48 kHz mono PCM16LE microphone capture over an authenticated WebSocket.
     * `"pcm_worklet.js"` — `AudioWorkletProcessor` (`"med-ex-indexed-pcm"`)
-      loaded by `startPCM/4`.
+      loaded by `startPCM`.
   """
 
   @doc """

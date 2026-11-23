@@ -32,6 +32,7 @@ Activate the exact Erlang and Elixir versions pinned in `.tool-versions`
 ```sh
 ./onboard.sh
 mix ci
+node --test core/med_web/test/*.mjs
 mix weld.release.prepare
 ```
 
