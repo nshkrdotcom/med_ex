@@ -234,7 +234,7 @@ defmodule MedEx.Capture do
         %{preview: %{pipeline: pipeline} = preview} = state
       ) do
     send(preview.subscriber, {:med_ex_preview, self(), index, payload})
-    {:noreply, %{state | preview: %{preview | idle?: true}}}
+    {:noreply, %{state | preview: %{preview | idle?: true, demand?: false}}}
   end
 
   def handle_info(
