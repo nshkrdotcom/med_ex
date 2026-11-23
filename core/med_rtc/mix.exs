@@ -31,6 +31,9 @@ defmodule MedRTC.MixProject do
     [
       {:ex_webrtc, "~> 0.18.0"},
       {:ex_rtp, "~> 0.4"},
+      {:membrane_core, "~> 1.0"},
+      {:membrane_raw_audio_format, "~> 0.12.0"},
+      {:membrane_opus_format, "~> 0.3.0"},
       {:membrane_opus_plugin, "~> 0.21.0"},
       {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4.9", only: [:dev, :test], runtime: false},
@@ -41,7 +44,6 @@ defmodule MedRTC.MixProject do
   defp dialyzer do
     [
       plt_add_deps: :apps_direct,
-      plt_add_apps: [:membrane_core],
       flags: [:error_handling, :underspecs, :unknown]
     ]
   end
