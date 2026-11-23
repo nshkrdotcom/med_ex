@@ -27,6 +27,7 @@
         maintainers: ["nshkrdotcom"],
         links: %{"GitHub" => "https://github.com/nshkrdotcom/med_ex"},
         docs: [
+          mermaid: true,
           main: "readme",
           logo: "assets/med_ex.svg",
           homepage_url: "https://github.com/nshkrdotcom/med_ex",
