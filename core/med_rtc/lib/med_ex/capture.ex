@@ -28,11 +28,11 @@ defmodule MedEx.Capture do
   """
   use GenServer, restart: :temporary
 
-  alias MedEx.Evidence
-  alias MedEx.Wav
+  alias MedEx.Capture.FrameRules
+  alias MedEx.{Evidence, PreviewSession, Wav}
 
-  @frame_bytes 1920
-  @max_samples 48_000 * 60 * 30
+  @preview_start_timeout 5_000
+  @subscribe_timeout @preview_start_timeout + 1_000
 
   @doc """
   Starts a capture process linked to the caller (typically a host `DynamicSupervisor`).
@@ -66,12 +66,23 @@ defmodule MedEx.Capture do
   @doc """
   Subscribes the calling process to bounded live Opus preview frames.
 
-  Only one preview subscriber is active at a time; subscribing from a new
-  process replaces the previous subscriber. Returns `:ok` or
-  `{:error, :preview_unavailable}`.
+  Only one preview subscriber is active at a time. A new subscriber replaces
+  the previous one. Returns `:ok` when the encoder is ready or
+  `{:error, :preview_unavailable}` if startup fails or is cancelled. Capture
+  allows five seconds for startup. The caller also cancels its subscription if
+  Capture has not replied within six seconds. Recording continues during startup.
   """
   @spec subscribe(GenServer.server()) :: :ok | {:error, :preview_unavailable}
-  def subscribe(pid), do: GenServer.call(pid, :subscribe)
+  def subscribe(pid) do
+    deadline = System.monotonic_time(:millisecond) + @subscribe_timeout
+    GenServer.call(pid, {:subscribe, deadline}, @subscribe_timeout)
+  catch
+    :exit, {:timeout, {GenServer, :call, _}} ->
+      # Same-sender ordering puts cancellation after the request, even when
+      # Capture was busy for the entire call, and before this caller can retry.
+      GenServer.cast(pid, {:cancel_preview, self()})
+      {:error, :preview_unavailable}
+  end
 
   @doc """
   Signals readiness for the next `{:med_ex_preview, ...}` packet from the
@@ -100,6 +111,7 @@ defmodule MedEx.Capture do
     suffix = Base.url_encode64(:crypto.strong_rand_bytes(18), padding: false)
     temp = Path.join(dir, ".capture-#{suffix}.part")
 
+    # Supervisor shutdown must run terminate/2 to remove unfinished evidence.
     Process.flag(:trap_exit, true)
 
     case :file.open(temp, [:write, :binary, :raw, :exclusive]) do
@@ -117,6 +129,8 @@ defmodule MedEx.Capture do
                count: 0,
                tail?: false,
                preview: nil,
+               start_preview_encoder:
+                 Keyword.get(opts, :start_preview_encoder, &PreviewSession.start_encoder/0),
                pcm_hash: :crypto.hash_init(:sha256)
              }}
 
@@ -135,28 +149,18 @@ defmodule MedEx.Capture do
   def handle_call({:push, _, _}, {caller, _}, %{owner: owner} = state) when caller != owner,
     do: {:reply, {:error, :not_owner}, state}
 
-  def handle_call({:push, index, pcm}, _from, %{count: index, tail?: false} = state)
-      when is_binary(pcm) and byte_size(pcm) in 2..@frame_bytes and
-             rem(byte_size(pcm), 2) == 0 and index + div(byte_size(pcm), 2) <= @max_samples do
-    case :file.write(state.fd, pcm) do
-      :ok ->
-        state = offer_preview(state, index, pcm)
+  def handle_call({:push, index, pcm}, _from, state) do
+    with {:ok, count, tail?} <- FrameRules.advance(state.count, state.tail?, index, pcm),
+         :ok <- :file.write(state.fd, pcm) do
+      state = if tail?, do: state, else: offer_preview(state, index, pcm)
 
-        {:reply, :ok,
-         %{
-           state
-           | count: index + div(byte_size(pcm), 2),
-             tail?: byte_size(pcm) < @frame_bytes,
-             pcm_hash: :crypto.hash_update(state.pcm_hash, pcm)
-         }}
-
-      {:error, reason} ->
-        {:stop, :normal, {:error, reason}, state}
+      {:reply, :ok,
+       %{state | count: count, tail?: tail?, pcm_hash: :crypto.hash_update(state.pcm_hash, pcm)}}
+    else
+      :error -> {:stop, :normal, {:error, :invalid_frame}, state}
+      {:error, reason} -> {:stop, :normal, {:error, reason}, state}
     end
   end
-
-  def handle_call({:push, _, _}, _from, state),
-    do: {:stop, :normal, {:error, :invalid_frame}, state}
 
   def handle_call(:finish, {caller, _}, %{owner: owner} = state) when caller != owner,
     do: {:reply, {:error, :not_owner}, state}
@@ -167,91 +171,113 @@ defmodule MedEx.Capture do
   def handle_call(:finish, _from, state),
     do: {:stop, :normal, finalize(state), state}
 
-  def handle_call(:subscribe, {subscriber, _}, %{preview: %{subscriber: subscriber}} = state),
-    do: {:reply, :ok, state}
-
-  def handle_call(:subscribe, {subscriber, _}, state) do
-    preview =
-      case state.preview do
-        nil ->
-          case Membrane.Pipeline.start_link(MedEx.PreviewEncoder, self()) do
-            {:ok, supervisor, pipeline} ->
-              %{
-                supervisor: supervisor,
-                pipeline: pipeline,
-                idle?: false,
-                subscriber: subscriber,
-                subscriber_ref: Process.monitor(subscriber),
-                demand?: true
-              }
-
-            {:error, _reason} ->
-              nil
-          end
-
-        preview ->
-          send(preview.subscriber, {:med_ex_preview_replaced, self()})
-          Process.demonitor(preview.subscriber_ref, [:flush])
-
-          %{
-            preview
-            | subscriber: subscriber,
-              subscriber_ref: Process.monitor(subscriber),
-              demand?: true
-          }
-      end
-
-    {:reply, if(preview, do: :ok, else: {:error, :preview_unavailable}),
-     %{state | preview: preview}}
+  def handle_call({:subscribe, deadline}, {subscriber, _} = from, state) do
+    # Monotonic clock origins are local to each VM. A request that already
+    # expired in this VM must not displace a healthy listener after a long write.
+    if node(subscriber) == node() and System.monotonic_time(:millisecond) >= deadline do
+      {:reply, {:error, :preview_unavailable}, state}
+    else
+      subscribe_preview(from, state)
+    end
   end
 
   @impl true
-  def handle_cast({:demand, subscriber}, %{preview: %{subscriber: subscriber} = preview} = state),
-    do: {:noreply, %{state | preview: %{preview | demand?: true}}}
+  def handle_cast(
+        {:demand, subscriber},
+        %{preview: %{subscriber: subscriber, phase: :awaiting_demand}} = state
+      ),
+      do: {:noreply, put_in(state.preview.phase, :ready)}
 
   def handle_cast({:demand, _subscriber}, state), do: {:noreply, state}
+
+  def handle_cast({:cancel_preview, subscriber}, %{preview: %{subscriber: subscriber}} = state) do
+    stop_preview(state.preview)
+    {:noreply, %{state | preview: nil}}
+  end
+
+  def handle_cast({:cancel_preview, _subscriber}, state), do: {:noreply, state}
 
   @impl true
   def handle_info({:DOWN, ref, :process, _, _}, %{owner_ref: ref} = state),
     do: {:stop, :normal, state}
 
-  def handle_info(
-        {:DOWN, ref, :process, _, _},
-        %{preview: %{subscriber_ref: ref} = preview} = state
-      ) do
-    stop_preview(preview)
+  def handle_info({:DOWN, ref, :process, _, _}, %{preview: %{subscriber_ref: ref}} = state) do
+    stop_preview(state.preview)
     {:noreply, %{state | preview: nil}}
   end
 
   def handle_info(
-        {:preview_ready, pipeline},
-        %{preview: %{pipeline: pipeline} = preview} = state
-      ),
-      do: {:noreply, %{state | preview: %{preview | idle?: true}}}
-
-  def handle_info(
-        {:preview_encoded, pipeline, index, payload},
-        %{preview: %{pipeline: pipeline} = preview} = state
+        {:preview_ready, session},
+        %{preview: %{session: session, phase: {:starting, waiting, timer}}} = state
       ) do
-    send(preview.subscriber, {:med_ex_preview, self(), index, payload})
-    {:noreply, %{state | preview: %{preview | idle?: true, demand?: false}}}
+    reply_subscribers(waiting, timer, :ok)
+    {:noreply, put_in(state.preview.phase, :ready)}
   end
 
   def handle_info(
-        {:EXIT, supervisor, reason},
-        %{preview: %{supervisor: supervisor, subscriber: subscriber, subscriber_ref: ref}} = state
+        {:preview_start_timeout, session},
+        %{preview: %{session: session, phase: {:starting, _, _}}} = state
       ) do
-    Process.demonitor(ref, [:flush])
-    send(subscriber, {:med_ex_preview_failed, self(), reason})
+    stop_preview(state.preview)
+    {:noreply, %{state | preview: nil}}
+  end
+
+  def handle_info(
+        {:preview_encoded, session, index, payload},
+        %{preview: %{session: session, phase: {:encoding, index}}} = state
+      ) do
+    send(state.preview.subscriber, {:med_ex_preview, self(), index, payload})
+    {:noreply, put_in(state.preview.phase, :awaiting_demand)}
+  end
+
+  def handle_info({:EXIT, session, reason}, %{preview: %{session: session} = preview} = state) do
+    Process.demonitor(preview.subscriber_ref, [:flush])
+
+    case preview.phase do
+      {:starting, waiting, timer} ->
+        reply_subscribers(waiting, timer, {:error, :preview_unavailable})
+
+      _active ->
+        send(preview.subscriber, {:med_ex_preview_failed, self(), reason})
+    end
+
     {:noreply, %{state | preview: nil}}
   end
 
   def handle_info(_, state), do: {:noreply, state}
 
-  defp offer_preview(%{preview: %{idle?: true, demand?: true} = preview} = state, index, pcm)
-       when byte_size(pcm) == @frame_bytes do
-    send(preview.pipeline, {:pcm, index, pcm})
-    %{state | preview: %{preview | idle?: false, demand?: false}}
+  defp subscribe_preview({subscriber, _} = from, %{preview: %{subscriber: subscriber}} = state) do
+    case state.preview.phase do
+      {:starting, waiting, timer} ->
+        {:noreply, put_in(state.preview.phase, {:starting, [from | waiting], timer})}
+
+      _active ->
+        {:reply, :ok, state}
+    end
+  end
+
+  defp subscribe_preview({subscriber, _} = from, state) do
+    if previous = state.preview do
+      stop_preview(previous)
+      send(previous.subscriber, {:med_ex_preview_replaced, self()})
+    end
+
+    session = PreviewSession.start_link(self(), state.start_preview_encoder)
+    timer = Process.send_after(self(), {:preview_start_timeout, session}, @preview_start_timeout)
+
+    preview = %{
+      session: session,
+      subscriber: subscriber,
+      subscriber_ref: Process.monitor(subscriber),
+      phase: {:starting, [from], timer}
+    }
+
+    {:noreply, %{state | preview: preview}}
+  end
+
+  defp offer_preview(%{preview: %{phase: :ready, session: session}} = state, index, pcm) do
+    send(session, {:pcm, index, pcm})
+    put_in(state.preview.phase, {:encoding, index})
   end
 
   defp offer_preview(state, _index, _pcm), do: state
@@ -259,14 +285,27 @@ defmodule MedEx.Capture do
   @impl true
   def terminate(_reason, state) do
     if state.preview, do: stop_preview(state.preview)
-
     :file.close(state.fd)
     File.rm(state.temp)
     :ok
   end
 
   defp stop_preview(preview) do
-    Membrane.Pipeline.terminate(preview.pipeline, asynchronous?: true, force?: true)
+    Process.exit(preview.session, :shutdown)
+    Process.demonitor(preview.subscriber_ref, [:flush])
+
+    case preview.phase do
+      {:starting, waiting, timer} ->
+        reply_subscribers(waiting, timer, {:error, :preview_unavailable})
+
+      _active ->
+        :ok
+    end
+  end
+
+  defp reply_subscribers(waiting, timer, result) do
+    Process.cancel_timer(timer)
+    Enum.each(waiting, &GenServer.reply(&1, result))
   end
 
   defp finalize(state) do

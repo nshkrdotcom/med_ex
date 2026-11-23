@@ -18,14 +18,15 @@ requirements:
 
 MedEx enforces this split in its process boundaries: live indexed PCM enters
 `MedEx.Capture`, which writes the lossless WAV directly and fans full 20 ms
-frames out to a bounded, disposable preview branch (`Membrane.Opus.Encoder`
-kept private behind `MedEx.Capture` → `MedEx.Preview` over `ExWebRTC`).
+frames out to a bounded, disposable preview session. The session starts and owns
+`Membrane.Opus.Encoder` outside the writer's callbacks and forwards encoded
+packets through the existing Capture subscription API to `MedEx.Preview`.
 
 ```mermaid
-flowchart LR
+flowchart TD
   PCM["Indexed PCM16LE (48 kHz)"] --> Capture["MedEx.Capture (Lossless Writer)"]
   Capture --> WAV["Immutable &lt;sha256&gt;.wav + MedEx.Evidence"]
-  Capture -. "bounded 1-frame demand" .-> Encoder["Private Membrane Opus Encoder"]
+  Capture -. "bounded 1-frame demand" .-> Encoder["Preview session and Opus encoder"]
   Encoder --> Peer["MedEx.Preview (ExWebRTC)"]
   Peer --> Listener["Clinician Browser (Replaceable)"]
 ```
@@ -35,9 +36,19 @@ flowchart LR
 | Component | Owner | Failure behavior |
 | --- | --- | --- |
 | `MedEx.Capture` | Host `DynamicSupervisor` (`restart: :temporary`, no global names) | Accepts writes and finish from its monitored `:owner` PID, and aborts and deletes its `.part` file if the producer exits before `finish/1`. |
-| Preview encoder pipeline | Private to `MedEx.Capture` (`Membrane.Opus.Encoder`, `application: :audio`) | Isolated via trapped exits; if the encoder exits, capture notifies the subscriber with `{:med_ex_preview_failed, pid, reason}` and keeps recording. |
+| Preview session and encoder | One disposable session for the current capture subscription | Encoder startup and teardown run outside writer callbacks. Failure notifies the subscriber with `{:med_ex_preview_failed, pid, reason}` and leaves recording active. Replacement and either endpoint's death cancel the old session. |
 | `MedEx.Preview` peer | Host signaling channel process | A second subscriber displaces the first with an explicit replacement event. Capture continues across peer loss. |
 | `MedEx.Evidence` | Returned to host on `finish/1` | Carries `kind: :audio_pcm16_wav`, content-addressed `artifact_key`, separate `file_sha256` and `pcm_sha256`, sample bounds, and continuity verdict. |
+
+Pure frame rules and preview clock arithmetic live beside their runtime owners
+in the existing source project. `MedEx.Wav.parse_header/2` validates the exact
+44-byte mono 48 kHz PCM16LE header against the complete file length, alignment,
+and 30-minute ceiling. It does not assert capture continuity or file identity;
+hosts still verify full-file hashes and establish provenance from their trusted
+capture workflow. File I/O and HTTP range policy stay in the host.
+
+The browser asset locator and JavaScript now live in `core/med_rtc` as well.
+Weld still publishes the same `:med_ex` package and `priv/static/med_web/` paths.
 
 ## Releases and roadmap
 

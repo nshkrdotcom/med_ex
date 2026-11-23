@@ -121,7 +121,7 @@ end
 | Frame size | Even byte count in `2..1920` (up to 960 samples / 20 ms). Only one short tail frame (`< 1920` bytes) is allowed, immediately before `finish/1`. |
 | Contiguity & limit | `first_sample` must start at `0` and advance contiguously without gaps, up to 30 minutes (`86_400_000` samples). Violations return `{:error, :invalid_frame}` and stop the capture. |
 | `finish/1` | Returns `{:ok, %MedEx.Evidence{}}`, `{:error, :empty_capture}` (0 samples pushed), `{:error, :artifact_conflict}` (existing file digest mismatch), or `{:error, posix}`. |
-| Preview fan-out | Only full 1,920-byte frames are offered to an encoder with demand. A slow subscriber drops preview frames. Starting the first encoder runs in the capture subscription callback. Include this interval when measuring acknowledgement delay under load. |
+| Preview fan-out | Only full 1,920-byte frames are offered under one-frame demand. A disposable preview session starts and owns the encoder outside Capture's callbacks. A slow or failed preview drops preview frames while the writer continues. |
 
 ### `MedEx.Evidence` fields
 
@@ -214,10 +214,10 @@ defmodule MyAppWeb.PreviewChannel do
         {:med_ex_preview, capture, sample_index, packet},
         %{assigns: %{capture: capture, peer: peer, sequence: seq, clock: clock}} = socket
       ) do
-    tick = next_tick(clock, capture, sample_index)
-    :ok = Preview.send_opus(peer, packet, seq, tick)
+    clock = Preview.Clock.advance(clock, capture, sample_index)
+    :ok = Preview.send_opus(peer, packet, seq, clock.tick)
     :ok = Capture.demand(capture)
-    {:noreply, assign(socket, sequence: seq + 1, clock: {capture, sample_index, tick})}
+    {:noreply, assign(socket, sequence: seq + 1, clock: clock)}
   end
 
   def handle_info({:med_ex_preview_replaced, capture}, %{assigns: %{capture: capture}} = socket) do
@@ -245,12 +245,18 @@ defmodule MyAppWeb.PreviewChannel do
     :ok
   end
 
-  # Keep RTP media timestamps monotonic if a new capture starts on the same peer.
-  defp next_tick(nil, _capture, index), do: index
-  defp next_tick({capture, last, tick}, capture, index), do: tick + index - last
-  defp next_tick({_prev, _last, tick}, _capture, _index), do: tick + 960
 end
 ```
+
+`MedEx.Preview.Clock.advance/3` preserves the media clock across captures on
+the same peer and across dropped preview frames. `send_opus/4` owns RTP sequence
+and timestamp wrapping. The host retains only the sequence and clock state.
+
+The subscription waits for its private encoder session to start, but Capture
+can process writer calls during that wait. The session is scoped to the current
+subscriber and capture; replacement, subscriber loss, and capture teardown
+cancel it. A host does not need another named supervisor or a MedEx application
+supervision tree.
 
 For the example, implement `MyApp.Media.preview_ice_options/1` to return
 `[ice_servers: servers, ice_transport_policy: :all]` or use `:relay` with TURN

@@ -14,10 +14,7 @@ version = __DIR__ |> Path.join("../VERSION") |> File.read!() |> String.trim()
   artifacts: [
     med_ex: [
       mode: :monolith,
-      roots: [
-        "core/med_rtc",
-        "core/med_web"
-      ],
+      roots: ["core/med_rtc"],
       package: [
         name: "med_ex",
         otp_app: :med_ex,

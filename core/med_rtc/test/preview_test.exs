@@ -37,20 +37,9 @@ defmodule MedEx.PreviewTest do
     :ok = MedEx.Capture.subscribe(capture)
     pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
 
-    packet =
-      Enum.reduce_while(0..19, nil, fn i, _ ->
-        :ok = MedEx.Capture.push(capture, i * 960, pcm)
-
-        receive do
-          {:med_ex_preview, ^capture, index, packet} ->
-            :ok = Preview.send_opus(preview, packet, 0, index)
-            {:halt, packet}
-        after
-          25 -> {:cont, nil}
-        end
-      end)
-
-    assert is_binary(packet)
+    :ok = MedEx.Capture.push(capture, 0, pcm)
+    assert_receive {:med_ex_preview, ^capture, 0, packet}, 5_000
+    :ok = Preview.send_opus(preview, packet, 0, 0)
     assert_receive {:ex_webrtc, ^receiver, {:rtp, _track_id, nil, %{payload: ^packet}}}, 2_000
     assert {:ok, _evidence} = MedEx.Capture.finish(capture)
   end

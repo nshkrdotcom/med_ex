@@ -72,7 +72,7 @@ defmodule MedRTC.MixProject do
         "GitHub" => @source_url,
         "Changelog" => "#{@source_url}/blob/main/core/med_rtc/CHANGELOG.md"
       },
-      files: ~w(lib assets mix.exs .formatter.exs README.md CHANGELOG.md LICENSE)
+      files: ~w(lib priv assets mix.exs .formatter.exs README.md CHANGELOG.md LICENSE)
     ]
   end
 end

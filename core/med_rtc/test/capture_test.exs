@@ -74,30 +74,18 @@ defmodule MedEx.CaptureTest do
       end
     end)
 
-    assert_receive :subscribed, 2_000
+    assert_receive :subscribed, 5_000
     assert :ok = MedEx.Capture.subscribe(capture)
     assert_receive :replaced
     refute_received {:med_ex_preview_replaced, ^capture}
     pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
 
-    index =
-      Enum.reduce_while(0..19, nil, fn frame, _ ->
-        assert :ok = MedEx.Capture.push(capture, frame * 960, pcm)
-
-        receive do
-          {:med_ex_preview, ^capture, index, packet} ->
-            assert byte_size(packet) > 0
-            {:halt, {frame, index}}
-        after
-          25 -> {:cont, nil}
-        end
-      end)
-
-    assert {frame, sent} = index
-    assert sent <= frame * 960
-    assert :ok = MedEx.Capture.push(capture, (frame + 1) * 960, pcm)
+    assert :ok = MedEx.Capture.push(capture, 0, pcm)
+    assert_receive {:med_ex_preview, ^capture, 0, packet}, 5_000
+    assert byte_size(packet) > 0
+    assert :ok = MedEx.Capture.push(capture, 960, pcm)
     assert {:ok, evidence} = MedEx.Capture.finish(capture)
-    assert evidence.sample_count == (frame + 2) * 960
+    assert evidence.sample_count == 1_920
     refute_received {:med_ex_preview, ^capture, _, _}
   end
 

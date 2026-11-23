@@ -152,17 +152,13 @@ defmodule MedEx.Workspace.MixProject do
         "guides/host_integration.md",
         "guides/architecture_and_roadmap.md",
         "guides/source_development.md",
-        {"core/med_rtc/README.md", filename: "med_rtc", title: "MedRTC"},
-        {"core/med_web/README.md", filename: "med_web", title: "MedWeb"}
+        {"core/med_rtc/README.md", filename: "med_rtc", title: "MedRTC"}
       ],
       groups_for_extras: [
         Overview: ["README.md"],
         Guides:
           ~w(guides/host_integration.md guides/architecture_and_roadmap.md guides/source_development.md),
-        Projects: [
-          "core/med_rtc/README.md",
-          "core/med_web/README.md"
-        ],
+        Projects: ["core/med_rtc/README.md"],
         Release: ~w(CHANGELOG.md LICENSE)
       ]
     ]

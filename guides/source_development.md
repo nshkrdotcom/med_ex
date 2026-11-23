@@ -8,9 +8,8 @@ These instructions apply to the source repository checkout at
 
 | Path | Role |
 | --- | --- |
-| `core/med_rtc` | `MedEx.Capture`, `MedEx.Evidence`, `MedEx.Preview`, WAV writer, and private Membrane Opus encoder. |
-| `core/med_web` | `MedEx.Web` asset locator and browser JS (`session_hook.js`, `pcm_capture.js`, `pcm_worklet.js`). |
-| `build_support/weld.exs` | Weld manifest projecting `core/med_rtc` and `core/med_web` into the single `:med_ex` Hex package. |
+| `core/med_rtc` | Capture, evidence, preview, canonical WAV rules, and `MedEx.Web` browser assets and tests. |
+| `build_support/weld.exs` | Weld manifest projecting `core/med_rtc` into the single `:med_ex` Hex package. |
 | `dist/release_bundles/` | Gitignored output directory where `mix weld.release.prepare` writes the generated `project/`, rendered `docs/`, and `.tar` archive. |
 
 ## Prerequisites (Ubuntu 26.04)
@@ -26,6 +25,8 @@ instead of using precompiled binaries.)*
 
 Activate the exact Erlang and Elixir versions pinned in `.tool-versions`
 (`erlang 29.1.2`, `elixir 1.20.5-otp-29`) via `asdf` or `mise`.
+Use the pinned Node `24.19.0` for the browser helper tests; the sibling Fabric
+checkout uses the same version for its browser verification.
 
 ## Build, test, and prepare a release bundle
 
@@ -35,7 +36,7 @@ the Weld manifest share it, and the manifest derives the HexDocs projection tag.
 ```sh
 ./onboard.sh
 mix ci
-node --test core/med_web/test/*.mjs
+node --test core/med_rtc/test/*.mjs
 mix weld.release.prepare
 ```
 
@@ -48,3 +49,9 @@ mix weld.release.prepare
 - `docs/` — rendered ExDoc HTML preview (`docs/index.html`).
 - `med_ex-<version>.tar` — exact Hex archive.
 - `release.json` — source revision, verification checks, and SHA-256 digests.
+
+From a sibling `med_fabric` checkout, `bash ops/qc_candidate.sh` prepares that
+bundle and passes its exact `project/` path to the exam via `MF_MED_EX_PATH`.
+It also runs the browser Node tests and checks that the three prepared assets
+match those tested SDK sources byte for byte. The exam's candidate lockfile
+lives under `_build/`; its committed Hex lockfile is not rewritten by this run.

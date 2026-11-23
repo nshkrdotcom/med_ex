@@ -1,0 +1,153 @@
+// The exam supplies its Phoenix Socket constructor and server-issued token.
+export function createMedExHook({
+  Socket, socketPath, topic, play, disconnect, reconnect,
+  iceServers = [], iceTransportPolicy = "all", rtcConfig = () => ({iceServers, iceTransportPolicy}),
+}) {
+  return {
+    mounted() {
+      this.buttons = new AbortController();
+      this.audio = this.el.querySelector("audio");
+      const options = { signal: this.buttons.signal };
+
+      this.el.querySelector(play).addEventListener("click", () => {
+        if (this.pc) this.playAudio(this.pc);
+        else this.connectPreview();
+      }, options);
+      this.el.querySelector(disconnect).addEventListener("click", () => {
+        this.closePreview("disconnected");
+      }, options);
+      this.el.querySelector(reconnect).addEventListener("click", () => {
+        this.connectPreview();
+      }, options);
+    },
+
+    playAudio(pc) {
+      this.audio.play().then(() => {
+        if (this.pc === pc) delete this.el.dataset.error;
+      }).catch(() => {
+        if (this.pc === pc) this.el.dataset.error = "Select play to enable audio";
+      });
+    },
+
+    async connectPreview() {
+      this.closePreview("connecting");
+      const socket = new Socket(socketPath, { params: { token: this.el.dataset.token } });
+      const connectionId = crypto.randomUUID();
+      const channel = socket.channel(topic(this.el), {
+        connection_id: connectionId
+      });
+
+      this.socket = socket;
+      this.channel = channel;
+      this.el.dataset.connectionId = connectionId;
+
+      let pc;
+      try {
+        const config = await rtcConfig(this.el);
+        if (this.socket !== socket) return;
+        pc = new RTCPeerConnection(config);
+      } catch (error) {
+        if (this.socket === socket) this.closePreview("failed", error.message);
+        return;
+      }
+      this.el.medExPeer = this.pc = pc;
+
+      pc.ontrack = ({ track, streams }) => {
+        if (this.pc !== pc) return;
+        this.audio.srcObject = streams[0] || new MediaStream([track]);
+        this.playAudio(pc);
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (this.pc === pc) this.showStatus(pc.connectionState);
+      };
+
+      channel.on("preview_replaced", () => {
+        if (this.pc === pc) this.closePreview("replaced", "Another listener took over this preview.");
+      });
+      channel.on("preview_failed", () => {
+        if (this.pc === pc) this.closePreview("failed", "Preview unavailable. Reconnect to retry.");
+      });
+      channel.onClose(() => {
+        if (this.pc === pc) this.closePreview("disconnected");
+      });
+      channel.onError(() => {
+        if (this.pc === pc) this.closePreview("failed");
+      });
+
+      try {
+        socket.connect();
+        const { session_id } = await reply(channel.join());
+        if (this.pc !== pc) return;
+        this.el.dataset.sessionId = session_id;
+        pc.addTransceiver("audio", { direction: "recvonly" });
+        const offer = await pc.createOffer();
+        if (this.pc !== pc) return;
+        await pc.setLocalDescription(offer);
+        if (this.pc !== pc) return;
+        await gatherCandidates(pc);
+        if (this.pc !== pc) return;
+        const { sdp } = await reply(channel.push("offer", { sdp: pc.localDescription.sdp }, 7_000));
+        if (this.pc !== pc) return;
+        await pc.setRemoteDescription({ type: "answer", sdp });
+      } catch (error) {
+        if (this.pc === pc) {
+          this.closePreview("failed", error.message);
+        }
+      }
+    },
+
+    closePreview(state, detail) {
+      const { pc, channel, socket } = this;
+      this.pc = this.channel = this.socket = null;
+      this.el.medExPeer = null;
+      this.showStatus(state, detail);
+      delete this.el.dataset.error;
+      pc?.close();
+      channel?.leave().receive("ok", () => socket?.disconnect())
+        .receive("error", () => socket?.disconnect())
+        .receive("timeout", () => socket?.disconnect());
+      if (!channel) socket?.disconnect();
+      this.audio.srcObject = null;
+    },
+
+    showStatus(state, detail) {
+      this.el.dataset.state = state;
+      const status = this.el.querySelector('[role="status"]');
+      if (status) status.textContent = detail || state;
+    },
+
+    destroyed() {
+      this.buttons.abort();
+      this.closePreview("disconnected");
+    }
+  };
+}
+
+function reply(push) {
+  return new Promise((resolve, reject) => {
+    push.receive("ok", resolve)
+      .receive("error", ({ reason } = {}) => reject(new Error(reason || "Signaling failed")))
+      .receive("timeout", () => reject(new Error("Signaling timed out")));
+  });
+}
+
+function gatherCandidates(pc) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Browser ICE gathering timed out"));
+    }, 5_000);
+
+    pc.addEventListener("icegatheringstatechange", () => {
+      if (pc.iceGatheringState === "complete") {
+        clearTimeout(timer);
+        controller.abort();
+        resolve();
+      }
+    }, { signal: controller.signal });
+  });
+}
