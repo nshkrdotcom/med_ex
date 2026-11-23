@@ -5,3 +5,15 @@ Use Elixir 1.20 with an OTP version supported by ExWebRTC. On Ubuntu 26.04 the n
 Start a send-only peer with `MedRTC.Preview.answer/1` after receiving an audio offer with ICE candidates. The host owns authorization, signaling and peer teardown. Inject the Phoenix Socket constructor, socket path, topic function and control selectors into `createMedExHook`. Serve the ES module returned by `MedWeb.Signaling.hook_asset_full_path/0`. The channel accepts a join carrying `connection_id`, returns `session_id`, then answers an `offer` message carrying SDP with an SDP reply.
 
 For fixture replay, provide a mono PCM16 WAV and a paired Ogg/Opus input with 20 ms frames. `MedRTC.WavCapture.record/4` keeps WAV finalization independent of preview. Fabric owns its own fixture preparation and external lab services.
+
+## Live PCM transport
+
+The live-input browser helper `pcm_capture.js` accepts an open, authenticated
+WebSocket, the URL of `pcm_worklet.js`, and an outcome callback. Serve both
+assets from the SDK. Microphone capture needs a secure browser context.
+
+Binary messages contain an eight-byte big-endian first sample position and
+up to 960 mono PCM16LE samples at 48 kHz. The host returns one text `ack`
+after accepting each frame. The browser sends text `finish` after draining
+its last frame. Return a terminal outcome after durable intake, then close
+the connection. A disconnect before finish aborts the acquisition.
