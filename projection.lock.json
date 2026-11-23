@@ -1,7 +1,15 @@
 {
+  "artifact": {
+    "id": "med_ex",
+    "package": {
+      "name": "med_ex",
+      "otp_app": "med_ex",
+      "version": "0.1.0"
+    }
+  },
   "graph": {
-    "edges": [],
     "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "edges": [],
     "excluded_projects": [
       "."
     ],
@@ -11,25 +19,12 @@
     ],
     "violations": []
   },
+  "manifest": {
+    "digest": "df69dda0e60021c96d74356ee3ba136fe788c986b3bf6dbb2133405d6360b546",
+    "path": "build_support/weld.exs"
+  },
   "projection": {
-    "mode": "monolith",
-    "build_path": "/home/home/p/g/n/med_ex/dist/monolith/med_ex",
-    "test_support_projects": [],
-    "package_files": [
-      ".credo.exs",
-      ".formatter.exs",
-      "CHANGELOG.md",
-      "LICENSE",
-      "README.md",
-      "assets/med_ex.svg",
-      "config",
-      "lib",
-      "mix.exs",
-      "priv",
-      "projection.lock.json"
-    ],
-    "git_revision": "fc80d8129bd275c13b6b7aabc89056f5cb2d429f",
-    "tree_digest": "224beaa2034a48f9c2ccc9c2a9358f0689704f06017b7e1002b96adde495ec7e",
+    "build_path": "dist/monolith/med_ex",
     "copied_files": [
       ".credo.exs",
       ".formatter.exs",
@@ -41,77 +36,100 @@
       "config/dev.exs",
       "config/prod.exs",
       "config/test.exs",
-      "lib/med_rtc.ex",
-      "lib/med_rtc/preview.ex",
-      "lib/med_rtc/wav_capture.ex",
-      "lib/med_web.ex",
-      "lib/med_web/signaling.ex",
+      "guides/architecture_and_roadmap.md",
+      "guides/host_integration.md",
+      "guides/source_development.md",
+      "lib/med_ex/capture.ex",
+      "lib/med_ex/evidence.ex",
+      "lib/med_ex/preview.ex",
+      "lib/med_ex/preview_encoder.ex",
+      "lib/med_ex/wav.ex",
+      "lib/med_ex/web.ex",
       "mix.exs",
-      "priv/fixtures/.python-version",
-      "priv/fixtures/MANIFEST.json",
-      "priv/fixtures/encode.py",
-      "priv/fixtures/prepare.sh",
-      "priv/fixtures/pyproject.toml",
-      "priv/fixtures/uv.lock",
+      "priv/static/med_web/pcm_capture.js",
+      "priv/static/med_web/pcm_worklet.js",
       "priv/static/med_web/session_hook.js",
+      "test/core_med_rtc/capture_test.exs",
       "test/core_med_rtc/preview_test.exs",
       "test/support/weld_helpers/core_med_rtc_test_helper.exs",
       "test/support/weld_helpers/core_med_web_test_helper.exs",
       "test/test_helper.exs"
     ],
-    "config_warnings": [],
-    "file_remaps": [],
-    "helper_transformations": [
-      {
-        "project_id": "core/med_rtc",
-        "exunit_options": [],
-        "fragment": "test/support/weld_helpers/core_med_rtc_test_helper.exs",
-        "helper_path": "/home/home/p/g/n/med_ex/core/med_rtc/test/test_helper.exs"
-      },
-      {
-        "project_id": "core/med_web",
-        "exunit_options": [],
-        "fragment": "test/support/weld_helpers/core_med_web_test_helper.exs",
-        "helper_path": "/home/home/p/g/n/med_ex/core/med_web/test/test_helper.exs"
-      }
+    "git_revision": "6c5feeea9f8c7c12080d6f2c1f3509643ef45978",
+    "package_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "config",
+      "guides",
+      "lib",
+      "mix.exs",
+      "priv",
+      "projection.lock.json"
     ],
-    "migration_layout": {
-      "case": "none",
-      "repo_paths": {},
-      "repo_count": 0
-    },
-    "migration_remaps": [],
-    "repo_infos": []
+    "tree_digest": "4f7f3cfc685fb3cb05a427ce2e62735f82892169668f0b3f769019dabc4b3c78"
   },
-  "manifest": {
-    "path": "/home/home/p/g/n/med_ex/build_support/weld.exs",
-    "digest": "1c5c1870be9d870882e4209bc2f3a878a87afc87d9bd13f56f33bdb1422e238a"
-  },
-  "artifact": {
-    "id": "med_ex",
-    "package": {
-      "name": "med_ex",
-      "version": "0.1.0",
-      "otp_app": "med_ex"
-    }
-  },
-  "workspace": {
-    "root": "/home/home/p/g/n/med_ex",
-    "discovery": {
-      "source": "manifest",
-      "project_ids": [
-        ".",
-        "core/med_rtc",
-        "core/med_web"
+  "verification": [
+    {
+      "env": "test",
+      "project_test_counts": [
+        {
+          "app": "med_web",
+          "project_id": "core/med_web",
+          "test_count": 0
+        },
+        {
+          "app": "med_rtc",
+          "project_id": "core/med_rtc",
+          "test_count": 5
+        }
       ],
+      "status": "ok",
+      "task": "selected_tests_baseline",
+      "test_count": 5
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors"
+    },
+    {
+      "env": "test",
+      "failure_count": 0,
+      "status": "ok",
+      "task": "test",
+      "test_count": 5
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    }
+  ],
+  "workspace": {
+    "discovery": {
       "adapter": null,
       "globs": [
         "apps/*",
         "core/*"
       ],
-      "root_project?": true
+      "project_ids": [
+        ".",
+        "core/med_rtc",
+        "core/med_web"
+      ],
+      "root_project?": true,
+      "source": "manifest"
     },
-    "project_count": 3
-  },
-  "verification": []
+    "project_count": 3,
+    "root": "."
+  }
 }

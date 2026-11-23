@@ -64,9 +64,14 @@ export function createMedExHook({ Socket, socketPath, topic, play, disconnect, r
         if (this.pc !== pc) return;
         this.el.dataset.sessionId = session_id;
         pc.addTransceiver("audio", { direction: "recvonly" });
-        await pc.setLocalDescription(await pc.createOffer());
+        const offer = await pc.createOffer();
+        if (this.pc !== pc) return;
+        await pc.setLocalDescription(offer);
+        if (this.pc !== pc) return;
         await gatherCandidates(pc);
+        if (this.pc !== pc) return;
         const { sdp } = await reply(channel.push("offer", { sdp: pc.localDescription.sdp }, 7_000));
+        if (this.pc !== pc) return;
         await pc.setRemoteDescription({ type: "answer", sdp });
       } catch (error) {
         if (this.pc === pc) {
