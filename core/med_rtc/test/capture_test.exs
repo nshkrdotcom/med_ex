@@ -4,13 +4,19 @@ defmodule MedEx.CaptureTest do
   @tag :tmp_dir
   test "producer death removes the unfinished recording", %{tmp_dir: dir} do
     test_pid = self()
-    producer = spawn(fn ->
-      receive do
-        {:write, capture} ->
-          send(test_pid, {:written, MedEx.Capture.push(capture, 0, :binary.copy(<<1, 0>>, 960))})
-          Process.sleep(:infinity)
-      end
-    end)
+
+    producer =
+      spawn(fn ->
+        receive do
+          {:write, capture} ->
+            send(
+              test_pid,
+              {:written, MedEx.Capture.push(capture, 0, :binary.copy(<<1, 0>>, 960))}
+            )
+
+            Process.sleep(:infinity)
+        end
+      end)
 
     {:ok, capture} =
       MedEx.Capture.start_link(owner: producer, acquisition_id: "a", artifact_dir: dir)
