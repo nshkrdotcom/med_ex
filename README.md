@@ -13,29 +13,72 @@
 
 # MedEx
 
-MedEx is an Elixir SDK for recording clinical audio and sending an independent
-WebRTC preview. The SDK accepts indexed mono PCM16 at 48 kHz, writes an immutable WAV,
-and encodes live Opus for a WebRTC listener. The host owns access, signaling, and clinical review.
+MedEx is an Elixir SDK for recording clinical audio and streaming an independent
+live WebRTC Opus preview. It accepts indexed mono 48 kHz signed PCM16LE audio,
+writes an immutable content-addressed WAV artifact, and encodes live Opus for a
+replaceable WebRTC listener. The host application owns authorization, signaling,
+and clinical review.
 
-## Install and use
+## Installation
 
-For the prepared candidate, use the generated Mix project from the release
-bundle as a local path dependency. The intended Hex dependency after
-publication is:
+Add `:med_ex` to your list of dependencies in `mix.exs`:
 
 ```elixir
-{:med_ex, "~> 0.1.0"}
+def deps do
+  [
+    {:med_ex, "~> 0.1.0"}
+  ]
+end
 ```
 
-Use Elixir 1.20. On Ubuntu, the native WebRTC dependencies require a C
-toolchain, pkg-config, and OpenSSL development headers.
+### Prerequisites
 
-Start with [Host integration](guides/host_integration.md) to set up a peer,
-serve the browser hook, and record the input. Read
-[Architecture and roadmap](guides/architecture_and_roadmap.md) for the capture
-and preview boundaries and future integrations.
+- Elixir `~> 1.20` (tested on Elixir `1.20.5` / OTP `29.1.2`).
+- On Ubuntu 26.04, native WebRTC dependencies (`ex_dtls`, `ex_libsrtp`) require a
+  C compiler, `make`, `pkg-config`, and OpenSSL development headers
+  (`build-essential pkg-config libssl-dev`).
+- Live Opus encoding uses `membrane_opus_plugin`, which downloads precompiled
+  `libopus` binaries on supported Linux/macOS targets and falls back to system
+  `libopus-dev` (`pkg-config`) when building from source.
 
-## Contribute
+## Quick example
 
-The source checkout contains the separate Mix projects and release tooling.
-See [Source development](guides/source_development.md).
+```elixir
+# Start a capture under your host DynamicSupervisor (owner is the producer PID)
+{:ok, capture} =
+  DynamicSupervisor.start_child(
+    MyApp.Captures,
+    {MedEx.Capture, owner: self(), acquisition_id: "acq-1", artifact_dir: "/var/lib/myapp/wavs"}
+  )
+
+# Push contiguous 20 ms chunks (960 mono samples = 1,920 PCM16LE bytes at 48 kHz)
+:ok = MedEx.Capture.push(capture, 0, pcm_chunk_0)
+:ok = MedEx.Capture.push(capture, 960, pcm_chunk_1)
+
+# Finalize to an immutable "<file_sha256>.wav" file and %MedEx.Evidence{}
+{:ok, %MedEx.Evidence{artifact_key: key, file_sha256: sha, sample_count: 1920}} =
+  MedEx.Capture.finish(capture)
+```
+
+## Scope in 0.1.0
+
+- **Supported audio profile:** Mono 48 kHz signed PCM16LE (up to 30 minutes per
+  capture) with independent send-only WebRTC Opus preview and packaged browser
+  capture/preview JS assets (`MedEx.Web.asset_path/1`).
+- **Out of scope in 0.1.0:** Video tracks, multi-channel ECG/PPG waveforms,
+  bundled TURN servers, clinical persistence, and FHIR export.
+
+## Guides
+
+- [Host integration](guides/host_integration.md) — Elixir capture/preview
+  supervision, Phoenix signaling channel, binary PCM WebSocket contract, and
+  browser hook / AudioWorklet setup.
+- [Architecture and roadmap](guides/architecture_and_roadmap.md) — Capture vs.
+  preview failure domains, shipped vs. planned capabilities, and future
+  integrations.
+- [Source development](guides/source_development.md) — Working in the source
+  monorepo checkout and preparing Weld release bundles.
+
+## License
+
+Released under the MIT License.
