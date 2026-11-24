@@ -7,7 +7,6 @@ mix deps.get
 mix compile --warnings-as-errors
 mix test
 node --test test/*.mjs
-python3 build_support/check_vectors.py
 ./build_support/check_architecture.sh
 ./build_support/check_consumers.sh
 ```

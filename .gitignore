@@ -3,3 +3,7 @@ _build/
 deps/
 .mix_sources.json
 *.tar
+
+/tmp/
+/core/*/tmp/
+/extensions/*/tmp/
