@@ -10,7 +10,8 @@ defmodule MedEx.MixProject do
       deps: [{:ex_doc, "~> 0.40.5", only: :dev, runtime: false}],
       docs: [
         main: "readme",
-        extras: ["README.md", "guides/host_integration.md", "guides/source_development.md"]
+        extras:
+          ~w(README.md guides/host_integration.md guides/source_development.md guides/stream_recording.md guides/product_horizon.md guides/architecture_and_roadmap.md)
       ],
       description: "Source-preserving waveform and measurement acquisition",
       elixirc_paths: @sources,
