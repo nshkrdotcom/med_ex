@@ -6,7 +6,7 @@ defmodule MedExOpus.MixProject do
   def project do
     defaults = [
       {:med_ex, "~> 0.2.0",
-       github: "nshkrdotcom/med_ex", ref: "83defa6d16e5062b3b027cb0e1dbec98bac38705"},
+       github: "nshkrdotcom/med_ex", ref: "c031a38a9e28fe6bccf1358d8f41fa419aa708d2"},
       {:membrane_core, "~> 1.0"},
       {:membrane_raw_audio_format, "~> 0.12.0"},
       {:membrane_opus_format, "~> 0.3.0"},

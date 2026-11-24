@@ -46,7 +46,7 @@ are inactive. Mix validates dependency identities and requirements at fetch/buil
 There is no automatic sibling SDK selection.
 
 The extension defaults pin the verified SDK base at
-`83defa6d16e5062b3b027cb0e1dbec98bac38705`. A consumer of both providers can
+`c031a38a9e28fe6bccf1358d8f41fa419aa708d2`. A consumer of both providers can
 select their verified source revision and use its own matching `:med_ex`
 dependency with `override: true`. For local development, select the checkout
 explicitly. The SDK product version remains `0.2.0`.
