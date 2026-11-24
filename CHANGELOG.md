@@ -17,8 +17,9 @@
   keep capture writes and finish independent of preview startup or failure.
 - Share pure frame admission, canonical WAV header validation, and preview clock
   rules in the existing SDK project.
-- Consolidate browser assets and tests into `core/med_rtc`, preserving the
-  `MedEx.Web` API and packaged asset paths; remove `core/med_web`.
+- Consolidate browser assets and tests into `core/med_capture` and `priv/static/med_web/`,
+  preserving the `MedEx.Web` API and packaged asset paths; retire `core/med_web`
+  and `core/med_rtc`.
 - Authorize capture writes and finish by producer PID. Notify a displaced preview listener.
 - Select a logical diagnostic input and expose actual browser settings before streaming.
 - Budget 250 ms of PCM acknowledgement delay plus 50 ms of jitter and report transport measurements.

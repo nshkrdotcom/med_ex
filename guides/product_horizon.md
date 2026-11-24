@@ -1,88 +1,96 @@
-# Medical-device product horizon
+# Medical-Device Product Horizon
 
-## Position and research basis
+## Architectural Position
 
-MedEx is a framework for **faithful device evidence and explicit technical state**, with optional transports and derived views. Its medical specificity comes from units/calibration, acquisition boundaries, device and configuration identity, quality/status, uncertain time, durable source lineage and safe-to-interpret failure semantics. It is not an EMR, a diagnosis engine, an arbitrary streaming platform or a substitute for a device's safety functions.
+`MedEx` is an SDK for **source-preserving medical-device evidence and explicit technical state**, paired with optional media providers. Its medical-device specificity comes from exact units and calibration (or explicit `:unknown`), immutable acquisition and configuration descriptors, per-sample and per-epoch coordinates, explicit missing-value and status semantics, bounded clock uncertainty, durable source lineage across disconnects, and fail-closed command interlocks.
 
-Research was checked against primary sources on November 24, 2026. FHIR distinguishes measurements, devices and provenance; DICOM represents synchronized waveform groups and channel calibration; IHE SDPi distinguishes reporting, alerting and external control. Those distinctions support a composable framework, but do not justify implementing every standard now. The recommendations below are architectural inferences from those interfaces, not conformance claims.
+`MedEx` is deliberately **not** an EHR/EMR, a clinical decision-support or diagnostic inference engine, a generic media-streaming platform, or a substitute for hardware/firmware safety controls.
 
-## 1. What the original twelve actually exercise
+Architectural boundaries in `MedEx` draw from primary healthcare and device interoperability specifications—including HL7 FHIR R4 (`Observation` vs `Device` vs `Provenance`), DICOM Waveform and Synchronization modules, IHE SDPi (separating reporting, alerting, and external control), and Bluetooth SIG medical GATT profiles (`PLXS`, `BLS`, `CGMS`). Those specifications inform the SDK's data seams so downstream hosts can map reviewed evidence faithfully; `MedEx` itself does not claim turnkey standards or regulatory conformance.
 
-| Original candidate use case | Reusable foundation now | Later capability / additional proof |
-|---|---|---|
-| Digital stethoscope | Raw waveform, provenance, independent preview, configuration history | Characterize actual transducer, DSP/filter response and timing |
-| Voice-based monitoring | Preserved source windows and derived-result lineage | Models, clinical validity, domain shift and human escalation |
-| Multi-device telehealth exam | Multiple streams, independent clocks, acquisition grouping | Device-specific adapters and video/session coordination |
-| ECG/SpO2/PPG monitoring | Waveform + sparse event families, unit/quality contracts | Long-duration scale, alert lifecycle, clinical display qualification |
-| Voice assistant/intake | Independent communications/effects, explicit source linkage | Conversation/consent workflow, tool authorization and escalation |
-| Ultrasound guidance | Source identity and immutable artifact-reference seam | Image/frame/video semantics, DICOM, calibration and latency qualification |
-| Tele-EMS | Spool/replay, gaps, disconnected operation, bounded resources | Mobile connectivity, multi-party operations and validated field use |
-| Respiratory devices | Rational rates, channels, source timing and maneuvers as events | Spirometry quality/reproducibility, flow-volume calibration |
-| Speech/rehabilitation | Raw/derived separation and annotations | Task scoring and synchronized video/kinematics |
-| Device troubleshooting | Authenticated identity, status, command audit and unknown outcome | Vendor diagnostics, privileges, maintenance and servicing policy |
-| Hearing/assistive fitting | Absolute-setting reconciliation and configuration lineage | Calibrated output limits and device-specific fitting safeguards |
-| Clinical training/guidance | Source-anchored annotations and review provenance | Multi-party permissions, telestration and learning assessment |
+## 1. Initial Connected-Care And Diagnostic Use Cases
 
-The candidates' “zero rewrites for all future devices” claim is rejected. Stable coordinates and ports reduce migration cost; they cannot pre-validate new signal families or therapeutic behavior.
+| Use Case | Foundation Implemented In `MedEx` Today | Future Adapter / Validation Work Required |
+| --- | --- | --- |
+| Digital stethoscope | Lossless waveform capture, processing provenance, disposable Opus/WebRTC preview, monitor configuration lineage | Physical transducer characterization, acoustic filter frequency/phase verification, latency qualification |
+| Voice-based monitoring | Preserved raw audio windows, source provenance, raw-vs-derived boundary | Validated acoustic/speech models, domain-shift monitoring, clinician escalation workflows |
+| Multi-device telehealth exam | Independent per-stream descriptors, independent clocks, shared `acquisition_id` grouping | Hardware peripheral adapters, synchronized video/session orchestration |
+| ECG / SpO₂ / PPG monitoring | Regular waveform (`StreamSpec` + `SampleFrame`) and sparse measurement (`MeasurementEvent`) families, calibration/status contracts | Long-duration storage retention, physiological alarm lifecycles, clinical display qualification |
+| Medical voice intake / assistant | Separation of live communications from authoritative clinical records | Consent capture, tool authorization boundaries, clinician sign-off workflows |
+| Ultrasound / procedural guidance | Authenticated source identity and content-addressed artifact reference seams | 2D/3D image/cine schemas, DICOM export, spatial calibration, latency budgets |
+| Tele-EMS / mobile acquisition | Durable local journal, upstream spool receipts, explicit `:source_gap` spans, bounded memory/disk caps | Cellular handover testing, multi-party dispatch coordination, field environmental validation |
+| Respiratory / spirometry devices | Rational sample rates, calibrated channels, maneuver/status event separation | Flow-volume loop calibration, ATS/ERS maneuver reproducibility rules |
+| Speech / motor rehabilitation | Lossless source capture and sample-indexed technical spans | Task scoring protocols, synchronized kinematics/video |
+| Device troubleshooting | Authenticated boot/epoch tracking, `StatusEvent`, `ControlInterlock` audit and `:outcome_unknown` | Vendor diagnostic protocols, maintenance privilege separation |
+| Hearing / assistive fitting | Persist-before-dispatch setting transitions and configuration epoch lineage | Calibrated output safety ceilings and device-resident fitting safeguards |
+| Clinical training / supervision | Sample-range references and immutable index digests | Multi-party role permissions, telestration, competency tracking |
 
-## 2. Beyond those twelve
+Stable sample coordinates, provenance descriptors, and storage/provider behaviours minimize host rework as new peripherals are integrated, without pretending that software abstractions pre-validate new physiological modalities or therapeutic hardware.
 
-The following cases pressure-test contracts rather than create immediate projects.
+## 2. Broader Medical-Device Families
 
-| Device/workflow family | Distinct requirement exposed | Foundation needed now | Build only when exercised |
-|---|---|---|---|
-| Blood-pressure cuff | Discrete maneuver, multiple results, motion/cuff status | Sparse measurement, grouped metrics, quality and raw payload | Cuff cycle/abort adapter, profile validation |
-| Glucose meter | Stored records, patient/specimen context, units | Event identity, measured versus received time, provenance | Meter record mapping and specimen workflow |
-| Continuous glucose monitor | Session warm-up, trend/status, calibration changes | Epoch/descriptor changes, unavailable values, calibration references | CGM session adapter and trend interpretation |
-| Thermometer and scale | Intermittent decimal values, measurement site/method | Exact numeric representation, coded units, source method | Device-specific method/profile implementation |
-| EEG/EMG/evoked potentials | Many channels, triggers, high-rate synchronous groups | Channel order, rational rate, raw native integers, event anchors | High-channel load benchmarks and neurological display |
-| Polysomnography | Overnight heterogeneous rates and scoring revisions | Per-stream clocks, long-lived provenance, immutable revisions | Long-duration storage, sleep scoring and study workflow |
-| Fetal monitoring | Maternal/fetal association, multiple source identities | Unambiguous device/stream identity, association provenance | Subject association, CTG workflow and domain-specific safety review |
-| Ventilator/CPAP | Waveforms plus mode/settings/status/alarm states | Event/waveform separation and honest configuration epochs | Vendor mode semantics and verified alarm lifecycle |
-| Infusion/insulin pump | High-consequence actuation and drug/dose context | Audit IDs and unknown-outcome semantics only | Device interlocks, local authority, hazard controls and separate validation |
-| Dialysis equipment | Multiple coupled fluid/pressure measurements and treatment state | Channels, units, events and independent failure reporting | Treatment model and safety-critical integration |
-| Implantable-device telemetry | Intermittent privileged sessions and device-specific histories | Authenticated identity, explicit reconnect/boot/history boundaries | Programmer protocol, local safety authority and specialist workflow |
-| Neurostimulation/prosthetic control | Tight actuation deadlines and patient-specific configuration | Preserve configuration facts and measured timing limits | Dedicated real-time/safety architecture; BEAM network control alone is insufficient |
-| Point-of-care/lab analyzers | Specimen, reagent lot, QC/calibration and amended result | Opaque provenance references, immutable original results | Specimen/QC model in Fabric or another host, instrument protocol |
-| Coagulation and rapid-test readers | Noncontinuous results with test validity | Sparse missing/invalid values, lot/decoder references | Test-specific quality rules and result interpretation |
-| Gait/rehabilitation IMUs | Multiaxis motion, orientation frames, transforms | Typed channels and raw-versus-derived lineage | Coordinate systems, fusion algorithms and biomechanics validation |
-| Home medication/adherence devices | Event histories and uncertain user action | Observed event versus inferred action; replay identity | Adherence workflow; never infer ingestion from a lid-open event |
-| Ophthalmic/dermatoscopic imaging | Large files, color/geometry calibration and acquisition context | Artifact-reference/provenance seam | Image upload/resume, image schemas and clinical viewing |
-| Connected surgical/robotic tools | Real-time actuation and coordinated authority | Honest command and timing records only | Separately engineered local safety control; not this framework's initial runtime |
+Evaluating a wider range of medical devices clarifies what belongs in `MedEx`'s core contracts today versus what must remain future extensions or separate safety-critical systems:
 
-These are more demanding variations than adding modality atoms. Some require a new schema family or a specialized system outside MedEx. The SDK must fail explicitly on an unsupported encoding/control operation rather than pretending generic support.
+| Device / Workflow Family | Distinct Requirement Exposed | Core Seam Present Today | Future Extension (Build Only When Exercised) |
+| --- | --- | --- | --- |
+| Blood-pressure cuff (`BLS`) | Discrete inflation maneuver, systolic/diastolic/MAP group, motion/cuff status | Multi-metric `MeasurementEvent`, `device_status`, raw bytes | Cuff maneuver/abort adapter and profile validation |
+| Episodic glucose meter | Stored historical records, meal/specimen context, exact units | `source_record_id`, `device_time` vs `receipt_time`, decimal metrics | Meter historical sync protocol and specimen context in host |
+| Continuous glucose monitor (`CGMS`) | Warm-up phase, calibration changes, trend/unavailable states | `source_epoch` / `config_epoch`, `{:missing, reason}`, calibration refs | CGM session lifecycle adapter and trend profiles |
+| Thermometer and scale | Intermittent decimal readings, measurement site/method | Exact `{mantissa, exponent}` decimals, provenance facts | Device-specific profile adapters |
+| EEG / EMG / evoked potentials | High channel counts, stimulus triggers, synchronous multichannel rows | Up to 32 interleaved channels, rational rates, `:s24le`/`:s32le` | Higher-channel-count benchmarks, trigger-event family, neuro display |
+| Polysomnography | Multi-hour heterogeneous rates, multi-pass scoring revisions | Independent per-stream rates/clocks, immutable stream indexes | Multi-hour retention tiers and sleep-study scoring workflows |
+| Maternal / fetal monitoring | Multi-subject physiological attribution | Explicit `source_ref` / `stream_id` and provenance facts | Maternal-fetal subject association and CTG review safety rules |
+| Ventilator / CPAP | Simultaneous pressure/flow waveforms, mode settings, and alarms | Separate waveform, `StatusEvent`, and `config_epoch` models | Vendor mode schemas and verified clinical alarm lifecycles |
+| Infusion / insulin pump | High-consequence drug delivery actuation | Command audit IDs and `:outcome_unknown` state tracking only | Device-resident safety interlocks, dose limits, and hazard validation |
+| Dialysis equipment | Coupled fluid/pressure telemetry and treatment phases | Typed channels, exact decimals, independent status streams | Treatment state machine and safety-critical integration |
+| Implantable telemetry | Intermittent privileged programmer sessions | Authenticated `source_ref`, `boot_id`, and epoch boundaries | Programmer link security, local device authority, specialist workflow |
+| Neurostimulation / prosthetics | Sub-millisecond closed-loop actuation | Configuration provenance and measured timing bounds | Dedicated real-time firmware/RTOS; BEAM networking is not hard real-time |
+| Point-of-care / lab analyzers | Specimen ID, reagent lot, QC lockouts, amended results | Opaque provenance facts and immutable original `MeasurementEvent` | Specimen/reagent/QC domain model in host application |
+| Rapid-test / coagulation readers | Single-shot validity flags and lot calibration | `{:missing, reason}`, `device_status`, raw payload digest | Assay-specific validity and interpretation rules |
+| Gait / rehabilitation IMUs | Multi-axis inertial channels and coordinate frames | Synchronous multi-channel `:s16le`/`:s32le` streams and provenance | Orientation frame conventions and sensor-fusion workers |
+| Medication adherence devices | Uncertain human action vs physical sensor trigger | Observed technical event kept distinct from clinical inference | Host workflow that records sensor events without inferring ingestion |
+| Ophthalmic / dermatoscopic imaging | Still frames, color/spatial calibration, large payloads | Content-addressed artifact digest and provenance patterns | Dedicated image/DICOM artifact family (never fake 1-sample waveforms) |
+| Connected surgical / robotic tools | Hard real-time actuation and local operator authority | Post-hoc telemetry and command audit records only | Dedicated local real-time safety architecture outside `MedEx` |
 
-## 3. Foundations built now
+When given an unsupported encoding, invalid descriptor, or unverified calibration, `MedEx` fails closed rather than coercing values into approximate representations.
 
-Build only what the two slices and compatibility requirements exercise: public application identity; real optional media boundaries; regular waveform and sparse measurement/event contracts; immutable descriptors; calibration/processing provenance; sample/epoch coordinates; rational time and bounded alignment; explicit integrity spans; bounded per-stream admission; durable journal and spool replay; honest command reconciliation; immutable review references; codec/transport/storage/source behaviors; headless and native-sidecar deployments.
+## 3. Implemented Capabilities Versus Future Directions
 
-Metadata must represent unknowns now. A sensor whose sample-to-clock anchor is unqualified still records evidence; alignment remains unavailable. A scale with unknown calibration records native values/status but does not manufacture calibrated physical units. A future adapter cannot retroactively upgrade old evidence by changing a display label.
+### Implemented In `MedEx` Today
 
-Use separate channels only when they are synchronously sampled with common rate/layout. A device with asynchronous sources emits multiple streams. A result with no meaningful sample index uses the sparse family. An image belongs in an artifact/image extension, not a fake one-sample waveform.
+- Canonical `:med_ex` OTP application with zero runtime Hex dependencies and enforced pure-core / effectful-capture separation.
+- Regular waveform (`StreamSpec`, `SampleFrame`, `MEX1`, `FrameFingerprint`), sparse measurement (`MeasurementEvent`), technical status (`StatusEvent`), and qualifier (`IntegritySpan`) contracts.
+- Fenced per-stream `StreamWriter` with POSIX content-addressed `.pcm` segments, checksummed `stream.mejournal`, volatile-vs-durable receipts, replay/conflict handling, crash recovery, and frozen predecessor lineage import.
+- Exact rational affine clock-bound solver (`ClockAlign`) and persist-before-dispatch device command state machine (`ControlInterlock`).
+- Browser 48 kHz mono WAV capture (`MedEx.Capture`, `MedEx.Evidence`, `MedEx.Web`) and optional `:med_ex_opus` / `:med_ex_rtc` media providers usable in-VM or in an isolated sidecar process.
 
-## 4. Capability stages and exit criteria
+### Future Directions (Not Implemented In `MedEx` Today)
 
-| Stage | Scope | Exit criterion |
-|---|---|---|
-| A — this plan | Software contracts; two simulated workflows; optional preview; legacy behavior | All implementation gates, separate-process network/fault tests and honest evidence labels |
-| B — first physical device | One named stethoscope/ECG or PLX device path | Hardware captures compared to known input; transport/decoder conformance; loss, restart, drift, calibration and latency characterized |
-| C — operational use | Several sources and longer acquisitions | Defined load/retention/security/support model; durable backup/restore; deployment validation |
-| D — clinical or regulated feature | Intended clinical workflow and applicable jurisdiction | Separate risk, usability, clinical performance and regulatory work, appropriate to the actual intended use |
-| E — higher-risk control/AI | Treatment actuation, alerts or derived clinical decisions | Dedicated hazards and controls, validation of algorithm/device behavior, human authority and failure handling |
+- Physical USB, serial, or Bluetooth Low Energy (BLE) hardware transport adapters and Nerves firmware packages.
+- Dedicated image/cine/DICOM artifact contracts and high-channel-count (>32 channel) neurophysiology extensions.
+- Out-of-band signal-processing, quality-scoring, and ML/AI inference workers consuming sealed `StreamIndex` artifacts.
+- Clinical alarm routing or therapeutic device actuation frameworks.
 
-Stage A does not automatically authorize Stage B–E. Nevertheless, Stage A should be useful engineering software: actual sockets, real persistence, operators reviewing records, and failures that can be reproduced and inspected.
+## 4. Validation And Maturity Stages
 
-## 5. Deliberate exclusions
+Engineering verification of `MedEx` software contracts does not substitute for hardware or clinical validation in a downstream medical product:
 
-No universal FHIR model in the SDK; no DICOM parser, Bluetooth radio stack, Nerves image, distributed clock service, event-sourcing framework, workflow language, dynamic plugin registry, generic alarm router, universal device-control API, compiled dependency cache, or portfolio tooling expansion. Add one only when a concrete consumer establishes a need and a smaller adapter is insufficient.
+| Stage | Scope | Required Evidence |
+| --- | --- | --- |
+| **A — Software SDK & Simulated Reference Workflows** *(current)* | Pure contracts, POSIX journaled storage/recovery, fault-injected transport/process tests, optional preview isolation, and browser WAV compatibility | Automated unit/property/vector tests, boundary checks, multi-profile consumer builds, and separate-process fault-injection qualification |
+| **B — Physical Device Integration** | A specific physical stethoscope, ECG, or pulse oximeter peripheral | Bench captures against calibrated signal generators; oscillator drift, ADC scale, BLE/USB dropout, reboot, and end-to-end latency characterization |
+| **C — Multi-Device Operational Deployment** | Concurrent clinical rooms, sustained retention, and production infrastructure | Load/soak testing, disk retention and backup/restore drills, key rotation, observability, and operational runbooks |
+| **D — Regulated Clinical Workflow** | Intended diagnostic or monitoring use in a target jurisdiction | Risk management (e.g., ISO 14971), software lifecycle (IEC 62304), usability engineering (IEC 62366), cybersecurity, and clinical evaluation |
+| **E — Higher-Risk Control Or Autonomous Analytics** | Closed-loop actuation, physiological alarms, or diagnostic AI | Dedicated hazard controls, local hardware/firmware safety authority, clinical algorithm validation, and regulatory clearance |
 
-Reference implementations use standard libraries at effect boundaries. Native hardware/Nerves clients reuse values, protocol/decoder tests and source/spool contracts, but may substitute storage and transport. Real-time acquisition deadlines and local safety remain the device's responsibility; ordinary Elixir networking is not a hard-real-time guarantee.
+## 5. Deliberate Exclusions
 
-## Research references
+`MedEx` intentionally excludes a built-in EHR/FHIR resource library, DICOM parser, BLE radio stack, Nerves system image, distributed consensus clock, generic workflow DSL, dynamic plugin registry, clinical alarm router, or universal therapeutic control API. Host applications such as [Med Fabric](https://github.com/nshkrdotcom/med_fabric) own clinical identity, persistence, review, and HL7 FHIR exchange at the application layer.
 
-- [HL7 FHIR R4 Observation](https://hl7.org/fhir/R4/observation-definitions.html): typed results, components, device references and missing-value representation. Fabric retains R4 because the snapshot already uses it; do not silently upgrade exchange versions.
-- [HL7 FHIR R4 Provenance](https://hl7.org/fhir/R4/provenance.html): origin/process assertions belong with the resource lineage; they are distinct from merely recording access events.
-- [DICOM waveform module](https://dicom.nema.org/medical/dicom/2022e/output/chtml/part03/sect_C.10.9.html) and [synchronization module](https://dicom.nema.org/medical/dicom/2024c/output/chtml/part03/sect_C.7.4.2.html): channel grouping, calibration and explicit temporal reference. These fixed-version references motivate the horizon, not a DICOM implementation claim.
-- [IHE SDPi technical framework](https://profiles.ihe.net/DEV/SDPi/): separately profiles device reporting, alerting and external control, including waveform and synchronized-time use cases.
-- Bluetooth SIG [Pulse Oximeter Service 1.0.1](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/PLXS_v1.0.1/out/en/index-en.html), [Blood Pressure Service 1.1.1](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/BLS_v1.1.1/out/en/index-en.html), and [Continuous Glucose Monitoring Service 1.0.2](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/CGMS_v1.0.2/out/en/index-en.html): sparse results, device status and stored/session data differ from raw audio.
-- [FDA interoperable-device design guidance](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/design-considerations-and-pre-market-submission-recommendations-interoperable-medical-devices): interface, performance and verification considerations inform the boundary between software simulation evidence and validation of an intended device use. This docset does not make a compliance determination.
+## Primary Standards References
+
+- [HL7 FHIR R4 Observation](https://hl7.org/fhir/R4/observation-definitions.html) & [Provenance](https://hl7.org/fhir/R4/provenance.html) — typed measurements, components, missing-data reasons, device references, and origin lineage.
+- [DICOM Waveform Module](https://dicom.nema.org/medical/dicom/2022e/output/chtml/part03/sect_C.10.9.html) & [Synchronization Module](https://dicom.nema.org/medical/dicom/2024c/output/chtml/part03/sect_C.7.4.2.html) — synchronous multiplex channel groups, channel calibration, and temporal synchronization frames.
+- [IHE SDPi Technical Framework](https://profiles.ihe.net/DEV/SDPi/) — separation of device reporting, alerting, and external control.
+- Bluetooth SIG [Pulse Oximeter Service 1.0.1](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/PLXS_v1.0.1/out/en/index-en.html), [Blood Pressure Service 1.1.1](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/BLS_v1.1.1/out/en/index-en.html), and [Continuous Glucose Monitoring Service 1.0.2](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/CGMS_v1.0.2/out/en/index-en.html) — sparse indications, RACP stored-record replay, and measurement/sensor status bitmasks.
+- [FDA Interoperable Medical Devices Guidance](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/design-considerations-and-pre-market-submission-recommendations-interoperable-medical-devices) — interface contracts, failure behavior, and verification boundaries.
