@@ -1,5 +1,11 @@
 defmodule MedEx.Opus.CapturePreviewTest do
   use ExUnit.Case, async: true
+
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   @tag :tmp_dir
   test "encodes live preview and keeps writing when the subscriber stops demanding", %{
     tmp_dir: dir

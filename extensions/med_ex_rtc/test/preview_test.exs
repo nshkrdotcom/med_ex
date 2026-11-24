@@ -1,6 +1,11 @@
 defmodule MedEx.PreviewTest do
   use ExUnit.Case, async: true
 
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   alias ExWebRTC.PeerConnection
   alias ExWebRTC.SessionDescription
   alias MedEx.Preview

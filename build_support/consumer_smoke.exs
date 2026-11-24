@@ -1,5 +1,11 @@
 defmodule ExternalDeviceDriverTest do
   use ExUnit.Case
+
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   alias MedEx.{StreamWriter, SampleFrame, StreamSpec}
   @tag :tmp_dir
   test "public root owns contracts, assets and raw recording", %{tmp_dir: dir} do

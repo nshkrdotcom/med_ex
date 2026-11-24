@@ -51,7 +51,7 @@ select their verified source revision and use its own matching `:med_ex`
 dependency with `override: true`. For local development, select the checkout
 explicitly. The SDK product version remains `0.2.0`.
 
-For a packaged legacy 0.2.0 user, keep existing host calls, configure both
+For a packaged legacy 0.1.0 user, keep existing host calls, configure both
 providers explicitly when migrating to this source, and replace old direct
 `:med_rtc` dependencies with `:med_ex`. Native RTC/Opus build prerequisites
 apply only when installing those extensions.
@@ -72,3 +72,8 @@ The live path is `.weld/live/med_ex`; the full path is
 Tests using a prepared project or projection branch should rerun the same
 consumer checks with that root supplied as the first argument. Preparing and
 publishing a new product package are separate release decisions.
+
+Rendered documentation is generated locally with `mix docs`. The permanent
+MEX1 and MEJ1 fixtures were independently constructed and their byte and hash
+assertions run with `mix test`. Generated release evidence can be stored
+outside the checkout, together with its revision and checksum.

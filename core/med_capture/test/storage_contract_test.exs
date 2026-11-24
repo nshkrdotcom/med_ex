@@ -22,6 +22,8 @@ defmodule MedEx.StorageContractTest do
   end
 
   setup %{tmp_dir: dir} do
+    on_exit(fn -> File.rm_rf!(dir) end)
+
     spec = %StreamSpec{
       stream_id: "s",
       source_epoch: 3,
