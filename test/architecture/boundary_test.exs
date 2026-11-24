@@ -3,25 +3,25 @@ Code.require_file("../../build_support/boundary_check.exs", __DIR__)
 defmodule MedEx.ArchitectureTest do
   use ExUnit.Case, async: false
   alias MedEx.Build.{Boundaries, Ownership}
-  @file "/fixture/core/med_core/lib/negative.ex"
+  @fixture_path "/fixture/core/med_core/lib/negative.ex"
 
   test "negative fixtures fail for their own boundary" do
     :persistent_term.put({Boundaries, :core}, MapSet.new([MedEx.StreamSpec]))
 
     assert_raise RuntimeError, ~r/reverse dependency/, fn ->
-      Boundaries.check_edge!(@file, MedEx.StreamWriter, :push)
+      Boundaries.check_edge!(@fixture_path, MedEx.StreamWriter, :push)
     end
 
     assert_raise RuntimeError, ~r/core effect/, fn ->
-      Boundaries.check_edge!(@file, File, :read!)
+      Boundaries.check_edge!(@fixture_path, File, :read!)
     end
 
     assert_raise RuntimeError, ~r/core effect/, fn ->
-      Boundaries.check_edge!(@file, Code, :eval_string)
+      Boundaries.check_edge!(@fixture_path, Code, :eval_string)
     end
 
     assert_raise RuntimeError, ~r/core effect/, fn ->
-      Boundaries.check_edge!(@file, :erlang, :send_after)
+      Boundaries.check_edge!(@fixture_path, :erlang, :send_after)
     end
 
     for {mod, fun} <- [
@@ -33,20 +33,20 @@ defmodule MedEx.ArchitectureTest do
           {Port, :command}
         ] do
       assert_raise RuntimeError, ~r/core effect/, fn ->
-        Boundaries.check_edge!(@file, mod, fun)
+        Boundaries.check_edge!(@fixture_path, mod, fun)
       end
     end
 
     assert_raise RuntimeError, ~r/external dependency/, fn ->
-      Boundaries.check_edge!(@file, ExWebRTC.PeerConnection, :__struct__)
+      Boundaries.check_edge!(@fixture_path, ExWebRTC.PeerConnection, :__struct__)
     end
 
     assert_raise RuntimeError, ~r/dynamic module/, fn ->
-      Boundaries.ast!(@file, "def read(mod, arg), do: mod.read(arg)")
+      Boundaries.ast!(@fixture_path, "def read(mod, arg), do: mod.read(arg)")
     end
 
     assert_raise RuntimeError, ~r/core effect/, fn ->
-      Boundaries.ast!(@file, "def get(mod), do: apply(mod, :get, [])")
+      Boundaries.ast!(@fixture_path, "def get(mod), do: apply(mod, :get, [])")
     end
 
     assert_raise RuntimeError, ~r/duplicate module/, fn ->
@@ -77,7 +77,10 @@ defmodule MedEx.ArchitectureTest do
           ] do
         file = Path.join(lib, "bad.ex")
         File.write!(file, "defmodule BoundaryViolationFixture do\n#{body}\nend\n")
-        assert {:error, errors, _} = Kernel.ParallelCompiler.compile_to_path([file], out)
+
+        assert {:error, errors, _} =
+                 Kernel.ParallelCompiler.compile_to_path([file], out, return_diagnostics: true)
+
         assert inspect(errors) =~ reason
       end
     after

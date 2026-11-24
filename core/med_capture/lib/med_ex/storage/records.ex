@@ -276,7 +276,7 @@ defmodule MedEx.Storage.Records do
     length = count * length(spec.channels) * MedEx.StreamSpec.bytes_per_value(spec.encoding)
 
     with true <- length > 0 and length <= byte_size(data),
-         <<bytes::binary-size(length), tail::binary>> <- data,
+         <<bytes::binary-size(^length), tail::binary>> <- data,
          f = %SampleFrame{
            stream_id: spec.stream_id,
            source_epoch: spec.source_epoch,

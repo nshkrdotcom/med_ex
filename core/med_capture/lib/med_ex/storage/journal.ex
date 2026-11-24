@@ -67,7 +67,7 @@ defmodule MedEx.Storage.Journal do
             {:ok, tail} when byte_size(tail) < length + 32 ->
               {:ok, acc, pos, true}
 
-            {:ok, <<payload::binary-size(length), digest::binary-size(32)>>} ->
+            {:ok, <<payload::binary-size(^length), digest::binary-size(32)>>} ->
               hex = Base.encode16(digest, case: :lower)
 
               with true <-

@@ -28,8 +28,8 @@ File.mkdir!(tmp)
 try do
   Code.compiler_options(tracers: [Boundaries], ignore_module_conflict: true)
 
-  case Kernel.ParallelCompiler.compile_to_path(files, tmp) do
-    {:ok, _, []} -> :ok
+  case Kernel.ParallelCompiler.compile_to_path(files, tmp, return_diagnostics: true) do
+    {:ok, _, %{compile_warnings: [], runtime_warnings: []}} -> :ok
     result -> raise "compiler boundary trace failed: #{inspect(result)}"
   end
 after

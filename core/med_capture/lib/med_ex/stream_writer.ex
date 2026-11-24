@@ -81,11 +81,11 @@ defmodule MedEx.StreamWriter do
          }}
       else
         storage.close(adapter)
-        {:stop, :invalid_storage_receipt}
+        {:error, :invalid_storage_receipt}
       end
     else
-      {:error, reason} -> {:stop, reason}
-      false -> {:stop, :invalid_owner_or_fence}
+      {:error, reason} -> {:error, reason}
+      false -> {:error, :invalid_owner_or_fence}
     end
   end
 
