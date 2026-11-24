@@ -4,92 +4,147 @@
     "package": {
       "name": "med_ex",
       "otp_app": "med_ex",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   },
   "graph": {
-    "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "edges": [],
+    "digest": "6333b387be303ee2b02dcabfcab9ecf040726e514deb811b4ea8158f892acd10",
+    "edges": [
+      {
+        "app": "med_core",
+        "from": "core/med_capture",
+        "kind": "runtime",
+        "requirement": null,
+        "to": "core/med_core"
+      }
+    ],
     "excluded_projects": [
-      "."
+      "core/med_capture",
+      "core/med_core",
+      "extensions/med_ex_opus",
+      "extensions/med_ex_rtc",
+      "tools/maintainer"
     ],
     "selected_projects": [
-      "core/med_rtc",
-      "core/med_web"
+      "."
     ],
     "violations": []
   },
   "manifest": {
-    "digest": "df69dda0e60021c96d74356ee3ba136fe788c986b3bf6dbb2133405d6360b546",
+    "digest": "3c540ebb339b44e90d4bec6f1e05e421c9527c76902e1ac1af25bc592c476771",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "build_path": "dist/monolith/med_ex",
+    "build_path": ".weld/full/med_ex/project",
     "copied_files": [
-      ".credo.exs",
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
+      "VERSION",
       "assets/med_ex.svg",
-      "config/config.exs",
-      "config/dev.exs",
-      "config/prod.exs",
-      "config/test.exs",
+      "build_support/boundary_check.exs",
+      "build_support/check_architecture.exs",
+      "build_support/check_architecture.sh",
+      "build_support/check_consumers.sh",
+      "build_support/check_vectors.py",
+      "build_support/consumer_smoke.exs",
+      "build_support/module_ownership.exs",
+      "build_support/weld.exs",
+      "core/med_capture/lib/med_ex/capture.ex",
+      "core/med_capture/lib/med_ex/preview.ex",
+      "core/med_capture/lib/med_ex/preview_provider.ex",
+      "core/med_capture/lib/med_ex/preview_session.ex",
+      "core/med_capture/lib/med_ex/rtc_provider.ex",
+      "core/med_capture/lib/med_ex/storage.ex",
+      "core/med_capture/lib/med_ex/storage/file.ex",
+      "core/med_capture/lib/med_ex/storage/journal.ex",
+      "core/med_capture/lib/med_ex/storage/objects.ex",
+      "core/med_capture/lib/med_ex/storage/records.ex",
+      "core/med_capture/lib/med_ex/stream_writer.ex",
+      "core/med_capture/lib/med_ex/wav.ex",
+      "core/med_capture/lib/med_ex/web.ex",
+      "core/med_capture/test/base_only_test.exs",
+      "core/med_capture/test/capture_test.exs",
+      "core/med_capture/test/storage_contract_test.exs",
+      "core/med_capture/test/stream_writer_test.exs",
+      "core/med_capture/test/test_helper.exs",
+      "core/med_capture/test/wav_test.exs",
+      "core/med_capture/test/web_test.exs",
+      "core/med_core/lib/med_ex/canonical_json.ex",
+      "core/med_core/lib/med_ex/capture/frame_rules.ex",
+      "core/med_core/lib/med_ex/clock_align.ex",
+      "core/med_core/lib/med_ex/contract.ex",
+      "core/med_core/lib/med_ex/contract_rules.ex",
+      "core/med_core/lib/med_ex/control_interlock.ex",
+      "core/med_core/lib/med_ex/evidence.ex",
+      "core/med_core/lib/med_ex/format/wav.ex",
+      "core/med_core/lib/med_ex/frame_fingerprint.ex",
+      "core/med_core/lib/med_ex/integrity_span.ex",
+      "core/med_core/lib/med_ex/measurement_event.ex",
+      "core/med_core/lib/med_ex/preview/clock.ex",
+      "core/med_core/lib/med_ex/sample_frame.ex",
+      "core/med_core/lib/med_ex/segment_ref.ex",
+      "core/med_core/lib/med_ex/serialization.ex",
+      "core/med_core/lib/med_ex/status_event.ex",
+      "core/med_core/lib/med_ex/stream_cursor.ex",
+      "core/med_core/lib/med_ex/stream_index.ex",
+      "core/med_core/lib/med_ex/stream_spec.ex",
+      "core/med_core/lib/med_ex/wire/control.ex",
+      "core/med_core/lib/med_ex/wire/frame_v1.ex",
+      "core/med_core/test/canonical_json_test.exs",
+      "core/med_core/test/clock_align_test.exs",
+      "core/med_core/test/contracts_test.exs",
+      "core/med_core/test/control_interlock_test.exs",
+      "core/med_core/test/control_wire_test.exs",
+      "core/med_core/test/fixtures/wire/metadata.mej1",
+      "core/med_core/test/fixtures/wire/mex1_waveform.bin",
+      "core/med_core/test/fixtures/wire/reference_vectors.json",
+      "core/med_core/test/frame_properties_test.exs",
+      "core/med_core/test/frame_rules_test.exs",
+      "core/med_core/test/preview_clock_test.exs",
+      "core/med_core/test/semantic_vectors_test.exs",
+      "core/med_core/test/stream_cursor_test.exs",
+      "core/med_core/test/test_helper.exs",
+      "core/med_core/test/wire_frame_v1_test.exs",
       "guides/architecture_and_roadmap.md",
+      "guides/history/med_rtc_changelog.md",
       "guides/host_integration.md",
+      "guides/product_horizon.md",
       "guides/source_development.md",
-      "lib/med_ex/capture.ex",
-      "lib/med_ex/evidence.ex",
-      "lib/med_ex/preview.ex",
-      "lib/med_ex/preview_encoder.ex",
-      "lib/med_ex/wav.ex",
-      "lib/med_ex/web.ex",
+      "guides/stream_recording.md",
       "mix.exs",
+      "mix.lock",
       "priv/static/med_web/pcm_capture.js",
       "priv/static/med_web/pcm_worklet.js",
       "priv/static/med_web/session_hook.js",
-      "test/core_med_rtc/capture_test.exs",
-      "test/core_med_rtc/preview_test.exs",
-      "test/support/weld_helpers/core_med_rtc_test_helper.exs",
-      "test/support/weld_helpers/core_med_web_test_helper.exs",
+      "test/architecture/boundary_test.exs",
+      "test/pcm_capture_test.mjs",
+      "test/pcm_worklet_test.mjs",
       "test/test_helper.exs"
     ],
-    "git_revision": "2c51157b509c9ddc5bc2a2d4a93ae53d8d1e6e01",
+    "git_revision": "6e69605f256925ea2f7e03a377fca9ad5bc6bce0",
     "package_files": [
-      ".credo.exs",
-      ".formatter.exs",
-      "CHANGELOG.md",
+      "mix.exs",
+      "mix.lock",
+      "VERSION",
       "LICENSE",
       "README.md",
-      "assets/med_ex.svg",
-      "config",
+      "CHANGELOG.md",
+      ".formatter.exs",
+      "assets",
       "guides",
-      "lib",
-      "mix.exs",
-      "priv"
+      "priv",
+      "test",
+      "core/med_core/lib",
+      "core/med_core/test",
+      "core/med_capture/lib",
+      "core/med_capture/test",
+      "build_support"
     ],
-    "tree_digest": "92021a6eccb66e49d6522ad9d491155359082edc09c4d2d761c03d1988108686"
+    "tree_digest": "386da9530a4876e0e7bd5d1d88c41d60b63367b550cc9cb9dd5ea7cb2e238a19"
   },
   "verification": [
-    {
-      "env": "test",
-      "project_test_counts": [
-        {
-          "app": "med_web",
-          "project_id": "core/med_web",
-          "test_count": 0
-        },
-        {
-          "app": "med_rtc",
-          "project_id": "core/med_rtc",
-          "test_count": 6
-        }
-      ],
-      "status": "ok",
-      "task": "selected_tests_baseline",
-      "test_count": 6
-    },
     {
       "env": "dev",
       "status": "ok",
@@ -98,37 +153,57 @@
     {
       "env": "dev",
       "status": "ok",
-      "task": "compile --warnings-as-errors"
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
     },
     {
       "env": "test",
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 6
+      "test_count": 57
     },
     {
       "env": "dev",
       "status": "ok",
       "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "reason": "artifact_opted_out",
+      "status": "skipped",
+      "task": "hex.publish --dry-run --yes"
     }
   ],
   "workspace": {
     "discovery": {
       "adapter": null,
       "globs": [
-        "apps/*",
-        "core/*"
+        "core/*",
+        "extensions/*",
+        "tools/*"
       ],
       "project_ids": [
         ".",
-        "core/med_rtc",
-        "core/med_web"
+        "core/med_capture",
+        "core/med_core",
+        "extensions/med_ex_opus",
+        "extensions/med_ex_rtc",
+        "tools/maintainer"
       ],
       "root_project?": true,
       "source": "manifest"
     },
-    "project_count": 3,
+    "project_count": 6,
     "root": "."
   }
 }

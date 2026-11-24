@@ -4,10 +4,18 @@ This guide covers everything a Phoenix or Elixir host needs to capture indexed
 mono PCM16LE audio with `MedEx.Capture`, stream an independent live Opus preview
 over `MedEx.Preview`, and serve MedEx's packaged browser helpers.
 
+For this source revision, enable media by adding the independent Opus and RTC
+packages to the host and setting `:med_ex, :preview_provider` to
+`MedEx.Opus.Provider` and `:med_ex, :rtc_provider` to `MedEx.RTC.Provider`.
+Set the RTC provider before opening any peer; the facade retains the first
+configured provider for the VM lifetime. The base-only profile returns
+`{:error, :preview_unavailable}` from subscription and `{:error, :rtc_unavailable}`
+from negotiation. Raw capture remains available.
+
 ## Prerequisites
 
-- Elixir `~> 1.20` (tested on Elixir `1.20.5` / OTP `29.1.2`).
-- Ubuntu 26.04 native build packages for WebRTC (`ex_dtls`, `ex_libsrtp`):
+- Elixir `~> 1.20`.
+- For the RTC extension, Ubuntu 26.04 native build packages for WebRTC (`ex_dtls`, `ex_libsrtp`):
   `build-essential`, `pkg-config`, and `libssl-dev`.
 - Live Opus encoding uses `membrane_opus_plugin`, which uses precompiled
   `libopus` binaries on supported Linux/macOS targets (install `libopus-dev` if
@@ -22,9 +30,9 @@ over `MedEx.Preview`, and serve MedEx's packaged browser helpers.
 
 - `"session_hook.js"` — LiveView hook helper (`createMedExHook/1`) for the
   clinician's receive-only WebRTC preview.
-- `"pcm_capture.js"` — patient-browser capture helper (`startPCM/4`).
+- `"pcm_capture.js"` — patient-browser capture helper (`startPCM`).
 - `"pcm_worklet.js"` — `AudioWorkletProcessor` (`"med-ex-indexed-pcm"`) loaded
-  by `startPCM/4`.
+  by `startPCM`.
 
 Serve all three as `application/javascript` from your endpoint:
 
@@ -58,7 +66,12 @@ For the preview example below, start `{Phoenix.PubSub, name: MyApp.PubSub}`
 in the host supervisor as well. Register the encounter in `MyApp.ActiveCapture`
 from the producer process and broadcast after the capture starts.
 
-Each capture process takes `:owner`, `:acquisition_id`, and `:artifact_dir`:
+Before capture, reserve an acquisition ID with its producer and encounter in the
+host store. Create the attempt's artifact directory and give the browser the ID.
+This lets the host correlate a finalized WAV with its reservation even if the
+socket exits during finish. Use the ID for subsequent outcome lookup.
+
+Each capture process takes `:owner`, `:acquisition_id`, and `:artifact_dir`.
 
 ```elixir
 {:ok, _} = Registry.register(MyApp.ActiveCapture, encounter_id, nil)
@@ -77,7 +90,9 @@ Phoenix.PubSub.broadcast(MyApp.PubSub, "preview:" <> encounter_id, {:capture_sta
 ```
 
 `MedEx.Capture` monitors `:owner` and aborts (deleting its temporary `.part`
-file) if `:owner` exits before `finish/1`.
+file) if `:owner` exits before `finish/1`. The same PID must call `push/3`
+and `finish/1`. A different caller receives `{:error, :not_owner}` and the
+active recording continues.
 
 ### Handling binary PCM WebSocket frames
 
@@ -97,7 +112,7 @@ def handle_in({"finish", [opcode: :text]}, state) do
   case MedEx.Capture.finish(state.capture) do
     {:ok, %MedEx.Evidence{} = evidence} ->
       # Persist finalized evidence before closing the socket.
-      :ok = MyApp.ClinicalStore.record_ready(state.encounter_id, evidence)
+      :ok = MyApp.ClinicalStore.mark_ready(state.acquisition_id, evidence)
       {:stop, :normal, 1000, {:text, "ready"}, state}
 
     {:error, _reason} ->
@@ -114,7 +129,7 @@ end
 | Frame size | Even byte count in `2..1920` (up to 960 samples / 20 ms). Only one short tail frame (`< 1920` bytes) is allowed, immediately before `finish/1`. |
 | Contiguity & limit | `first_sample` must start at `0` and advance contiguously without gaps, up to 30 minutes (`86_400_000` samples). Violations return `{:error, :invalid_frame}` and stop the capture. |
 | `finish/1` | Returns `{:ok, %MedEx.Evidence{}}`, `{:error, :empty_capture}` (0 samples pushed), `{:error, :artifact_conflict}` (existing file digest mismatch), or `{:error, posix}`. |
-| Preview fan-out | Only full 1,920-byte frames are offered to the preview encoder. Preview lag, drop, or encoder exit never blocks or aborts WAV capture. |
+| Preview fan-out | Only full 1,920-byte frames are offered under one-frame demand. A disposable preview session starts and owns the encoder outside Capture's callbacks. A slow or failed preview drops preview frames while the writer continues. |
 
 ### `MedEx.Evidence` fields
 
@@ -164,7 +179,7 @@ defmodule MyAppWeb.PreviewChannel do
 
   @impl true
   def handle_in("offer", %{"sdp" => sdp}, %{assigns: %{peer: nil}} = socket) do
-    opts = [ice_servers: Application.get_env(:my_app, :ice_servers, [])]
+    opts = MyApp.Media.preview_ice_options(socket.assigns.encounter_id)
 
     case Preview.answer(sdp, opts) do
       {:ok, peer, answer_sdp} ->
@@ -207,10 +222,15 @@ defmodule MyAppWeb.PreviewChannel do
         {:med_ex_preview, capture, sample_index, packet},
         %{assigns: %{capture: capture, peer: peer, sequence: seq, clock: clock}} = socket
       ) do
-    tick = next_tick(clock, capture, sample_index)
-    :ok = Preview.send_opus(peer, packet, seq, tick)
+    clock = Preview.Clock.advance(clock, capture, sample_index)
+    :ok = Preview.send_opus(peer, packet, seq, clock.tick)
     :ok = Capture.demand(capture)
-    {:noreply, assign(socket, sequence: seq + 1, clock: {capture, sample_index, tick})}
+    {:noreply, assign(socket, sequence: seq + 1, clock: clock)}
+  end
+
+  def handle_info({:med_ex_preview_replaced, capture}, %{assigns: %{capture: capture}} = socket) do
+    push(socket, "preview_replaced", %{})
+    {:noreply, assign(socket, capture: nil, connected: false)}
   end
 
   def handle_info({:med_ex_preview_failed, capture, _reason}, %{assigns: %{capture: capture}} = socket) do
@@ -233,16 +253,27 @@ defmodule MyAppWeb.PreviewChannel do
     :ok
   end
 
-  # Keep RTP media timestamps monotonic if a new capture starts on the same peer.
-  defp next_tick(nil, _capture, index), do: index
-  defp next_tick({capture, last, tick}, capture, index), do: tick + index - last
-  defp next_tick({_prev, _last, tick}, _capture, _index), do: tick + 960
 end
 ```
 
-Pass `:ice_servers` to `MedEx.Preview.answer/2` and `iceServers` to
-`createMedExHook/1` for host-managed STUN/TURN configuration. The default `[]`
-uses direct local candidates.
+`MedEx.Preview.Clock.advance/3` preserves the media clock across captures on
+the same peer and across dropped preview frames. `send_opus/4` owns RTP sequence
+and timestamp wrapping. The host retains only the sequence and clock state.
+
+The subscription waits for its private encoder session to start, but Capture
+can process writer calls during that wait. The session is scoped to the current
+subscriber and capture; replacement, subscriber loss, and capture teardown
+cancel it. A host does not need another named supervisor or a MedEx application
+supervision tree.
+
+For the example, implement `MyApp.Media.preview_ice_options/1` to return
+`[ice_servers: servers, ice_transport_policy: :all]` or use `:relay` with TURN
+credentials scoped to the preview peer. Give the conversation peers and browser
+preview the corresponding WebRTC `iceServers` and `iceTransportPolicy`
+configuration with credentials scoped to their sessions. Defaults are an empty
+server list and `:all`. A relay deployment can inspect each selected candidate
+pair with browser `getStats()`. Measure PCM acknowledgement delay separately on
+the authenticated WebSocket.
 
 ## 4. Browser preview hook (`session_hook.js`)
 
@@ -285,7 +316,11 @@ const liveSocket = new LiveSocket("/live", Socket, {
       play: "#preview-play",
       disconnect: "#preview-disconnect",
       reconnect: "#preview-reconnect",
-      iceServers: []
+      rtcConfig: async el => {
+        const response = await fetch("/encounters/" + encodeURIComponent(el.dataset.encounterId) + "/ice");
+        if (!response.ok) throw new Error("ICE configuration unavailable");
+        return response.json(); // {iceServers, iceTransportPolicy}
+      }
     })
   }
 });
@@ -298,8 +333,10 @@ Channel protocol expected by `createMedExHook`:
    `{ session_id }`.
 2. Gathers browser ICE candidates and pushes `"offer"` with `{ sdp }`, expecting
    `{ sdp }` answer.
-3. Handles server-pushed `"preview_failed"` by closing the peer cleanly and
-   displaying a retry status without affecting capture.
+3. Handles `"preview_failed"` and `"preview_replaced"` by closing the peer and
+   displaying the appropriate status. The clinician can select Reconnect.
+   The hook evaluates `rtcConfig(el)` for each new connection. A host with
+   static configuration can pass `iceServers` and `iceTransportPolicy` directly.
 
 ## 5. Browser live PCM capture (`pcm_capture.js` & `pcm_worklet.js`)
 
@@ -310,18 +347,17 @@ recording callback once the server acknowledges the first frame.
 ```js
 import { startPCM } from "/med_ex/pcm_capture.js";
 
-const socket = new WebSocket("wss://example.test/pcm");
-await new Promise((resolve, reject) => {
-  socket.onopen = resolve;
-  socket.onerror = reject;
-  socket.onclose = reject;
-});
-
+// Host helper opens the authenticated socket and reads the acquisition ID.
+const {socket, acquisitionId} = await reserveCapture();
 const handle = await startPCM(
   socket,
   "/med_ex/pcm_worklet.js",
-  outcome => console.log("Capture ended:", outcome),
-  () => console.log("Recording active (first frame acknowledged)")
+  (outcome, measurements) => showCaptureOutcome(acquisitionId, outcome, measurements),
+  () => enableFinish(),
+  {
+    deviceId: diagnosticInput.value,
+    onSource: settings => saveLogicalSource(acquisitionId, settings)
+  }
 );
 
 // Use separate buttons for the two terminal actions.
@@ -329,33 +365,59 @@ document.querySelector("#finish-capture").onclick = () => handle.finish();
 document.querySelector("#abort-capture").onclick = () => handle.abort();
 ```
 
+### Source and timing
+
+Offer the browser's `audioinput` devices for separate conversation and
+diagnostic input selections. An empty diagnostic selection requests the default
+microphone. A selected `deviceId` becomes an exact constraint. The helper asks
+for mono with echo cancellation, noise suppression and auto gain disabled.
+It calls `onSource` with the track's `getSettings()` fields, its `label`, and
+`contextSampleRate`. The callback may return a promise. PCM begins only after
+the promise resolves. Unsupported settings are absent. Device IDs identify
+logical inputs in the browser's origin. Obtain hardware identity or calibration
+separately if relevant.
+
+The audio context runs at 48 kHz. Track `sampleRate` describes the source as
+reported by the browser and can differ from `contextSampleRate`. The host can
+timestamp the arrival of the first accepted PCM frame and derive duration in
+seconds as `sample_count / 48_000`. Store that timing basis and the actor with
+the attempt. The continuity verdict covers consecutive browser render samples
+from the first emitted frame.
+
 ### Live PCM wire protocol and outcome codes
 
-- **Audio constraints:** `AudioContext({ sampleRate: 48000 })` (fails with
-  `"setup_failed"` if the browser context cannot run at 48 kHz) and
-  `getUserMedia` with `channelCount: { exact: 1 }` and `echoCancellation`,
-  `noiseSuppression`, and `autoGainControl` set to `{ exact: false }`.
-- **Binary frames:** 8-byte unsigned big-endian `first_sample` index followed by
-  up to 960 mono `PCM16LE` samples (1,920 bytes).
-- **Flow control:** The worklet starts with 8 in-flight frame credits. The host
-  must reply with text `"ack"` after accepting each frame. After the first
-  `"ack"`, `startPCM/4` invokes `onRecording()`.
-- **Normal finish:** `handle.finish()` drains any final partial frame, sends
-  text `"finish"`, and waits for the host's terminal text frame (for example
-  `"ready"` or `"capture_failed"`).
-- **Startup & gap rules:** Allow up to 1 second for continuous microphone
-  startup (`"capture_source_timeout"` if no samples arrive). Any source gap
-  after the first frame ends capture with `"capture_gap"`.
+Each binary frame has an 8-byte unsigned big-endian `first_sample` index and
+up to 960 mono PCM16LE samples. Send exactly one ordered text `"ack"` after
+each successful writer call. The first acknowledgement triggers `onRecording()`.
+File synchronization and installation happen at finish.
 
-Terminal strings delivered to `onOutcome(outcome)`:
+The delay budget is **250 ms sustained plus 50 ms jitter**. At 20 ms per full
+frame this gives 15 frames, plus one for scheduling at the boundary. A frame
+takes one of the 16 slots when it is posted from the worklet. The slot stays
+occupied through the main-thread queue, WebSocket send queue, and writer until
+its acknowledgement reaches the worklet. Another frame can be assembled while
+all slots are occupied. The maximum logical buffered wire data, including
+8-byte frame headers, is **17 × 1,928 = 32,776 bytes**. This bounds application
+audio, independent of browser/OS transport overhead. If a completed frame
+cannot be sent, the worklet reports `capture_overflow` and capture closes.
+
+`handle.finish()` sends the short tail, if present, followed by text
+`"finish"`. The host replies with a terminal outcome after committing the
+recording. `onOutcome(outcome, measurements)` receives `peakBufferedBytes`
+(the worklet high-water mark, reported on each frame and worklet termination)
+and `maxAckDelayMs` (longest observed interval from WebSocket send to the
+corresponding reply, including page scheduling). Premature socket closure
+returns the latest reported measurements. On a lost final reply the host can
+retrieve the outcome using the acquisition ID.
 
 | Outcome | Meaning |
 | --- | --- |
-| Host text frame (e.g. `"ready"`, `"capture_failed"`, `"invalid_capture"`) | Any non-`"ack"` text message sent by the host closes capture with that string. |
-| `"setup_failed"` | Microphone permission/constraints, 48 kHz context, worklet load, or socket pre-check failed (`startPCM/4` also rejects). |
-| `"capture_source_timeout"` | No audio samples arrived within 1 second of start or during an empty-input stall. |
-| `"capture_gap"` | AudioWorklet detected a discontinuity in `currentFrame` after capture became active. |
-| `"capture_overflow"` | All 8 in-flight frame credits were exhausted without host `"ack"` replies. |
+| Host text frame (e.g. `"ready"`, `"capture_failed"`, `"invalid_capture"`) | Terminal response from the host. |
+| `"setup_failed"` | Permission, input constraints, source callback, 48 kHz context, worklet or socket setup failed. `startPCM` also rejects. |
+| `"capture_source_timeout"` | A contiguous full frame could not be established within one second of startup. |
+| `"capture_gap"` | Missing input or a skipped render index after the first full frame. |
+| `"capture_overflow"` | A frame was ready while all 16 slots awaited writer acknowledgements. |
+| `"invalid_ack"` | An acknowledgement arrived with no outstanding PCM frame. |
 | `"source_ended"` | Browser media track ended unexpectedly. |
 | `"disconnected"` | WebSocket closed or errored before a terminal host outcome arrived. |
 | `"aborted"` | Host browser code called `handle.abort()`. |
