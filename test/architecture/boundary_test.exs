@@ -5,14 +5,15 @@ defmodule MedEx.ArchitectureTest do
 
   setup context do
     if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    on_exit(&MedEx.Build.Boundaries.clear/0)
     :ok
   end
 
   alias MedEx.Build.{Boundaries, Ownership}
-  @fixture_path "/fixture/core/med_core/lib/negative.ex"
+  @fixture_path "/fixture/pure/negative.ex"
 
   test "negative fixtures fail for their own boundary" do
-    :persistent_term.put({Boundaries, :core}, MapSet.new([MedEx.StreamSpec]))
+    Boundaries.configure([med_core: Path.dirname(@fixture_path)], [MedEx.StreamSpec])
 
     assert_raise RuntimeError, ~r/reverse dependency/, fn ->
       Boundaries.check_edge!(@fixture_path, MedEx.StreamWriter, :push)
@@ -66,11 +67,11 @@ defmodule MedEx.ArchitectureTest do
 
   @tag :tmp_dir
   test "real compiler trace rejects a reverse edge and aliased effect", %{tmp_dir: dir} do
-    lib = Path.join(dir, "core/med_core/lib")
+    lib = Path.join(dir, "pure_source")
     out = Path.join(dir, "ebin")
     File.mkdir_p!(lib)
     File.mkdir!(out)
-    :persistent_term.put({Boundaries, :core}, MapSet.new([MedEx.StreamSpec]))
+    Boundaries.configure([med_core: lib], [MedEx.StreamSpec])
     previous = Code.compiler_options()
 
     try do
@@ -94,28 +95,46 @@ defmodule MedEx.ArchitectureTest do
     end
   end
 
-  test "package and canonical source allowlists agree" do
+  test "direct Mix and Weld use the same component declaration and package inputs" do
     cfg = Mix.Project.config()
+    {composition, _binding} = Code.eval_file("build_support/composition.exs")
+    {manifest, _binding} = Code.eval_file("build_support/weld.exs")
+    artifacts = manifest[:artifacts]
+
     assert cfg[:app] == :med_ex
-    relative = ~w(core/med_core/lib core/med_capture/lib)
-    roots = cfg[:elixirc_paths]
-    assert length(roots) == 2
-
-    if File.regular?("weld.provenance.json") and
-         JSON.decode!(File.read!("weld.provenance.json"))["kind"] == "live" do
-      assert Enum.zip(roots, relative)
-             |> Enum.all?(fn {path, suffix} ->
-               Path.type(path) == :absolute and String.ends_with?(path, "/" <> suffix) and
-                 File.dir?(path)
-             end)
-    else
-      assert roots == relative
-    end
-
+    assert cfg[:elixirc_paths] == Enum.map(composition.components, &Path.join(&1, "lib"))
+    assert cfg[:test_paths] == ["test" | Enum.map(composition.components, &Path.join(&1, "test"))]
     assert :ok == Boundaries.dependencies!(:med_ex, cfg[:deps])
-    for p <- relative ++ ~w(VERSION priv mix.exs), do: assert(p in cfg[:package][:files])
 
-    assert MapSet.new(File.ls!("priv/static/med_web")) ==
-             MapSet.new(~w(session_hook.js pcm_capture.js pcm_worklet.js))
+    manifest_base = artifacts[:med_ex]
+    assert manifest_base[:mode] == :package_projection
+    assert manifest_base[:roots] == composition.components
+    assert manifest_base[:verify][:component_tests]
+    assert manifest_base[:package][:version] == cfg[:version]
+
+    expected_files =
+      cfg[:elixirc_paths] ++
+        composition.documents ++
+        composition.assets ++
+        ["mix.exs", composition.version_file, "build_support/composition.exs"]
+
+    assert Enum.sort(cfg[:package][:files]) == Enum.sort(expected_files)
+
+    for app <- [:med_ex_opus, :med_ex_rtc] do
+      extension = artifacts[app]
+      assert extension[:roots] == ["extensions/#{app}"]
+      assert extension[:mode] == :source_project
+      assert extension[:external_projects] == ["."]
+      assert extension[:package][:version] == cfg[:version]
+
+      Mix.Project.in_project(app, "extensions/#{app}", [], fn _ ->
+        config = Mix.Project.config()
+        assert config[:app] == app
+        assert config[:version] == cfg[:version]
+        assert {:med_ex, "~> 0.2.0"} in config[:deps]
+        assert Enum.sort(config[:package][:files]) == ~w(LICENSE README.md VERSION lib mix.exs)
+        assert :ok == Boundaries.dependencies!(app, config[:deps])
+      end)
+    end
   end
 end

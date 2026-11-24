@@ -7,16 +7,80 @@ defmodule ExternalDeviceDriverTest do
   end
 
   alias MedEx.{StreamWriter, SampleFrame, StreamSpec}
-  @tag :tmp_dir
-  test "public root owns contracts, assets and raw recording", %{tmp_dir: dir} do
-    assert Application.get_application(StreamSpec) == :med_ex
-    assert MedEx.Contract.api_revision() == 1
-    assert File.regular?(MedEx.Web.asset_path("pcm_worklet.js"))
-    deps = Map.keys(Mix.Project.deps_paths())
-    for forbidden <- [:med_core, :med_capture, :med_rtc, :weld], do: refute(forbidden in deps)
+
+  test "ordinary Mix owns exactly the selected applications and browser assets" do
     profile = System.fetch_env!("SDK_PROFILE")
-    assert :ex_webrtc in deps == profile in ["rtc", "both"]
-    assert :membrane_opus_plugin in deps == profile in ["opus", "both"]
+    transport = System.fetch_env!("SDK_TRANSPORT")
+    source = System.fetch_env!("SDK_SOURCE_ROOT")
+    version = source |> Path.join("VERSION") |> File.read!() |> String.trim()
+    dependency_projects = Mix.Project.deps_paths()
+    deps = Map.keys(dependency_projects)
+    opus? = profile in ["opus", "both"]
+    rtc? = profile in ["rtc", "both"]
+
+    assert :med_ex_opus in deps == opus?
+    assert :membrane_core in deps == opus?
+    assert :membrane_opus_plugin in deps == opus?
+    assert :med_ex_rtc in deps == rtc?
+    assert :ex_webrtc in deps == rtc?
+
+    forbidden = [
+      :med_core,
+      :med_capture,
+      :med_rtc,
+      :med_ex_maintainer,
+      :weld,
+      :mix_workspace_ops
+    ]
+
+    for app <- forbidden, do: refute(app in deps)
+
+    apps =
+      [:med_ex] ++
+        if(opus?, do: [:med_ex_opus], else: []) ++ if(rtc?, do: [:med_ex_rtc], else: [])
+
+    started = MapSet.new(Application.started_applications(), &elem(&1, 0))
+
+    modules =
+      for app <- apps, into: %{} do
+        assert MapSet.member?(started, app)
+        assert to_string(Application.spec(app, :vsn)) == version
+        owned = Application.spec(app, :modules)
+        assert is_list(owned) and owned != []
+
+        for module <- owned do
+          assert Application.get_application(module) == app
+
+          if transport in ["full", "prepared", "tracked", "archive", "registry"] do
+            project = dependency_projects |> Map.fetch!(app) |> Path.expand()
+            compiled_from = module.module_info(:compile) |> Keyword.fetch!(:source) |> to_string()
+            assert String.starts_with?(Path.expand(compiled_from), project <> "/")
+          end
+        end
+
+        {app, Enum.sort(owned)}
+      end
+
+    implemented = modules |> Map.values() |> List.flatten()
+    assert implemented == Enum.uniq(implemented)
+    assert StreamSpec in modules.med_ex
+    if opus?, do: assert(MedEx.Opus.Provider in modules.med_ex_opus)
+    if rtc?, do: assert(MedEx.RTC.Provider in modules.med_ex_rtc)
+
+    for asset <- ~w(pcm_capture.js pcm_worklet.js session_hook.js) do
+      assert File.read!(MedEx.Web.asset_path(asset)) ==
+               File.read!(Path.join([source, "priv", "static", "med_web", asset]))
+    end
+
+    File.write!(
+      System.fetch_env!("SDK_MODULE_INVENTORY"),
+      JSON.encode!(Map.new(modules, fn {app, owned} -> {app, Enum.map(owned, &to_string/1)} end))
+    )
+  end
+
+  @tag :tmp_dir
+  test "public root records both raw streams with the stream-v1 contract", %{tmp_dir: dir} do
+    assert MedEx.Contract.api_revision() == 1
 
     for {name, rate} <- [{"ecg", 250}, {"diagnostic_audio", 48_000}] do
       spec = %StreamSpec{

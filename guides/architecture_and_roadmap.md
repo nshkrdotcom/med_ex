@@ -18,9 +18,21 @@ flowchart TD
   end
 ```
 
-- **Single base application (`:med_ex`):** The root `mix.exs` compiles `core/med_core/lib` and `core/med_capture/lib` directly into `:med_ex`, ships browser compatibility assets under `priv/static/med_web/`, and requires only OTP `:logger` and `:crypto` at runtime.
-- **Internal boundary-proof projects:** `core/med_core/mix.exs` and `core/med_capture/mix.exs` exist only so CI can compile and test each layer in isolation. Downstream consumers must **never** depend on `:med_core`, `:med_capture`, or the retired `:med_rtc` alongside `:med_ex`, as doing so would create duplicate BEAM module ownership.
-- **Automated architecture enforcement:** `./build_support/check_architecture.sh` compiles `core/med_core`, `core/med_capture`, and the root `:med_ex` project independently, verifies dependency allowlists (`build_support/boundary_check.exs`), confirms 1:1 module ownership (`build_support/module_ownership.exs`), checks BEAM compile-info source paths and cross-module call/struct references, and rejects dynamic module dispatch in pure contracts (`build_support/check_architecture.exs`).
+- **Single base application (`:med_ex`):** The root Mix project compiles the
+  two component libraries directly into `:med_ex` using
+  `build_support/composition.exs`. The Weld base artifact takes the same
+  components as graph roots. Both package the browser assets under
+  `priv/static/med_web/` and use OTP `:logger` and `:crypto`.
+- **Private component projects:** The independent Mix projects check each
+  boundary and declare the real capture-to-core dependency. Install the base
+  application in hosts so the component modules have a single owner.
+- **Boundary checks:** `./build_support/check_architecture.sh` compares
+  compiled modules and their source ownership, allows only declared
+  dependencies, and exercises compiler-trace and AST guards for known effects,
+  reverse edges, media dependencies, and dynamic dispatch. These checks cover
+  the inspected call and syntax forms. They do not prove purity of arbitrary
+  BEAM code. Pass a full or live base projection to compare it to the direct
+  build and check the selected projects, test inputs and browser assets.
 
 ## Pure Contracts Versus Explicit Effects
 
@@ -49,7 +61,10 @@ flowchart TD
 
 ## Optional Media Extensions And Failure Isolation
 
-`extensions/med_ex_opus` (`:med_ex_opus`) and `extensions/med_ex_rtc` (`:med_ex_rtc`) are separate Mix projects and OTP applications:
+`extensions/med_ex_opus` (`:med_ex_opus`) and `extensions/med_ex_rtc`
+(`:med_ex_rtc`) are separate Mix projects and OTP applications. Each source
+project has its own portable Weld artifact and declares a versioned dependency
+on the same base package:
 
 - **Compile-time optionality:** Omitting `:med_ex_opus` and `:med_ex_rtc` avoids compiling Membrane, `libopus`, `ex_webrtc`, `ex_dtls`, or `ex_libsrtp`.
 - **Runtime optionality:** Without providers configured, `MedEx.Capture.subscribe/1` returns `{:error, :preview_unavailable}` and `MedEx.Preview.answer/2` returns `{:error, :rtc_unavailable}` while authoritative recording continues normally. Note that `MedEx.Preview` caches the first loaded `:rtc_provider` module in `:persistent_term` for the VM lifetime, so configure `:med_ex, :rtc_provider` before opening a peer (or invoke `MedEx.PreviewProvider` / `MedEx.RTCProvider` modules directly in new gateway code).

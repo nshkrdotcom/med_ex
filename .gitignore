@@ -1,7 +1,6 @@
 .weld/
 _build/
 deps/
-.mix_sources.json
 *.tar
 
 /tmp/

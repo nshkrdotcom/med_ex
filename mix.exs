@@ -1,93 +1,76 @@
 defmodule MedEx.MixProject do
   use Mix.Project
-  @version File.read!(Path.join(__DIR__, "VERSION")) |> String.trim()
-  @sources ~w(core/med_core/lib core/med_capture/lib)
+  @composition elem(Code.eval_file("build_support/composition.exs", __DIR__), 0)
+  @package @composition.package
+  @sources Enum.map(@composition.components, &Path.join(&1, "lib"))
+  @test_paths ["test" | Enum.map(@composition.components, &Path.join(&1, "test"))]
+  @files @sources ++
+           @composition.documents ++
+           @composition.assets ++
+           [@composition.version_file, "mix.exs", "build_support/composition.exs"]
+
   def project do
     [
       app: :med_ex,
-      version: @version,
-      elixir: "~> 1.20",
-      deps: [{:ex_doc, "~> 0.40.5", only: :dev, runtime: false}],
+      version: @package[:version],
+      elixir: @package[:elixir],
+      deps: @package[:development_dependencies],
       docs: docs(),
-      description: "Source-preserving waveform and measurement acquisition",
+      description: @package[:description],
       elixirc_paths: @sources,
-      test_paths: ~w(test core/med_core/test core/med_capture/test),
-      package: [
-        licenses: ["MIT"],
-        links: %{"Source" => "https://github.com/nshkrdotcom/med_ex"},
-        files: @sources ++ ~w(mix.exs VERSION priv guides assets LICENSE README.md CHANGELOG.md)
-      ]
+      test_paths: @test_paths,
+      package: Keyword.take(@package, [:licenses, :links]) ++ [files: @files]
     ]
   end
 
   def application, do: [extra_applications: [:logger, :crypto]]
 
   defp docs do
-    [
-      name: "MedEx",
-      main: "readme",
-      logo: "assets/med_ex.svg",
-      assets: %{"assets" => "assets"},
-      source_url: "https://github.com/nshkrdotcom/med_ex",
-      before_closing_body_tag: &docs_diagrams/1,
-      extras: [
-        "README.md": [title: "Overview"],
-        "guides/architecture_and_roadmap.md": [title: "Architecture and Composition"],
-        "guides/stream_recording.md": [title: "Streams, Storage, Clock, and Control"],
-        "guides/host_integration.md": [title: "Host Integration and Browser Compatibility"],
-        "guides/source_development.md": [title: "Consumption, Extensions, and Verification"],
-        "guides/product_horizon.md": [title: "Medical-Device Product Horizon"],
-        "CHANGELOG.md": [title: "Changelog"],
-        "guides/history/med_rtc_changelog.md": [title: "Historical MedRTC Changelog"],
-        LICENSE: [title: "License"]
-      ],
-      groups_for_extras: [
-        Overview: ~r/README\.md|guides\/architecture_and_roadmap\.md/,
-        "Integration Guides":
-          ~r/guides\/stream_recording\.md|guides\/host_integration\.md|guides\/source_development\.md/,
-        Horizon: ~r/guides\/product_horizon\.md/,
-        Release: ~r/CHANGELOG\.md|guides\/history\/med_rtc_changelog\.md|LICENSE/
-      ],
-      groups_for_modules: [
-        "Stream and Event Contracts": [
-          MedEx.Contract,
-          MedEx.StreamSpec,
-          MedEx.SampleFrame,
-          MedEx.FrameFingerprint,
-          MedEx.MeasurementEvent,
-          MedEx.StatusEvent,
-          MedEx.IntegritySpan,
-          MedEx.SegmentRef,
-          MedEx.StreamCursor,
-          MedEx.StreamIndex
-        ],
-        "Framing, Serialization, Clock, and Control": [
-          MedEx.Wire.FrameV1,
-          MedEx.Wire.Control,
-          MedEx.Serialization,
-          MedEx.CanonicalJSON,
-          MedEx.ClockAlign,
-          MedEx.ControlInterlock,
-          MedEx.ContractRules
-        ],
-        "Authoritative Stream Recording": [
-          MedEx.StreamWriter,
-          MedEx.Storage,
-          MedEx.Storage.File
-        ],
-        "Browser WAV Capture and Media Ports": [
-          MedEx.Capture,
-          MedEx.Evidence,
-          MedEx.Wav,
-          MedEx.Format.Wav,
-          MedEx.Web,
-          MedEx.Preview,
-          MedEx.Preview.Clock,
-          MedEx.PreviewProvider,
-          MedEx.RTCProvider
+    Keyword.take(@package[:docs], [:main, :logo, :assets, :source_url, :groups_for_extras]) ++
+      [
+        name: "MedEx",
+        before_closing_body_tag: &docs_diagrams/1,
+        extras: Enum.map(@composition.extras, fn {file, title} -> {file, [title: title]} end),
+        groups_for_modules: [
+          "Stream and Event Contracts": [
+            MedEx.Contract,
+            MedEx.StreamSpec,
+            MedEx.SampleFrame,
+            MedEx.FrameFingerprint,
+            MedEx.MeasurementEvent,
+            MedEx.StatusEvent,
+            MedEx.IntegritySpan,
+            MedEx.SegmentRef,
+            MedEx.StreamCursor,
+            MedEx.StreamIndex
+          ],
+          "Framing, Serialization, Clock, and Control": [
+            MedEx.Wire.FrameV1,
+            MedEx.Wire.Control,
+            MedEx.Serialization,
+            MedEx.CanonicalJSON,
+            MedEx.ClockAlign,
+            MedEx.ControlInterlock,
+            MedEx.ContractRules
+          ],
+          "Authoritative Stream Recording": [
+            MedEx.StreamWriter,
+            MedEx.Storage,
+            MedEx.Storage.File
+          ],
+          "Browser WAV Capture and Media Ports": [
+            MedEx.Capture,
+            MedEx.Evidence,
+            MedEx.Wav,
+            MedEx.Format.Wav,
+            MedEx.Web,
+            MedEx.Preview,
+            MedEx.Preview.Clock,
+            MedEx.PreviewProvider,
+            MedEx.RTCProvider
+          ]
         ]
       ]
-    ]
   end
 
   defp docs_diagrams(:html) do

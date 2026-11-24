@@ -1,36 +1,27 @@
-Code.require_file("build_support/sources.exs", __DIR__)
-
 defmodule MedExRTC.MixProject do
   use Mix.Project
+
   @version File.read!(Path.join(__DIR__, "VERSION")) |> String.trim()
+  @source "https://github.com/nshkrdotcom/med_ex"
+
   def project do
-    defaults = [
-      {:med_ex, "~> 0.2.0",
-       github: "nshkrdotcom/med_ex", ref: "c031a38a9e28fe6bccf1358d8f41fa419aa708d2"},
-      {:ex_webrtc, "~> 0.18.0"},
-      {:ex_rtp, "~> 0.4"}
-    ]
-
-    root = Path.expand("../..", __DIR__)
-
-    in_checkout =
-      Path.basename(Path.dirname(__DIR__)) == "extensions" and
-        File.regular?(Path.join(root, "core/med_core/mix.exs"))
-
-    base = if in_checkout, do: root, else: __DIR__
-    {deps, paths} = MedExRTC.BuildSources.resolve(defaults, __DIR__, base)
-
     [
       app: :med_ex_rtc,
       version: @version,
       elixir: "~> 1.20",
-      deps: deps,
-      description: "Optional MedEx media provider",
+      deps: [
+        {:med_ex, "~> 0.2.0"},
+        {:ex_webrtc, "~> 0.18.0"},
+        {:ex_rtp, "~> 0.4"},
+        {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
+      ],
+      description: "Optional WebRTC and RTP provider for MedEx",
+      docs: [main: "readme", extras: ["README.md"]],
       package: [
-        files: ~w(VERSION mix.exs LICENSE lib build_support),
+        files: ~w(mix.exs VERSION LICENSE README.md lib),
         licenses: ["MIT"],
-        links: %{"Source" => "https://github.com/nshkrdotcom/med_ex"}
+        links: %{"Source" => @source}
       ]
-    ] ++ paths
+    ]
   end
 end

@@ -34,11 +34,16 @@ Medical-device software needs faithful source bytes, explicit sample and epoch c
 
 The canonical Mix application is `:med_ex` (`Elixir ~> 1.20`). It compiles `core/med_core/lib` and `core/med_capture/lib` into a single OTP application with zero runtime Hex dependencies (`extra_applications: [:logger, :crypto]`) and **starts no global supervision tree or background processes**. Hosts start `MedEx.StreamWriter` or `MedEx.Capture` directly under their own supervisors.
 
-*(The internal `core/med_core` and `core/med_capture` Mix projects exist solely to verify compile-time dependency direction in CI; consumers depend only on `:med_ex`, plus `:med_ex_opus` and/or `:med_ex_rtc` when live media encoding or WebRTC is needed.)*
+The two private component projects compile and test independently. The root Mix
+project and the Weld base artifact derive their component lists from the same
+declaration. Consumers choose `:med_ex` and add the independently installable
+`:med_ex_opus` or `:med_ex_rtc` package when the host uses that provider.
 
 ## Installation And Dependency Consumption
 
-> **Published Hex vs `main`-tree capabilities:** Hex currently publishes `med_ex 0.1.0`, which provides the initial browser WAV capture and preview contract. The `main` branch (`0.2.0`, unreleased) adds revision-1 multi-stream waveform, sparse measurement, journaled `StreamWriter`, clock-alignment, device-control, and split extension contracts (`MedEx.Contract.api_revision() == 1`).
+The source checkout is the unreleased `0.2.0` SDK with contract revision 1
+and separate media providers. The published `0.1.0` package has the original
+browser WAV capture and preview API. [Hex package history](https://hex.pm/packages/med_ex)
 
 Consumers use standard Mix dependencies and never need `Weld` installed:
 
@@ -58,7 +63,11 @@ Consumers use standard Mix dependencies and never need `Weld` installed:
 {:med_ex, "~> 0.1.0"}
 ```
 
-Maintainers can also materialize optional symlinked live views (`.weld/live/med_ex`), portable full candidates (`.weld/full/med_ex/project`), prepared release bundles (`.weld/releases/med_ex/<identity>/project`), or `projection/med_ex` branch snapshots—all of which downstream Mix projects consume directly via `path:` or `git:`. See [Consumption, Extensions, and Verification](guides/source_development.md).
+The optional `tools/maintainer` project generates graph-composed base and
+standalone extension views with Weld. The three artifacts are `med_ex`,
+`med_ex_opus`, and `med_ex_rtc`. Consume each live, full or prepared project
+with an ordinary Mix path dependency, or use an exact Git revision of a tracked
+snapshot. [Consumption, Extensions, and Verification](guides/source_development.md)
 
 ## Quick Example: Authoritative Stream Recording
 
@@ -143,6 +152,7 @@ With Elixir `~> 1.20` (and Node.js for browser worklet unit tests):
 
 ```bash
 mix deps.get
+mix format --check-formatted
 mix compile --warnings-as-errors
 mix test
 mix docs --warnings-as-errors
@@ -155,7 +165,7 @@ node --test test/*.mjs
 - [Architecture and Composition](guides/architecture_and_roadmap.md) — Canonical `:med_ex` source ownership, pure-vs-effectful boundaries, OTP supervision, and media fault isolation.
 - [Streams, Storage, Clock, and Control](guides/stream_recording.md) — `StreamSpec`, `MEX1`/`MEJ1` framing, sparse measurements, `StreamWriter`, POSIX crash recovery, predecessor lineage, `ClockAlign`, and `ControlInterlock`.
 - [Host Integration and Browser Compatibility](guides/host_integration.md) — Practical host gateway patterns alongside browser `MedEx.Capture`, `MedEx.Preview`, and `MedEx.Web` JavaScript integration.
-- [Consumption, Extensions, and Verification](guides/source_development.md) — Direct, Git, projection, and Hex consumption, `.mix_sources.json` extension contexts, consumer matrix checks, and optional Weld projection commands.
+- [Consumption, Extensions, and Verification](guides/source_development.md) — Direct, Git, projection, and Hex consumption, extension development, and package verification.
 - [Medical-Device Product Horizon](guides/product_horizon.md) — Implemented capabilities versus physical-device characterization, clinical validation, and future device families.
 
 ## License

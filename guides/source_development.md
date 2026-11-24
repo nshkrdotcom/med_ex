@@ -1,95 +1,163 @@
 # Consumption, Extensions, and Verification
 
-`MedEx` is an ordinary Mix project at the repository root (`:med_ex`) accompanied by two optional extension packages (`extensions/med_ex_opus` and `extensions/med_ex_rtc`) and an isolated maintainer projection project (`tools/maintainer`). Ordinary consumers and contributors never need `Weld` or `Mix Workspace Ops` installed.
+MedEx provides three ordinary Mix packages. The root project builds the base SDK
+directly. Its private Core and Capture projects compile and test their boundaries
+independently. The composition declaration in `build_support/composition.exs`
+also selects the roots of the Weld base artifact. Each media extension has its
+own portable Mix project and Weld artifact. `tools/maintainer` installs Weld
+for maintainers and stays outside all three package dependencies.
 
-## Consuming `:med_ex` Across Transports
+## Choose a transport
 
-> **Published Hex vs `main`-tree capabilities:** Hex currently carries `med_ex 0.1.0` (initial continuous browser WAV capture and in-tree preview). The `main` branch at `0.2.0` implements contract revision 1 (`MedEx.Contract.api_revision() == 1`), adding generalized waveform/sparse-measurement/status contracts, `StreamWriter` POSIX journaled storage and recovery, `ClockAlign`, `ControlInterlock`, and separate `:med_ex_opus` / `:med_ex_rtc` extension packages.
+The unreleased 0.2.0 family implements contract revision 1
+(`MedEx.Contract.api_revision() == 1`). The published 0.1.0 package provides
+the original browser WAV and preview contract. Use a 0.2.0 source for hosts
+that depend on streams, journal receipts or the separate providers.
+[Hex package history](https://hex.pm/packages/med_ex)
 
-Downstream Mix projects can depend on `:med_ex` through any standard Mix source:
-
-| Consumption Mode | Mix Dependency Declaration | Notes |
+| Transport | Base project | Optional extension project |
 | --- | --- | --- |
-| Direct checkout root | `{:med_ex, "~> 0.2.0", path: "../med_ex"}` | Uses the root `mix.exs` directly; zero generated files needed. |
-| Git commit on `main` | `{:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<sha>"}` | Recommended for reproducible pre-release integration. |
-| Weld live projection | `{:med_ex, "~> 0.2.0", path: "../med_ex/.weld/live/med_ex"}` | Symlinked view into the checkout; source edits apply on next compile. |
-| Weld full / prepared projection | `{:med_ex, "~> 0.2.0", path: "../med_ex/.weld/full/med_ex/project"}` *(or `.weld/releases/med_ex/<id>/project`)* | Self-contained directory copy; prepared `<id>` paths are immutable across concurrent builds. |
-| Tracked projection branch | `{:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<projection_sha>"}` | Consumes a snapshot committed on `projection/med_ex`. |
-| Published Hex (`0.1.0` legacy) | `{:med_ex, "~> 0.1.0"}` | Legacy browser WAV capture/preview contract only (`MedEx.Contract` absent). |
+| Checkout path | `../med_ex` | `../med_ex/extensions/<artifact>` |
+| Exact Git revision | Repository root | Same revision, `subdir: "extensions/<artifact>"` |
+| Weld live path | `../med_ex/.weld/live/med_ex` | `../med_ex/.weld/live/<artifact>` |
+| Weld full path | `../med_ex/.weld/full/med_ex/project` | `../med_ex/.weld/full/<artifact>/project` |
+| Weld prepared path | `../med_ex/.weld/releases/med_ex/<identity>/project` | `../med_ex/.weld/releases/<artifact>/<identity>/project` |
+| Tracked projection snapshot | Exact revision on `projection/med_ex` | Exact revision on `projection/<artifact>` |
+| Hex, after the family is released | `{:med_ex, "~> 0.2.0"}` | `{:med_ex_opus, "~> 0.2.0"}` or `{:med_ex_rtc, "~> 0.2.0"}` |
 
-When migrating an older consumer from `0.1.0` (or the retired `:med_rtc` package) to `0.2.0` source:
-
-1. Replace any `:med_rtc` dependency with `:med_ex`.
-2. Add `:med_ex_opus` and `:med_ex_rtc` only in applications that actually encode Opus or negotiate WebRTC peers, and set `config :med_ex, preview_provider: MedEx.Opus.Provider, rtc_provider: MedEx.RTC.Provider`.
-
-## Installing And Developing Optional Extensions
-
-`:med_ex_opus` and `:med_ex_rtc` live under `extensions/med_ex_opus` and `extensions/med_ex_rtc`. Each is an independent OTP application with its own `VERSION`, `LICENSE`, `mix.exs`, and `build_support/sources.exs` so its Hex archive is self-contained.
-
-### In A Host Application
-
-Select a single authoritative `:med_ex` dependency in the host (with `override: true` so both extensions converge on the host's chosen `:med_ex` revision or path):
+Use ordinary Mix dependency declarations. A headless host needs only
+`{:med_ex, "~> 0.2.0", path: "../med_ex"}`. Before the 0.2.0 Hex release,
+a host using extensions overrides their versioned base requirement with its
+chosen source:
 
 ```elixir
-# Local path example:
-{:med_ex, "~> 0.2.0", path: "../med_ex", override: true},
-{:med_ex_opus, "~> 0.2.0", path: "../med_ex/extensions/med_ex_opus"},
-{:med_ex_rtc, "~> 0.2.0", path: "../med_ex/extensions/med_ex_rtc"}
-
-# Git commit example:
-{:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<med_ex_sha>", override: true},
-{:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<med_ex_sha>", subdir: "extensions/med_ex_opus"},
-{:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<med_ex_sha>", subdir: "extensions/med_ex_rtc"}
+[
+  {:med_ex, "~> 0.2.0", path: "../med_ex", override: true},
+  {:med_ex_opus, "~> 0.2.0", path: "../med_ex/extensions/med_ex_opus"},
+  {:med_ex_rtc, "~> 0.2.0", path: "../med_ex/extensions/med_ex_rtc"}
+]
 ```
 
-Native build prerequisites apply **only** when `:med_ex_opus` (`membrane_opus_plugin`) or `:med_ex_rtc` (`ex_webrtc` / `ex_dtls` / `ex_libsrtp`, requiring C compiler, `pkg-config`, and OpenSSL headers) is included.
+You can replace each path with the corresponding projected path in the table.
+For Git, use the same exact reachable commit for the base and any extensions:
 
-### Standalone Extension Development (`.mix_sources.json`)
-
-By default, each extension's `mix.exs` pins a verified `:med_ex` GitHub commit so standalone builds are reproducible without sibling-directory assumptions. When working inside an extension directory against a local `:med_ex` checkout or projection, place an untracked `.mix_sources.json` at the `med_ex` checkout root (or beside the extension's `mix.exs` in an unpacked archive):
-
-```json
-{"med_ex": {"path": "."}}
+```elixir
+[
+  {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit, override: true},
+  {:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+   subdir: "extensions/med_ex_opus"},
+  {:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+   subdir: "extensions/med_ex_rtc"}
+]
 ```
 
-Paths resolve relative to `.mix_sources.json`. Supported entries are `{"path": "..."}` (checkout, live, full, or prepared projection), `{"github": "org/repo", "ref"|"branch"|"tag": "...", "subdir": "..."}` (or `"git"`), and `{"hex": "med_ex", "repo": "hexpm"}`.
+Set `commit` to the verified MedEx revision in your Mix project. Omit either
+extension when the host does not use it. Configure `:preview_provider` for
+Opus and `:rtc_provider` for WebRTC.
+[Host Integration and Browser Compatibility](host_integration.md)
 
-Whenever `.mix_sources.json` selects a non-default source, `BuildSources.resolve/3` isolates `lockfile`, `deps_path`, and `build_path` under `_build/source_contexts/<context_sha256>/`—keyed by project directory, normalized dependencies, full-projection `artifact_id` (when present in `weld.provenance.json`), baseline `mix.lock`, Elixir/OTP/architecture, `Mix.env()`, and `Mix.target()`—leaving the committed `mix.lock` untouched. Leave `MIX_BUILD_PATH`, `MIX_BUILD_ROOT`, `MIX_DEPS_PATH`, and `MIX_LOCKFILE` unset when using `.mix_sources.json`.
+## Work on an extension
 
-## Repository Verification Gates
+Each extension declares the normal Hex dependency `{:med_ex, "~> 0.2.0"}`
+and keeps its own `VERSION`. All three versions are coordinated. Release the
+base first when the packages are ready for distribution.
 
-From the `med_ex` checkout root, run:
+For a local edit, run the real provider suites from fresh outer Mix consumers
+with the explicit path dependencies above:
 
-```bash
+```sh
+./build_support/check_consumers.sh --quick
+```
+
+Use `--quick --profile opus` or `--quick --profile rtc` for a single
+provider. The `base` and `both` profiles are also available.
+
+For standalone extension tests before publication, use a signed private Hex
+registry containing the actual three candidate tarballs and their third-party
+dependencies. In that registry context run `mix deps.get`, `mix test` and
+`mix docs --warnings-as-errors` inside each extension. The standalone test
+helpers configure the provider being exercised. Fetch the base through normal
+Hex SCM for this lane. The outer path consumer checks source builds, and the
+registry lane checks the package requirements.
+
+The Opus package uses the Membrane Opus plugin. RTC uses ExWebRTC and ExRTP.
+Install a C toolchain and the platform prerequisites for the profile you use.
+[Native build prerequisites](host_integration.md#prerequisites)
+
+## Build and check the artifacts
+
+Weld 0.16.0 is a maintainer dependency. Until that release is available, run the
+following Mix tasks from the local candidate Weld checkout with the absolute
+MedEx manifest path. With the published Weld available, run them from
+`tools/maintainer` using the relative manifest path below.
+
+```sh
+cd tools/maintainer
 mix deps.get
+manifest=../../build_support/weld.exs
+mix weld.setup "$manifest"
+for artifact in med_ex med_ex_opus med_ex_rtc; do
+  mix weld.project "$manifest" --artifact "$artifact" --live
+  mix weld.project "$manifest" --artifact "$artifact"
+done
+```
+
+Live artifacts link source directories and check structural inputs on a fresh
+Mix invocation. Edit and format in the source checkout. Refresh with the same
+`weld.project --live` command after changing definitions such as a scoped
+`mix.exs`, `mix.lock`, `VERSION`, the composition declaration or the manifest.
+Use a full project for Hex packaging or portable verification. The root
+checkout also builds its own direct base Hex archive.
+
+Use `mix weld.verify "$manifest" --artifact <artifact>` to build and verify
+each full project. Verification of either extension needs the signed registry
+before it resolves the base requirement. From the MedEx root, run the
+following with the path to the installed maintainer project or candidate Weld
+checkout:
+
+```sh
+./build_support/check_consumers.sh --registry -- sh -eu -c '
+  cd "$1"
+  for artifact in med_ex med_ex_opus med_ex_rtc; do
+    mix weld.verify "$2" --artifact "$artifact"
+  done
+' registry /absolute/path/to/weld-invoker "$(pwd)/build_support/weld.exs"
+```
+
+Run `mix release.prepare` with the same manifest and artifact in that registry
+context to prepare portable projects from a clean committed source. Use
+`mix release.track` with the same manifest and artifact to record a prepared
+snapshot on its local projection branch.
+
+## Repository checks
+
+Run from the MedEx root:
+
+```sh
+mix deps.get
+mix format --check-formatted
 mix compile --warnings-as-errors
 mix test
 mix docs --warnings-as-errors
 node --test test/*.mjs
 ./build_support/check_architecture.sh
-./build_support/check_consumers.sh
+./build_support/check_architecture.sh .weld/full/med_ex/project
+./build_support/check_architecture.sh .weld/live/med_ex
+./build_support/check_consumers.sh --quick
 ```
 
-What each gate verifies:
+The architecture gate compiles and tests the two independent components and the
+base SDK. With a base projection path, it checks projected test inputs, actual
+BEAM ownership, application metadata, graph closure, package scope and browser
+asset bytes. The direct checkout formatter covers source files and tests.
 
-- `mix test`: Runs contract, property, canonical `MEX1`/`MEJ1` reference-vector, `ClockAlign`, `ControlInterlock`, `StreamWriter`, POSIX recovery/fault-injection, and browser WAV `Capture` suites.
-- `node --test test/*.mjs`: Verifies `pcm_capture.js` and `pcm_worklet.js` framing, source selection, and 16-slot acknowledgement window bounds.
-- `./build_support/check_architecture.sh`: Independently compiles and tests `core/med_core`, `core/med_capture`, and the root `:med_ex` package, enforcing zero forbidden dependencies, 1:1 module ownership, and pure-core call/AST boundaries.
-- `./build_support/check_consumers.sh [source_root]`: Builds standalone Hex archives for `:med_ex`, `:med_ex_opus`, and `:med_ex_rtc` in a temporary directory and compiles + tests 8 fresh external Mix consumer projects (`direct` and unpacked `archive` × `headless`, `opus`, `rtc`, and `both`).
-
-## Optional Maintainer Projections (`Weld`)
-
-`Weld ~> 0.15.0` is isolated in `tools/maintainer/mix.exs` so the public `:med_ex` `mix.exs` carries no packaging dependency. Maintainers can generate or verify `.weld/` projections from `tools/maintainer`:
-
-```bash
-cd tools/maintainer
-mix deps.get
-mix weld.setup ../../build_support/weld.exs
-mix weld.project ../../build_support/weld.exs --artifact med_ex --live
-mix weld.project ../../build_support/weld.exs --artifact med_ex
-mix weld.verify ../../build_support/weld.exs --artifact med_ex
-```
-
-- Live view: `.weld/live/med_ex` (regenerate after editing `mix.exs`, `VERSION`, `core/*/mix.exs`, or `build_support/weld.exs`).
-- Full candidate: `.weld/full/med_ex/project`.
-- Pass any projected directory to `./build_support/check_consumers.sh /path/to/projected/med_ex` to run the full 8-consumer matrix against that projection.
+Use `./build_support/check_consumers.sh --full` for the transport matrix after
+preparing the three live, full and prepared projects and the Git snapshots.
+The gate requires a clean source commit and prepared releases bound to that
+revision. Each local `projection/<package>` ref must have the same paths,
+Git executable modes and file bytes as its prepared project.
+The matrix runs base, Opus, RTC and combined profiles in independent contexts.
+It inspects actual Hex archives and resolves the packages from a temporary
+signed registry. Use `--transport live` or another named transport for a
+single lane. Use `--evidence /absolute/path/to/new-directory` to retain command
+logs. The quick lane works from the checkout without Weld.

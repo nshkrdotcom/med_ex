@@ -2,6 +2,12 @@
 
 ## 0.2.0 (unreleased)
 
+- Drive direct Mix compilation and the graph-composed base package from a
+  shared component declaration. Generate separate live and full views for
+  the base, Opus and RTC packages.
+- Use normal versioned Hex dependencies on the base from both media packages.
+  Exercise prerelease sources with explicit host dependencies and use a
+  private signed registry to verify package resolution.
 - Make the public root compile the pure Core and Capture runtime source trees
   directly. Keep the component Mix projects for independent verification.
 - Move native encoding and peer negotiation into opt-in Opus and RTC packages.
