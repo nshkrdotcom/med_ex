@@ -1,8 +1,6 @@
-# Used by "mix format"
 [
   inputs: [
     "{mix,.formatter,.credo}.exs",
-    "build_support/**/*.exs",
-    "{config,lib,test}/**/*.{ex,exs}"
+    "{build_support,core,extensions,tools,test}/**/*.{ex,exs}"
   ]
 ]

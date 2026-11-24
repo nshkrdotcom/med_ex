@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.5">
+    <meta name="project" content="MedEx Workspace v0.1.0">
+
+
+    <title>Host integration — MedEx Workspace v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-RXHHCTJW.css" />
+
+    <script defer src="dist/sidebar_items-3E875241.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-LBCGAQQV.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+        <a href="https://github.com/nshkrdotcom/med_ex" class="sidebar-projectImage">
+          <img src="assets/logo.svg" alt="MedEx Workspace" />
+        </a>
+
+      <div>
+        <a href="https://github.com/nshkrdotcom/med_ex" class="sidebar-projectName" translate="no">
+MedEx Workspace
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of MedEx Workspace</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>Host integration</h1>
+
+<a href="host_integration.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+      <a href="https://github.com/nshkrdotcom/med_ex/blob/main/guides/host_integration.md#L1" title="View Source" class="icon-action" rel="help nofollow">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+  </div>
+
+
+<p>This guide covers everything a Phoenix or Elixir host needs to capture indexed
+mono PCM16LE audio with <code class="inline">MedEx.Capture</code>, stream an independent live Opus preview
+over <code class="inline">MedEx.Preview</code>, and serve MedEx's packaged browser helpers.</p><h2 id="prerequisites" class="section-heading"><a href="#prerequisites" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Prerequisites</span></h2><ul><li>Elixir <code class="inline">~&gt; 1.20</code> (tested on Elixir <code class="inline">1.20.5</code> / OTP <code class="inline">29.1.2</code>).</li><li>Ubuntu 26.04 native build packages for WebRTC (<code class="inline">ex_dtls</code>, <code class="inline">ex_libsrtp</code>):
+<code class="inline">build-essential</code>, <code class="inline">pkg-config</code>, and <code class="inline">libssl-dev</code>.</li><li>Live Opus encoding uses <code class="inline">membrane_opus_plugin</code>, which uses precompiled
+<code class="inline">libopus</code> binaries on supported Linux/macOS targets (install <code class="inline">libopus-dev</code> if
+compiling <code class="inline">libopus</code> from source).</li><li>Browser microphone capture (<code class="inline">getUserMedia</code> + <code class="inline">AudioWorklet</code>) requires a secure
+context (<code class="inline">https://</code>, or <code class="inline">http://localhost</code> / <code class="inline">http://127.0.0.1</code> for local dev).</li></ul><h2 id="1-serve-the-packaged-browser-assets" class="section-heading"><a href="#1-serve-the-packaged-browser-assets" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">1. Serve the packaged browser assets</span></h2><p><code class="inline">MedEx.Web.asset_path/1</code> resolves the three JavaScript files shipped inside
+<code class="inline">:med_ex</code>:</p><ul><li><code class="inline">&quot;session_hook.js&quot;</code> — LiveView hook helper (<code class="inline">createMedExHook/1</code>) for the
+clinician's receive-only WebRTC preview.</li><li><code class="inline">&quot;pcm_capture.js&quot;</code> — patient-browser capture helper (<code class="inline">startPCM/4</code>).</li><li><code class="inline">&quot;pcm_worklet.js&quot;</code> — <code class="inline">AudioWorkletProcessor</code> (<code class="inline">&quot;med-ex-indexed-pcm&quot;</code>) loaded
+by <code class="inline">startPCM/4</code>.</li></ul><p>Serve all three as <code class="inline">application/javascript</code> from your endpoint:</p><pre><code class="makeup elixir" translate="no"><span class="kd">defp</span><span class="w"> </span><span class="nf">serve_med_ex_assets</span><span class="p" data-group-id="group-1">(</span><span class="p" data-group-id="group-2">%</span><span class="nc" data-group-id="group-2">Plug.Conn</span><span class="p" data-group-id="group-2">{</span><span class="ss">path_info</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-3">[</span><span class="s">&quot;med_ex&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p" data-group-id="group-3">]</span><span class="p" data-group-id="group-2">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">conn</span><span class="p">,</span><span class="w"> </span><span class="c">_opts</span><span class="p" data-group-id="group-1">)</span><span class="w">
+     </span><span class="ow">when</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="sx">~w(session_hook.js pcm_capture.js pcm_worklet.js)</span><span class="w"> </span><span class="k" data-group-id="group-4">do</span><span class="w">
+  </span><span class="n">conn</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Plug.Conn</span><span class="o">.</span><span class="n">put_resp_content_type</span><span class="p" data-group-id="group-5">(</span><span class="s">&quot;application/javascript&quot;</span><span class="p" data-group-id="group-5">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Plug.Conn</span><span class="o">.</span><span class="n">send_file</span><span class="p" data-group-id="group-6">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="nc">MedEx.Web</span><span class="o">.</span><span class="n">asset_path</span><span class="p" data-group-id="group-7">(</span><span class="n">name</span><span class="p" data-group-id="group-7">)</span><span class="p" data-group-id="group-6">)</span><span class="w">
+  </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Plug.Conn</span><span class="o">.</span><span class="n">halt</span><span class="p" data-group-id="group-8">(</span><span class="p" data-group-id="group-8">)</span><span class="w">
+</span><span class="k" data-group-id="group-4">end</span><span class="w">
+
+</span><span class="kd">defp</span><span class="w"> </span><span class="nf">serve_med_ex_assets</span><span class="p" data-group-id="group-9">(</span><span class="n">conn</span><span class="p">,</span><span class="w"> </span><span class="c">_opts</span><span class="p" data-group-id="group-9">)</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="n">conn</span></code></pre><h2 id="2-supervise-live-capture-in-your-host" class="section-heading"><a href="#2-supervise-live-capture-in-your-host" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">2. Supervise live capture in your host</span></h2><p>Start a host-owned <a href="https://elixir.hexdocs.pm/DynamicSupervisor.html"><code class="inline">DynamicSupervisor</code></a> (and optionally a <a href="https://elixir.hexdocs.pm/Registry.html"><code class="inline">Registry</code></a> if preview
+channels need to look up active captures by encounter). MedEx starts no global
+capture processes.</p><pre><code class="makeup elixir" translate="no"><span class="c1"># In your application supervision tree:</span><span class="w">
+</span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="group-1">[</span><span class="w">
+  </span><span class="p" data-group-id="group-2">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">MyApp.ActiveCapture</span><span class="p" data-group-id="group-2">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="group-3">{</span><span class="nc">DynamicSupervisor</span><span class="p">,</span><span class="w"> </span><span class="ss">strategy</span><span class="p">:</span><span class="w"> </span><span class="ss">:one_for_one</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">MyApp.Captures</span><span class="p" data-group-id="group-3">}</span><span class="w">
+</span><span class="p" data-group-id="group-1">]</span></code></pre><p>For the preview example below, start <code class="inline">{Phoenix.PubSub, name: MyApp.PubSub}</code>
+in the host supervisor as well. Register the encounter in <code class="inline">MyApp.ActiveCapture</code>
+from the producer process and broadcast after the capture starts.</p><p>Each capture process takes <code class="inline">:owner</code>, <code class="inline">:acquisition_id</code>, and <code class="inline">:artifact_dir</code>:</p><pre><code class="makeup elixir" translate="no"><span class="p" data-group-id="group-1">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="p" data-group-id="group-1">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Registry</span><span class="o">.</span><span class="n">register</span><span class="p" data-group-id="group-2">(</span><span class="nc">MyApp.ActiveCapture</span><span class="p">,</span><span class="w"> </span><span class="n">encounter_id</span><span class="p">,</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="group-2">)</span><span class="w">
+
+</span><span class="p" data-group-id="group-3">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-3">}</span><span class="w"> </span><span class="o">=</span><span class="w">
+  </span><span class="nc">DynamicSupervisor</span><span class="o">.</span><span class="n">start_child</span><span class="p" data-group-id="group-4">(</span><span class="w">
+    </span><span class="nc">MyApp.Captures</span><span class="p">,</span><span class="w">
+    </span><span class="p" data-group-id="group-5">{</span><span class="nc">MedEx.Capture</span><span class="p">,</span><span class="w">
+     </span><span class="ss">owner</span><span class="p">:</span><span class="w"> </span><span class="n">self</span><span class="p" data-group-id="group-6">(</span><span class="p" data-group-id="group-6">)</span><span class="p">,</span><span class="w">
+     </span><span class="ss">acquisition_id</span><span class="p">:</span><span class="w"> </span><span class="n">acquisition_id</span><span class="p">,</span><span class="w">
+     </span><span class="ss">artifact_dir</span><span class="p">:</span><span class="w"> </span><span class="n">artifact_dir</span><span class="p" data-group-id="group-5">}</span><span class="w">
+  </span><span class="p" data-group-id="group-4">)</span><span class="w">
+
+</span><span class="nc">Registry</span><span class="o">.</span><span class="n">update_value</span><span class="p" data-group-id="group-7">(</span><span class="nc">MyApp.ActiveCapture</span><span class="p">,</span><span class="w"> </span><span class="n">encounter_id</span><span class="p">,</span><span class="w"> </span><span class="k" data-group-id="group-8">fn</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">capture</span><span class="w"> </span><span class="k" data-group-id="group-8">end</span><span class="p" data-group-id="group-7">)</span><span class="w">
+</span><span class="nc">Phoenix.PubSub</span><span class="o">.</span><span class="n">broadcast</span><span class="p" data-group-id="group-9">(</span><span class="nc">MyApp.PubSub</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;preview:&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">encounter_id</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-10">{</span><span class="ss">:capture_started</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-10">}</span><span class="p" data-group-id="group-9">)</span></code></pre><p><code class="inline">MedEx.Capture</code> monitors <code class="inline">:owner</code> and aborts (deleting its temporary <code class="inline">.part</code>
+file) if <code class="inline">:owner</code> exits before <code class="inline">finish/1</code>.</p><h3 id="handling-binary-pcm-websocket-frames" class="section-heading"><a href="#handling-binary-pcm-websocket-frames" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Handling binary PCM WebSocket frames</span></h3><p>In your authenticated WebSocket handler (e.g. a <code class="inline">WebSock</code> module), decode each
+binary frame as an 8-byte unsigned big-endian starting sample index followed by
+PCM16LE bytes, push to <code class="inline">MedEx.Capture.push/3</code>, and reply with text <code class="inline">&quot;ack&quot;</code>:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">handle_in</span><span class="p" data-group-id="group-1">(</span><span class="p" data-group-id="group-2">{</span><span class="p" data-group-id="group-3">&lt;&lt;</span><span class="n">index</span><span class="o">::</span><span class="n">unsigned</span><span class="o">-</span><span class="n">big</span><span class="o">-</span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="n">pcm</span><span class="o">::</span><span class="n">binary</span><span class="p" data-group-id="group-3">&gt;&gt;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-4">[</span><span class="ss">opcode</span><span class="p">:</span><span class="w"> </span><span class="ss">:binary</span><span class="p" data-group-id="group-4">]</span><span class="p" data-group-id="group-2">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-1">)</span><span class="w"> </span><span class="k" data-group-id="group-5">do</span><span class="w">
+  </span><span class="k">case</span><span class="w"> </span><span class="nc">MedEx.Capture</span><span class="o">.</span><span class="n">push</span><span class="p" data-group-id="group-6">(</span><span class="n">state</span><span class="o">.</span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">pcm</span><span class="p" data-group-id="group-6">)</span><span class="w"> </span><span class="k" data-group-id="group-7">do</span><span class="w">
+    </span><span class="ss">:ok</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="group-8">{</span><span class="ss">:push</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-9">{</span><span class="ss">:text</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ack&quot;</span><span class="p" data-group-id="group-9">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-8">}</span><span class="w">
+    </span><span class="p" data-group-id="group-10">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="c">_reason</span><span class="p" data-group-id="group-10">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="group-11">{</span><span class="ss">:stop</span><span class="p">,</span><span class="w"> </span><span class="ss">:normal</span><span class="p">,</span><span class="w"> </span><span class="mi">1008</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-12">{</span><span class="ss">:text</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;invalid_capture&quot;</span><span class="p" data-group-id="group-12">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-11">}</span><span class="w">
+  </span><span class="k" data-group-id="group-7">end</span><span class="w">
+</span><span class="k" data-group-id="group-5">end</span><span class="w">
+
+</span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_in</span><span class="p" data-group-id="group-13">(</span><span class="p" data-group-id="group-14">{</span><span class="s">&quot;finish&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-15">[</span><span class="ss">opcode</span><span class="p">:</span><span class="w"> </span><span class="ss">:text</span><span class="p" data-group-id="group-15">]</span><span class="p" data-group-id="group-14">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-13">)</span><span class="w"> </span><span class="k" data-group-id="group-16">do</span><span class="w">
+  </span><span class="k">case</span><span class="w"> </span><span class="nc">MedEx.Capture</span><span class="o">.</span><span class="n">finish</span><span class="p" data-group-id="group-17">(</span><span class="n">state</span><span class="o">.</span><span class="n">capture</span><span class="p" data-group-id="group-17">)</span><span class="w"> </span><span class="k" data-group-id="group-18">do</span><span class="w">
+    </span><span class="p" data-group-id="group-19">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-20">%</span><span class="nc" data-group-id="group-20">MedEx.Evidence</span><span class="p" data-group-id="group-20">{</span><span class="p" data-group-id="group-20">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">evidence</span><span class="p" data-group-id="group-19">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+      </span><span class="c1"># Persist finalized evidence before closing the socket.</span><span class="w">
+      </span><span class="ss">:ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">MyApp.ClinicalStore</span><span class="o">.</span><span class="n">record_ready</span><span class="p" data-group-id="group-21">(</span><span class="n">state</span><span class="o">.</span><span class="n">encounter_id</span><span class="p">,</span><span class="w"> </span><span class="n">evidence</span><span class="p" data-group-id="group-21">)</span><span class="w">
+      </span><span class="p" data-group-id="group-22">{</span><span class="ss">:stop</span><span class="p">,</span><span class="w"> </span><span class="ss">:normal</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-23">{</span><span class="ss">:text</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ready&quot;</span><span class="p" data-group-id="group-23">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-22">}</span><span class="w">
+
+    </span><span class="p" data-group-id="group-24">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="c">_reason</span><span class="p" data-group-id="group-24">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+      </span><span class="p" data-group-id="group-25">{</span><span class="ss">:stop</span><span class="p">,</span><span class="w"> </span><span class="ss">:normal</span><span class="p">,</span><span class="w"> </span><span class="mi">1011</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-26">{</span><span class="ss">:text</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;capture_failed&quot;</span><span class="p" data-group-id="group-26">}</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-25">}</span><span class="w">
+  </span><span class="k" data-group-id="group-18">end</span><span class="w">
+</span><span class="k" data-group-id="group-16">end</span></code></pre><h3 id="capture-rules-and-error-returns" class="section-heading"><a href="#capture-rules-and-error-returns" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Capture rules and error returns</span></h3><table><thead><tr><th style="text-align: left;">Rule / Operation</th><th style="text-align: left;">Behavior</th></tr></thead><tbody><tr><td style="text-align: left;">Sample format</td><td style="text-align: left;">Mono 48 kHz signed 16-bit little-endian PCM (<code class="inline">PCM16LE</code>).</td></tr><tr><td style="text-align: left;">Frame size</td><td style="text-align: left;">Even byte count in <code class="inline">2..1920</code> (up to 960 samples / 20 ms). Only one short tail frame (<code class="inline">&lt; 1920</code> bytes) is allowed, immediately before <code class="inline">finish/1</code>.</td></tr><tr><td style="text-align: left;">Contiguity &amp; limit</td><td style="text-align: left;"><code class="inline">first_sample</code> must start at <code class="inline">0</code> and advance contiguously without gaps, up to 30 minutes (<code class="inline">86_400_000</code> samples). Violations return <code class="inline">{:error, :invalid_frame}</code> and stop the capture.</td></tr><tr><td style="text-align: left;"><code class="inline">finish/1</code></td><td style="text-align: left;">Returns <code class="inline">{:ok, %MedEx.Evidence{}}</code>, <code class="inline">{:error, :empty_capture}</code> (0 samples pushed), <code class="inline">{:error, :artifact_conflict}</code> (existing file digest mismatch), or <code class="inline">{:error, posix}</code>.</td></tr><tr><td style="text-align: left;">Preview fan-out</td><td style="text-align: left;">Only full 1,920-byte frames are offered to the preview encoder. Preview lag, drop, or encoder exit never blocks or aborts WAV capture.</td></tr></tbody></table><h3 id="medex-evidence-fields" class="section-heading"><a href="#medex-evidence-fields" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text"><code class="inline">MedEx.Evidence</code> fields</span></h3><p><code class="inline">MedEx.Capture.finish/1</code> returns <code class="inline">%MedEx.Evidence{}</code>:</p><table><thead><tr><th style="text-align: left;">Field</th><th style="text-align: left;">Value</th></tr></thead><tbody><tr><td style="text-align: left;"><code class="inline">:acquisition_id</code></td><td style="text-align: left;">Host-provided acquisition ID string</td></tr><tr><td style="text-align: left;"><code class="inline">:artifact_key</code></td><td style="text-align: left;">Content-addressed filename (<code class="inline">&quot;&lt;file_sha256&gt;.wav&quot;</code>)</td></tr><tr><td style="text-align: left;"><code class="inline">:file_sha256</code></td><td style="text-align: left;">Lowercase hex SHA-256 of the complete WAV file</td></tr><tr><td style="text-align: left;"><code class="inline">:pcm_sha256</code></td><td style="text-align: left;">Lowercase hex SHA-256 of the raw PCM16LE bytes</td></tr><tr><td style="text-align: left;"><code class="inline">:kind</code></td><td style="text-align: left;"><code class="inline">:audio_pcm16_wav</code></td></tr><tr><td style="text-align: left;"><code class="inline">:sample_rate_hz</code></td><td style="text-align: left;"><code class="inline">48_000</code></td></tr><tr><td style="text-align: left;"><code class="inline">:first_sample</code></td><td style="text-align: left;"><code class="inline">0</code> (inclusive)</td></tr><tr><td style="text-align: left;"><code class="inline">:end_sample</code></td><td style="text-align: left;">Exclusive ending sample index</td></tr><tr><td style="text-align: left;"><code class="inline">:sample_count</code></td><td style="text-align: left;">Total captured mono samples</td></tr><tr><td style="text-align: left;"><code class="inline">:continuity</code></td><td style="text-align: left;"><code class="inline">:observed_continuous</code></td></tr></tbody></table><h2 id="3-wire-the-preview-signaling-channel" class="section-heading"><a href="#3-wire-the-preview-signaling-channel" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">3. Wire the preview signaling channel</span></h2><p>The clinician's Phoenix Channel owns one replaceable <code class="inline">MedEx.Preview</code> peer.
+<code class="inline">MedEx.Preview.answer/2</code> sends <code class="inline">{:ex_webrtc, peer.pid, {:connection_state_change, state}}</code>
+messages to the channel process. Once <code class="inline">:connected</code>, subscribe the channel to
+the active <code class="inline">MedEx.Capture</code> (only one subscriber is active at a time; a newer
+subscriber replaces the previous one).</p><pre><code class="makeup elixir" translate="no"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyAppWeb.PreviewChannel</span><span class="w"> </span><span class="k" data-group-id="group-1">do</span><span class="w">
+  </span><span class="kn">use</span><span class="w"> </span><span class="nc">Phoenix.Channel</span><span class="w">
+
+  </span><span class="kn">alias</span><span class="w"> </span><span class="nc">MedEx</span><span class="o">.</span><span class="p" data-group-id="group-2">{</span><span class="nc">Capture</span><span class="p">,</span><span class="w"> </span><span class="nc">Preview</span><span class="p" data-group-id="group-2">}</span><span class="w">
+
+  </span><span class="na">@impl</span><span class="w"> </span><span class="no">true</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">join</span><span class="p" data-group-id="group-3">(</span><span class="s">&quot;signaling:&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">encounter_id</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-4">%{</span><span class="s">&quot;connection_id&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">id</span><span class="p" data-group-id="group-4">}</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-3">)</span><span class="w">
+      </span><span class="ow">when</span><span class="w"> </span><span class="n">is_binary</span><span class="p" data-group-id="group-5">(</span><span class="n">id</span><span class="p" data-group-id="group-5">)</span><span class="w"> </span><span class="k" data-group-id="group-6">do</span><span class="w">
+    </span><span class="c1"># Authorize socket.assigns here before allowing join.</span><span class="w">
+    </span><span class="p" data-group-id="group-7">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-8">%{</span><span class="ss">session_id</span><span class="p">:</span><span class="w"> </span><span class="n">encounter_id</span><span class="p" data-group-id="group-8">}</span><span class="p">,</span><span class="w">
+     </span><span class="n">assign</span><span class="p" data-group-id="group-9">(</span><span class="n">socket</span><span class="p">,</span><span class="w">
+       </span><span class="ss">encounter_id</span><span class="p">:</span><span class="w"> </span><span class="n">encounter_id</span><span class="p">,</span><span class="w">
+       </span><span class="ss">peer</span><span class="p">:</span><span class="w"> </span><span class="no">nil</span><span class="p">,</span><span class="w">
+       </span><span class="ss">capture</span><span class="p">:</span><span class="w"> </span><span class="no">nil</span><span class="p">,</span><span class="w">
+       </span><span class="ss">sequence</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+       </span><span class="ss">clock</span><span class="p">:</span><span class="w"> </span><span class="no">nil</span><span class="p">,</span><span class="w">
+       </span><span class="ss">connected</span><span class="p">:</span><span class="w"> </span><span class="no">false</span><span class="w">
+     </span><span class="p" data-group-id="group-9">)</span><span class="p" data-group-id="group-7">}</span><span class="w">
+  </span><span class="k" data-group-id="group-6">end</span><span class="w">
+
+  </span><span class="na">@impl</span><span class="w"> </span><span class="no">true</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_in</span><span class="p" data-group-id="group-10">(</span><span class="s">&quot;offer&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-11">%{</span><span class="s">&quot;sdp&quot;</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="n">sdp</span><span class="p" data-group-id="group-11">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-12">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-13">%{</span><span class="ss">peer</span><span class="p">:</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="group-13">}</span><span class="p" data-group-id="group-12">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-10">)</span><span class="w"> </span><span class="k" data-group-id="group-14">do</span><span class="w">
+    </span><span class="n">opts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="group-15">[</span><span class="ss">ice_servers</span><span class="p">:</span><span class="w"> </span><span class="nc">Application</span><span class="o">.</span><span class="n">get_env</span><span class="p" data-group-id="group-16">(</span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">:ice_servers</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-17">[</span><span class="p" data-group-id="group-17">]</span><span class="p" data-group-id="group-16">)</span><span class="p" data-group-id="group-15">]</span><span class="w">
+
+    </span><span class="k">case</span><span class="w"> </span><span class="nc">Preview</span><span class="o">.</span><span class="n">answer</span><span class="p" data-group-id="group-18">(</span><span class="n">sdp</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p" data-group-id="group-18">)</span><span class="w"> </span><span class="k" data-group-id="group-19">do</span><span class="w">
+      </span><span class="p" data-group-id="group-20">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">peer</span><span class="p">,</span><span class="w"> </span><span class="n">answer_sdp</span><span class="p" data-group-id="group-20">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+        </span><span class="p" data-group-id="group-21">{</span><span class="ss">:reply</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-22">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-23">%{</span><span class="ss">sdp</span><span class="p">:</span><span class="w"> </span><span class="n">answer_sdp</span><span class="p" data-group-id="group-23">}</span><span class="p" data-group-id="group-22">}</span><span class="p">,</span><span class="w"> </span><span class="n">assign</span><span class="p" data-group-id="group-24">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="ss">:peer</span><span class="p">,</span><span class="w"> </span><span class="n">peer</span><span class="p" data-group-id="group-24">)</span><span class="p" data-group-id="group-21">}</span><span class="w">
+
+      </span><span class="p" data-group-id="group-25">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="c">_reason</span><span class="p" data-group-id="group-25">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+        </span><span class="p" data-group-id="group-26">{</span><span class="ss">:reply</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-27">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-28">%{</span><span class="ss">reason</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;negotiation_failed&quot;</span><span class="p" data-group-id="group-28">}</span><span class="p" data-group-id="group-27">}</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-26">}</span><span class="w">
+    </span><span class="k" data-group-id="group-19">end</span><span class="w">
+  </span><span class="k" data-group-id="group-14">end</span><span class="w">
+
+  </span><span class="na">@impl</span><span class="w"> </span><span class="no">true</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-29">(</span><span class="w">
+        </span><span class="p" data-group-id="group-30">{</span><span class="ss">:ex_webrtc</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-31">{</span><span class="ss">:connection_state_change</span><span class="p">,</span><span class="w"> </span><span class="ss">:connected</span><span class="p" data-group-id="group-31">}</span><span class="p" data-group-id="group-30">}</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="group-32">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-33">%{</span><span class="ss">peer</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-34">%{</span><span class="ss">pid</span><span class="p">:</span><span class="w"> </span><span class="n">pid</span><span class="p" data-group-id="group-34">}</span><span class="p">,</span><span class="w"> </span><span class="ss">connected</span><span class="p">:</span><span class="w"> </span><span class="no">false</span><span class="p" data-group-id="group-33">}</span><span class="p" data-group-id="group-32">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="w">
+      </span><span class="p" data-group-id="group-29">)</span><span class="w"> </span><span class="k" data-group-id="group-35">do</span><span class="w">
+    </span><span class="n">encounter_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="o">.</span><span class="n">assigns</span><span class="o">.</span><span class="n">encounter_id</span><span class="w">
+    </span><span class="ss">:ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Phoenix.PubSub</span><span class="o">.</span><span class="n">subscribe</span><span class="p" data-group-id="group-36">(</span><span class="nc">MyApp.PubSub</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;preview:&quot;</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">encounter_id</span><span class="p" data-group-id="group-36">)</span><span class="w">
+
+    </span><span class="k">case</span><span class="w"> </span><span class="nc">Registry</span><span class="o">.</span><span class="n">lookup</span><span class="p" data-group-id="group-37">(</span><span class="nc">MyApp.ActiveCapture</span><span class="p">,</span><span class="w"> </span><span class="n">encounter_id</span><span class="p" data-group-id="group-37">)</span><span class="w"> </span><span class="k" data-group-id="group-38">do</span><span class="w">
+      </span><span class="p" data-group-id="group-39">[</span><span class="p" data-group-id="group-40">{</span><span class="c">_producer</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-40">}</span><span class="p" data-group-id="group-39">]</span><span class="w"> </span><span class="ow">when</span><span class="w"> </span><span class="n">is_pid</span><span class="p" data-group-id="group-41">(</span><span class="n">capture</span><span class="p" data-group-id="group-41">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">send</span><span class="p" data-group-id="group-42">(</span><span class="n">self</span><span class="p" data-group-id="group-43">(</span><span class="p" data-group-id="group-43">)</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-44">{</span><span class="ss">:capture_started</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-44">}</span><span class="p" data-group-id="group-42">)</span><span class="w">
+      </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="ss">:ok</span><span class="w">
+    </span><span class="k" data-group-id="group-38">end</span><span class="w">
+    </span><span class="p" data-group-id="group-45">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">assign</span><span class="p" data-group-id="group-46">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="ss">:connected</span><span class="p">,</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="group-46">)</span><span class="p" data-group-id="group-45">}</span><span class="w">
+  </span><span class="k" data-group-id="group-35">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-47">(</span><span class="p" data-group-id="group-48">{</span><span class="ss">:capture_started</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-48">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-49">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-50">%{</span><span class="ss">connected</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="group-50">}</span><span class="p" data-group-id="group-49">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-47">)</span><span class="w"> </span><span class="k" data-group-id="group-51">do</span><span class="w">
+    </span><span class="k">case</span><span class="w"> </span><span class="nc">Capture</span><span class="o">.</span><span class="n">subscribe</span><span class="p" data-group-id="group-52">(</span><span class="n">capture</span><span class="p" data-group-id="group-52">)</span><span class="w"> </span><span class="k" data-group-id="group-53">do</span><span class="w">
+      </span><span class="ss">:ok</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+        </span><span class="p" data-group-id="group-54">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">assign</span><span class="p" data-group-id="group-55">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="ss">:capture</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-55">)</span><span class="p" data-group-id="group-54">}</span><span class="w">
+
+      </span><span class="p" data-group-id="group-56">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="ss">:preview_unavailable</span><span class="p" data-group-id="group-56">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+        </span><span class="n">push</span><span class="p" data-group-id="group-57">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;preview_failed&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-58">%{</span><span class="p" data-group-id="group-58">}</span><span class="p" data-group-id="group-57">)</span><span class="w">
+        </span><span class="p" data-group-id="group-59">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-59">}</span><span class="w">
+    </span><span class="k" data-group-id="group-53">end</span><span class="w">
+  </span><span class="k" data-group-id="group-51">catch</span><span class="w">
+    </span><span class="ss">:exit</span><span class="p">,</span><span class="w"> </span><span class="bp">_</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="group-60">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-60">}</span><span class="w">
+  </span><span class="k" data-group-id="group-51">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-61">(</span><span class="w">
+        </span><span class="p" data-group-id="group-62">{</span><span class="ss">:med_ex_preview</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">sample_index</span><span class="p">,</span><span class="w"> </span><span class="n">packet</span><span class="p" data-group-id="group-62">}</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="group-63">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-64">%{</span><span class="ss">capture</span><span class="p">:</span><span class="w"> </span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="ss">peer</span><span class="p">:</span><span class="w"> </span><span class="n">peer</span><span class="p">,</span><span class="w"> </span><span class="ss">sequence</span><span class="p">:</span><span class="w"> </span><span class="n">seq</span><span class="p">,</span><span class="w"> </span><span class="ss">clock</span><span class="p">:</span><span class="w"> </span><span class="n">clock</span><span class="p" data-group-id="group-64">}</span><span class="p" data-group-id="group-63">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="w">
+      </span><span class="p" data-group-id="group-61">)</span><span class="w"> </span><span class="k" data-group-id="group-65">do</span><span class="w">
+    </span><span class="n">tick</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next_tick</span><span class="p" data-group-id="group-66">(</span><span class="n">clock</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">sample_index</span><span class="p" data-group-id="group-66">)</span><span class="w">
+    </span><span class="ss">:ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Preview</span><span class="o">.</span><span class="n">send_opus</span><span class="p" data-group-id="group-67">(</span><span class="n">peer</span><span class="p">,</span><span class="w"> </span><span class="n">packet</span><span class="p">,</span><span class="w"> </span><span class="n">seq</span><span class="p">,</span><span class="w"> </span><span class="n">tick</span><span class="p" data-group-id="group-67">)</span><span class="w">
+    </span><span class="ss">:ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Capture</span><span class="o">.</span><span class="n">demand</span><span class="p" data-group-id="group-68">(</span><span class="n">capture</span><span class="p" data-group-id="group-68">)</span><span class="w">
+    </span><span class="p" data-group-id="group-69">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">assign</span><span class="p" data-group-id="group-70">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="ss">sequence</span><span class="p">:</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">clock</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-71">{</span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">sample_index</span><span class="p">,</span><span class="w"> </span><span class="n">tick</span><span class="p" data-group-id="group-71">}</span><span class="p" data-group-id="group-70">)</span><span class="p" data-group-id="group-69">}</span><span class="w">
+  </span><span class="k" data-group-id="group-65">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-72">(</span><span class="p" data-group-id="group-73">{</span><span class="ss">:med_ex_preview_failed</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="c">_reason</span><span class="p" data-group-id="group-73">}</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-74">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-75">%{</span><span class="ss">capture</span><span class="p">:</span><span class="w"> </span><span class="n">capture</span><span class="p" data-group-id="group-75">}</span><span class="p" data-group-id="group-74">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-72">)</span><span class="w"> </span><span class="k" data-group-id="group-76">do</span><span class="w">
+    </span><span class="n">push</span><span class="p" data-group-id="group-77">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;preview_failed&quot;</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-78">%{</span><span class="p" data-group-id="group-78">}</span><span class="p" data-group-id="group-77">)</span><span class="w">
+    </span><span class="p" data-group-id="group-79">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">assign</span><span class="p" data-group-id="group-80">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="ss">:capture</span><span class="p">,</span><span class="w"> </span><span class="no">nil</span><span class="p" data-group-id="group-80">)</span><span class="p" data-group-id="group-79">}</span><span class="w">
+  </span><span class="k" data-group-id="group-76">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-81">(</span><span class="w">
+        </span><span class="p" data-group-id="group-82">{</span><span class="ss">:ex_webrtc</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="group-83">{</span><span class="ss">:connection_state_change</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p" data-group-id="group-83">}</span><span class="p" data-group-id="group-82">}</span><span class="p">,</span><span class="w">
+        </span><span class="p" data-group-id="group-84">%{</span><span class="ss">assigns</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-85">%{</span><span class="ss">peer</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-86">%{</span><span class="ss">pid</span><span class="p">:</span><span class="w"> </span><span class="n">pid</span><span class="p" data-group-id="group-86">}</span><span class="p" data-group-id="group-85">}</span><span class="p" data-group-id="group-84">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="w">
+      </span><span class="p" data-group-id="group-81">)</span><span class="w">
+      </span><span class="ow">when</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="p" data-group-id="group-87">[</span><span class="ss">:failed</span><span class="p">,</span><span class="w"> </span><span class="ss">:closed</span><span class="p" data-group-id="group-87">]</span><span class="p">,</span><span class="w">
+      </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-88">{</span><span class="ss">:stop</span><span class="p">,</span><span class="w"> </span><span class="ss">:normal</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-88">}</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">handle_info</span><span class="p" data-group-id="group-89">(</span><span class="c">_msg</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-89">)</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="group-90">{</span><span class="ss">:noreply</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-90">}</span><span class="w">
+
+  </span><span class="na">@impl</span><span class="w"> </span><span class="no">true</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">terminate</span><span class="p" data-group-id="group-91">(</span><span class="c">_reason</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p" data-group-id="group-91">)</span><span class="w"> </span><span class="k" data-group-id="group-92">do</span><span class="w">
+    </span><span class="k">if</span><span class="w"> </span><span class="n">peer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="o">.</span><span class="n">assigns</span><span class="p" data-group-id="group-93">[</span><span class="ss">:peer</span><span class="p" data-group-id="group-93">]</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="nc">Preview</span><span class="o">.</span><span class="n">close</span><span class="p" data-group-id="group-94">(</span><span class="n">peer</span><span class="p" data-group-id="group-94">)</span><span class="w">
+    </span><span class="ss">:ok</span><span class="w">
+  </span><span class="k" data-group-id="group-92">end</span><span class="w">
+
+  </span><span class="c1"># Keep RTP media timestamps monotonic if a new capture starts on the same peer.</span><span class="w">
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">next_tick</span><span class="p" data-group-id="group-95">(</span><span class="no">nil</span><span class="p">,</span><span class="w"> </span><span class="c">_capture</span><span class="p">,</span><span class="w"> </span><span class="n">index</span><span class="p" data-group-id="group-95">)</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="n">index</span><span class="w">
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">next_tick</span><span class="p" data-group-id="group-96">(</span><span class="p" data-group-id="group-97">{</span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">last</span><span class="p">,</span><span class="w"> </span><span class="n">tick</span><span class="p" data-group-id="group-97">}</span><span class="p">,</span><span class="w"> </span><span class="n">capture</span><span class="p">,</span><span class="w"> </span><span class="n">index</span><span class="p" data-group-id="group-96">)</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="n">tick</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last</span><span class="w">
+  </span><span class="kd">defp</span><span class="w"> </span><span class="nf">next_tick</span><span class="p" data-group-id="group-98">(</span><span class="p" data-group-id="group-99">{</span><span class="c">_prev</span><span class="p">,</span><span class="w"> </span><span class="c">_last</span><span class="p">,</span><span class="w"> </span><span class="n">tick</span><span class="p" data-group-id="group-99">}</span><span class="p">,</span><span class="w"> </span><span class="c">_capture</span><span class="p">,</span><span class="w"> </span><span class="c">_index</span><span class="p" data-group-id="group-98">)</span><span class="p">,</span><span class="w"> </span><span class="ss">do</span><span class="p">:</span><span class="w"> </span><span class="n">tick</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">960</span><span class="w">
+</span><span class="k" data-group-id="group-1">end</span></code></pre><p>Pass <code class="inline">:ice_servers</code> to <code class="inline">MedEx.Preview.answer/2</code> and <code class="inline">iceServers</code> to
+<code class="inline">createMedExHook/1</code> for host-managed STUN/TURN configuration. The default <code class="inline">[]</code>
+uses direct local candidates.</p><h2 id="4-browser-preview-hook-session_hook-js" class="section-heading"><a href="#4-browser-preview-hook-session_hook-js" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">4. Browser preview hook (<code class="inline">session_hook.js</code>)</span></h2><p>Wrap the clinician preview controls in a LiveView container with
+<strong><code class="inline">phx-update=&quot;ignore&quot;</code></strong> (required so LiveView DOM diffs do not tear down the
+active <code class="inline">&lt;audio&gt;</code> stream), <code class="inline">data-token</code> (sent in Phoenix Socket params), an
+<code class="inline">&lt;audio&gt;</code> element, and an optional <code class="inline">[role=&quot;status&quot;]</code> element:</p><pre><code class="heex">&lt;section
+  id=&quot;diagnostic-preview&quot;
+  phx-hook=&quot;MedExSessionHook&quot;
+  phx-update=&quot;ignore&quot;
+  data-token={@socket_token}
+  data-encounter-id={@encounter_id}
+&gt;
+  &lt;button id=&quot;preview-play&quot; type=&quot;button&quot;&gt;Play preview&lt;/button&gt;
+  &lt;button id=&quot;preview-disconnect&quot; type=&quot;button&quot;&gt;Disconnect&lt;/button&gt;
+  &lt;button id=&quot;preview-reconnect&quot; type=&quot;button&quot;&gt;Reconnect&lt;/button&gt;
+  &lt;audio autoplay playsinline&gt;&lt;/audio&gt;
+  &lt;p role=&quot;status&quot;&gt;idle&lt;/p&gt;
+&lt;/section&gt;</code></pre><p>Register the hook on your <code class="inline">LiveSocket</code>:</p><pre><code class="js">import { Socket } from &quot;/assets/phoenix.mjs&quot;;
+import { LiveSocket } from &quot;/assets/phoenix_live_view.esm.js&quot;;
+import { createMedExHook } from &quot;/med_ex/session_hook.js&quot;;
+
+const csrfToken = document.querySelector('meta[name=&quot;csrf-token&quot;]').content;
+const liveSocket = new LiveSocket(&quot;/live&quot;, Socket, {
+  params: { _csrf_token: csrfToken },
+  hooks: {
+    MedExSessionHook: createMedExHook({
+      Socket,
+      socketPath: &quot;/socket&quot;,
+      topic: el =&gt; &quot;signaling:&quot; + el.dataset.encounterId,
+      play: &quot;#preview-play&quot;,
+      disconnect: &quot;#preview-disconnect&quot;,
+      reconnect: &quot;#preview-reconnect&quot;,
+      iceServers: []
+    })
+  }
+});
+liveSocket.connect();</code></pre><p>Channel protocol expected by <code class="inline">createMedExHook</code>:</p><ol><li>Joins <code class="inline">topic(el)</code> with <code class="inline">{ connection_id: crypto.randomUUID() }</code>, expecting
+<code class="inline">{ session_id }</code>.</li><li>Gathers browser ICE candidates and pushes <code class="inline">&quot;offer&quot;</code> with <code class="inline">{ sdp }</code>, expecting
+<code class="inline">{ sdp }</code> answer.</li><li>Handles server-pushed <code class="inline">&quot;preview_failed&quot;</code> by closing the peer cleanly and
+displaying a retry status without affecting capture.</li></ol><h2 id="5-browser-live-pcm-capture-pcm_capture-js-pcm_worklet-js" class="section-heading"><a href="#5-browser-live-pcm-capture-pcm_capture-js-pcm_worklet-js" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">5. Browser live PCM capture (<code class="inline">pcm_capture.js</code> &amp; <code class="inline">pcm_worklet.js</code>)</span></h2><p>Call <code class="inline">startPCM</code> from a user gesture, such as clicking Start. Provide separate
+buttons with IDs <code class="inline">finish-capture</code> and <code class="inline">abort-capture</code>. Enable Finish from the
+recording callback once the server acknowledges the first frame.</p><pre><code class="js">import { startPCM } from &quot;/med_ex/pcm_capture.js&quot;;
+
+const socket = new WebSocket(&quot;wss://example.test/pcm&quot;);
+await new Promise((resolve, reject) =&gt; {
+  socket.onopen = resolve;
+  socket.onerror = reject;
+  socket.onclose = reject;
+});
+
+const handle = await startPCM(
+  socket,
+  &quot;/med_ex/pcm_worklet.js&quot;,
+  outcome =&gt; console.log(&quot;Capture ended:&quot;, outcome),
+  () =&gt; console.log(&quot;Recording active (first frame acknowledged)&quot;)
+);
+
+// Use separate buttons for the two terminal actions.
+document.querySelector(&quot;#finish-capture&quot;).onclick = () =&gt; handle.finish();
+document.querySelector(&quot;#abort-capture&quot;).onclick = () =&gt; handle.abort();</code></pre><h3 id="live-pcm-wire-protocol-and-outcome-codes" class="section-heading"><a href="#live-pcm-wire-protocol-and-outcome-codes" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Live PCM wire protocol and outcome codes</span></h3><ul><li><strong>Audio constraints:</strong> <code class="inline">AudioContext({ sampleRate: 48000 })</code> (fails with
+<code class="inline">&quot;setup_failed&quot;</code> if the browser context cannot run at 48 kHz) and
+<code class="inline">getUserMedia</code> with <code class="inline">channelCount: { exact: 1 }</code> and <code class="inline">echoCancellation</code>,
+<code class="inline">noiseSuppression</code>, and <code class="inline">autoGainControl</code> set to <code class="inline">{ exact: false }</code>.</li><li><strong>Binary frames:</strong> 8-byte unsigned big-endian <code class="inline">first_sample</code> index followed by
+up to 960 mono <code class="inline">PCM16LE</code> samples (1,920 bytes).</li><li><strong>Flow control:</strong> The worklet starts with 8 in-flight frame credits. The host
+must reply with text <code class="inline">&quot;ack&quot;</code> after accepting each frame. After the first
+<code class="inline">&quot;ack&quot;</code>, <code class="inline">startPCM/4</code> invokes <code class="inline">onRecording()</code>.</li><li><strong>Normal finish:</strong> <code class="inline">handle.finish()</code> drains any final partial frame, sends
+text <code class="inline">&quot;finish&quot;</code>, and waits for the host's terminal text frame (for example
+<code class="inline">&quot;ready&quot;</code> or <code class="inline">&quot;capture_failed&quot;</code>).</li><li><strong>Startup &amp; gap rules:</strong> Allow up to 1 second for continuous microphone
+startup (<code class="inline">&quot;capture_source_timeout&quot;</code> if no samples arrive). Any source gap
+after the first frame ends capture with <code class="inline">&quot;capture_gap&quot;</code>.</li></ul><p>Terminal strings delivered to <code class="inline">onOutcome(outcome)</code>:</p><table><thead><tr><th style="text-align: left;">Outcome</th><th style="text-align: left;">Meaning</th></tr></thead><tbody><tr><td style="text-align: left;">Host text frame (e.g. <code class="inline">&quot;ready&quot;</code>, <code class="inline">&quot;capture_failed&quot;</code>, <code class="inline">&quot;invalid_capture&quot;</code>)</td><td style="text-align: left;">Any non-<code class="inline">&quot;ack&quot;</code> text message sent by the host closes capture with that string.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;setup_failed&quot;</code></td><td style="text-align: left;">Microphone permission/constraints, 48 kHz context, worklet load, or socket pre-check failed (<code class="inline">startPCM/4</code> also rejects).</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;capture_source_timeout&quot;</code></td><td style="text-align: left;">No audio samples arrived within 1 second of start or during an empty-input stall.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;capture_gap&quot;</code></td><td style="text-align: left;">AudioWorklet detected a discontinuity in <code class="inline">currentFrame</code> after capture became active.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;capture_overflow&quot;</code></td><td style="text-align: left;">All 8 in-flight frame credits were exhausted without host <code class="inline">&quot;ack&quot;</code> replies.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;source_ended&quot;</code></td><td style="text-align: left;">Browser media track ended unexpectedly.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;disconnected&quot;</code></td><td style="text-align: left;">WebSocket closed or errored before a terminal host outcome arrived.</td></tr><tr><td style="text-align: left;"><code class="inline">&quot;aborted&quot;</code></td><td style="text-align: left;">Host browser code called <code class="inline">handle.abort()</code>.</td></tr></tbody></table>
+
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="readme.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+Overview
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="architecture_and_roadmap.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Architecture and roadmap
+        </span>
+      </a>
+
+  </div>
+</div>
+    <footer class="footer">
+
+        <p>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="MedEx Workspace.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.5) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const codeBlocks = document.querySelectorAll("pre code.mermaid");
+    if (!codeBlocks.length || !window.mermaid) return;
+    mermaid.initialize({startOnLoad: false, securityLevel: "strict"});
+    const nodes = Array.from(codeBlocks, code => {
+      const diagram = document.createElement("div");
+      diagram.className = "mermaid";
+      diagram.textContent = code.textContent;
+      code.parentElement.replaceWith(diagram);
+      return diagram;
+    });
+    mermaid.run({nodes});
+  });
+</script>
+
+  </body>
+</html>

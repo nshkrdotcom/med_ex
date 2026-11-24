@@ -1,0 +1,129 @@
+{
+  "artifact": {
+    "id": "med_ex",
+    "package": {
+      "name": "med_ex",
+      "otp_app": "med_ex",
+      "version": "0.1.0"
+    }
+  },
+  "graph": {
+    "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "edges": [],
+    "excluded_projects": [
+      "."
+    ],
+    "selected_projects": [
+      "core/med_rtc",
+      "core/med_web"
+    ],
+    "violations": []
+  },
+  "manifest": {
+    "digest": "7c48129383d2327907c4d58432999903cbf7307ba67845f247333f446db9e316",
+    "path": "build_support/weld.exs"
+  },
+  "projection": {
+    "build_path": "dist/monolith/med_ex",
+    "copied_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
+      "guides/host_integration.md",
+      "lib/med_rtc.ex",
+      "lib/med_rtc/preview.ex",
+      "lib/med_rtc/wav_capture.ex",
+      "lib/med_web.ex",
+      "lib/med_web/signaling.ex",
+      "mix.exs",
+      "priv/static/med_web/session_hook.js",
+      "test/core_med_rtc/preview_test.exs",
+      "test/support/weld_helpers/core_med_rtc_test_helper.exs",
+      "test/support/weld_helpers/core_med_web_test_helper.exs",
+      "test/test_helper.exs"
+    ],
+    "git_revision": "68b7f0de6cc4493ed5ef474155cf2c020632739f",
+    "package_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "config",
+      "guides",
+      "lib",
+      "mix.exs",
+      "priv",
+      "projection.lock.json"
+    ],
+    "tree_digest": "72fa4e58a6107645bb790dbca1326fdc5539bc0eda1aee88a2d184e3d86742e7"
+  },
+  "verification": [
+    {
+      "env": "test",
+      "project_test_counts": [
+        {
+          "app": "med_web",
+          "project_id": "core/med_web",
+          "test_count": 0
+        },
+        {
+          "app": "med_rtc",
+          "project_id": "core/med_rtc",
+          "test_count": 3
+        }
+      ],
+      "status": "ok",
+      "task": "selected_tests_baseline",
+      "test_count": 3
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors"
+    },
+    {
+      "env": "test",
+      "failure_count": 0,
+      "status": "ok",
+      "task": "test",
+      "test_count": 3
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    }
+  ],
+  "workspace": {
+    "discovery": {
+      "adapter": null,
+      "globs": [
+        "apps/*",
+        "core/*"
+      ],
+      "project_ids": [
+        ".",
+        "core/med_rtc",
+        "core/med_web"
+      ],
+      "root_project?": true,
+      "source": "manifest"
+    },
+    "project_count": 3,
+    "root": "."
+  }
+}

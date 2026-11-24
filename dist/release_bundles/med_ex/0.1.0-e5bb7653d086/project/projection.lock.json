@@ -1,0 +1,172 @@
+{
+  "graph": {
+    "edges": [
+      {
+        "kind": "runtime",
+        "app": "med_core",
+        "to": "core/med_core",
+        "requirement": null,
+        "from": "core/med_rtc"
+      },
+      {
+        "kind": "runtime",
+        "app": "med_core",
+        "to": "core/med_core",
+        "requirement": null,
+        "from": "core/med_web"
+      },
+      {
+        "kind": "runtime",
+        "app": "med_rtc",
+        "to": "core/med_rtc",
+        "requirement": null,
+        "from": "core/med_web"
+      }
+    ],
+    "digest": "8e8ab0b8c23256967e03f6597bc6eb5a723087ea3cc6c8c07951f9136d44009f",
+    "excluded_projects": [
+      "."
+    ],
+    "selected_projects": [
+      "core/med_core",
+      "core/med_rtc",
+      "core/med_web"
+    ],
+    "violations": []
+  },
+  "projection": {
+    "build_path": "/home/home/p/g/n/med_ex/dist/monolith/med_ex",
+    "copied_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
+      "lib/med_core.ex",
+      "lib/med_core/session.ex",
+      "lib/med_core/stream_spec.ex",
+      "lib/med_rtc.ex",
+      "lib/med_rtc/preview.ex",
+      "lib/med_rtc/wav_capture.ex",
+      "lib/med_web.ex",
+      "lib/med_web/signaling.ex",
+      "mix.exs",
+      "priv/fixtures/.python-version",
+      "priv/fixtures/MANIFEST.json",
+      "priv/fixtures/encode.py",
+      "priv/fixtures/prepare.sh",
+      "priv/fixtures/pyproject.toml",
+      "priv/fixtures/uv.lock",
+      "priv/static/med_web/session_hook.js",
+      "test/core_med_core/med_core_test.exs",
+      "test/core_med_rtc/preview_test.exs",
+      "test/support/weld_helpers/core_med_core_test_helper.exs",
+      "test/support/weld_helpers/core_med_rtc_test_helper.exs",
+      "test/support/weld_helpers/core_med_web_test_helper.exs",
+      "test/test_helper.exs"
+    ],
+    "package_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "config",
+      "lib",
+      "mix.exs",
+      "priv",
+      "projection.lock.json"
+    ],
+    "git_revision": "75ec51864ce09919a21db487e585756122172ef0",
+    "tree_digest": "9df7beaf0f2ac9256adfff9582047286b20b6fba23cbddeb7ebb3726778eaaa8"
+  },
+  "manifest": {
+    "path": "/home/home/p/g/n/med_ex/build_support/weld.exs",
+    "digest": "d039f09a60ff7cb959321114c33dcc99bba2c014d3442341b6c4b7618790b8a2"
+  },
+  "artifact": {
+    "id": "med_ex",
+    "package": {
+      "name": "med_ex",
+      "version": "0.1.0",
+      "otp_app": "med_ex"
+    }
+  },
+  "workspace": {
+    "root": "/home/home/p/g/n/med_ex",
+    "discovery": {
+      "source": "manifest",
+      "project_ids": [
+        ".",
+        "core/med_core",
+        "core/med_rtc",
+        "core/med_web"
+      ],
+      "adapter": null,
+      "globs": [
+        "apps/*",
+        "core/*"
+      ],
+      "root_project?": true
+    },
+    "project_count": 4
+  },
+  "verification": [
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "selected_tests_baseline",
+      "test_count": 8,
+      "project_test_counts": [
+        {
+          "app": "med_web",
+          "test_count": 0,
+          "project_id": "core/med_web"
+        },
+        {
+          "app": "med_rtc",
+          "test_count": 3,
+          "project_id": "core/med_rtc"
+        },
+        {
+          "app": "med_core",
+          "test_count": 5,
+          "project_id": "core/med_core"
+        }
+      ]
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 8
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    }
+  ]
+}

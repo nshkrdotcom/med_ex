@@ -1,24 +1,5 @@
-# Mix build and dependency artifacts
-/_build/
-/deps/
-/cover/
-/doc/
-/tmp/
-/dist/
-/.blitz/
-/priv/plts/
-
-# Erlang crash dumps & archives
-erl_crash.dump
-*.ez
+.weld/
+_build/
+deps/
+.mix_sources.json
 *.tar
-
-# Editor / OS artifacts
-.DS_Store
-*.swp
-
-# Local Python uv venv and cached clinical fixture binaries
-/fixtures/circor/*.wav
-/fixtures/circor/*.opus
-/fixtures/circor/.circor-venv/
-/core/med_rtc/tmp/

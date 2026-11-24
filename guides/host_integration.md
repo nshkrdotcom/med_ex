@@ -4,10 +4,18 @@ This guide covers everything a Phoenix or Elixir host needs to capture indexed
 mono PCM16LE audio with `MedEx.Capture`, stream an independent live Opus preview
 over `MedEx.Preview`, and serve MedEx's packaged browser helpers.
 
+For this source revision, enable media by adding the independent Opus and RTC
+packages to the host and setting `:med_ex, :preview_provider` to
+`MedEx.Opus.Provider` and `:med_ex, :rtc_provider` to `MedEx.RTC.Provider`.
+Set the RTC provider before opening any peer; the facade retains the first
+configured provider for the VM lifetime. The base-only profile returns
+`{:error, :preview_unavailable}` from subscription and `{:error, :rtc_unavailable}`
+from negotiation. Raw capture remains available.
+
 ## Prerequisites
 
-- Elixir `~> 1.20` (tested on Elixir `1.20.5` / OTP `29.1.2`).
-- Ubuntu 26.04 native build packages for WebRTC (`ex_dtls`, `ex_libsrtp`):
+- Elixir `~> 1.20`.
+- For the RTC extension, Ubuntu 26.04 native build packages for WebRTC (`ex_dtls`, `ex_libsrtp`):
   `build-essential`, `pkg-config`, and `libssl-dev`.
 - Live Opus encoding uses `membrane_opus_plugin`, which uses precompiled
   `libopus` binaries on supported Linux/macOS targets (install `libopus-dev` if

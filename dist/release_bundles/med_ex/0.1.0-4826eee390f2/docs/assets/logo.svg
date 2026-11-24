@@ -1,0 +1,309 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Exact regular pointy-top hexagon clip (R = 98, centered at 100,100) -->
+    <clipPath id="hx-clip">
+      <polygon points="0,-98 84.87,-49 84.87,49 0,98 -84.87,49 -84.87,-49"/>
+    </clipPath>
+
+    <clipPath id="hx-field-clip">
+      <polygon points="0,-88 76.21,-44 76.21,44 0,88 -76.21,44 -76.21,-44"/>
+    </clipPath>
+
+    <!-- Deep clinical glass-teal & surgical sapphire radial field -->
+    <radialGradient id="clinical-bg" cx="0" cy="0" r="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#147C82"/>
+      <stop offset="32%" stop-color="#0C4A5B"/>
+      <stop offset="68%" stop-color="#072838"/>
+      <stop offset="100%" stop-color="#041520"/>
+    </radialGradient>
+
+    <radialGradient id="clinical-vignette" cx="0" cy="0" r="88" gradientUnits="userSpaceOnUse">
+      <stop offset="70%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="93%" stop-color="#021019" stop-opacity="0.48"/>
+      <stop offset="100%" stop-color="#01090F" stop-opacity="0.82"/>
+    </radialGradient>
+
+    <!-- Smooth clinical satin-pearl / medical instrument bezel -->
+    <radialGradient id="pearl-rim" cx="0" cy="0" r="98" gradientUnits="userSpaceOnUse">
+      <stop offset="86%" stop-color="#79C7C2"/>
+      <stop offset="91%" stop-color="#E6FAF7"/>
+      <stop offset="95%" stop-color="#FFFFFF"/>
+      <stop offset="98.5%" stop-color="#9BD3D0"/>
+      <stop offset="100%" stop-color="#144A58"/>
+    </radialGradient>
+
+    <!-- Star-of-Life clinical bar gradients (defined vertically along -Y, mirrored & rotated 6x) -->
+    <linearGradient id="star-arm-body" x1="-10" y1="0" x2="10" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0E5A68"/>
+      <stop offset="22%" stop-color="#1EA8A8"/>
+      <stop offset="50%" stop-color="#69F5DF"/>
+      <stop offset="78%" stop-color="#1EA8A8"/>
+      <stop offset="100%" stop-color="#0E5A68"/>
+    </linearGradient>
+
+    <linearGradient id="star-arm-glass" x1="0" y1="-74" x2="0" y2="-16" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EEFFFC" stop-opacity="0.96"/>
+      <stop offset="28%" stop-color="#B8FAF0" stop-opacity="0.9"/>
+      <stop offset="72%" stop-color="#2FCAB8" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#116E79" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <linearGradient id="wave-ribbon" x1="-26" y1="0" x2="26" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3CAEFF" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#7CFFEE" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#3CAEFF" stop-opacity="0.15"/>
+    </linearGradient>
+
+    <!-- Central clinical acoustic lens & vital pulse heart -->
+    <radialGradient id="center-halo" cx="0" cy="0" r="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#64FFE4" stop-opacity="0.72"/>
+      <stop offset="48%" stop-color="#28B5D9" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#093446" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="lens-glass" cx="0" cy="0" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0D3A49"/>
+      <stop offset="68%" stop-color="#072230"/>
+      <stop offset="92%" stop-color="#1B6D7A"/>
+      <stop offset="100%" stop-color="#C8FFF7"/>
+    </radialGradient>
+
+    <radialGradient id="vital-coral" cx="0" cy="0" r="11" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="32%" stop-color="#FFD4DF"/>
+      <stop offset="62%" stop-color="#FF4776"/>
+      <stop offset="100%" stop-color="#A8133E"/>
+    </radialGradient>
+
+    <radialGradient id="peer-orb" cx="0" cy="0" r="4.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#9EFFEC"/>
+      <stop offset="85%" stop-color="#2FA8FF"/>
+      <stop offset="100%" stop-color="#0C4570"/>
+    </radialGradient>
+
+    <!-- Optical luminescence filters (strictly clipped inside hx-clip) -->
+    <filter id="pulse-glow" x="-100" y="-100" width="200" height="200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="g1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5.0" result="g2"/>
+      <feMerge>
+        <feMergeNode in="g2"/>
+        <feMergeNode in="g1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="vital-glow" x="-60" y="-60" width="120" height="120" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="g"/>
+      <feMerge>
+        <feMergeNode in="g"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- ================================================================== -->
+    <!-- D6 SYMMETRIC CLINICAL & ACOUSTIC MOTIFS                            -->
+    <!-- ================================================================== -->
+
+    <!-- 1. Clinical ECG Chart Grid Sector (symmetric 60 deg wedge) -->
+    <g id="ecg-grid-half">
+      <line x1="0" y1="-22" x2="0" y2="-88" stroke="#5CEAD6" stroke-opacity="0.16" stroke-width="0.6"/>
+      <line x1="0" y1="-88" x2="38.1" y2="-66" stroke="#5CEAD6" stroke-opacity="0.14" stroke-width="0.5"/>
+      <!-- Fine ECG millimeter chart intervals parallel to hex edge -->
+      <g stroke="#4EC4C8" stroke-opacity="0.13" stroke-width="0.5">
+        <line x1="0" y1="-80" x2="34.6" y2="-60"/>
+        <line x1="0" y1="-72" x2="31.2" y2="-54"/>
+        <line x1="0" y1="-64" x2="27.7" y2="-48"/>
+        <line x1="0" y1="-56" x2="24.2" y2="-42"/>
+        <line x1="0" y1="-48" x2="20.8" y2="-36"/>
+        <line x1="0" y1="-40" x2="17.3" y2="-30"/>
+      </g>
+      <!-- Subtle precision rim calibration dots -->
+      <circle cx="14.5" cy="-84.5" r="0.85" fill="#185C69"/>
+      <circle cx="26.5" cy="-77.6" r="0.85" fill="#185C69"/>
+    </g>
+
+    <g id="ecg-grid-sector">
+      <use href="#ecg-grid-half"/>
+      <use href="#ecg-grid-half" transform="scale(-1, 1)"/>
+    </g>
+
+    <!-- 2. WebRTC Live Peer Signal Waves & Acoustic Ripples (centered on edge-normal axes: 30, 90, 150, 210, 270, 330) -->
+    <g id="webrtc-wave-sector">
+      <!-- Translucent organic soundwave interference petal -->
+      <path d="M0,-24 C15,-34 22,-50 18,-66 C8,-72 -8,-72 -18,-66 C-22,-50 -15,-34 0,-24 Z" fill="#1AB8C8" fill-opacity="0.10" stroke="#55EED8" stroke-opacity="0.22" stroke-width="0.65"/>
+
+      <!-- Outward concentric WebRTC broadcast wave arcs from peer node -->
+      <g fill="none" stroke-linecap="round">
+        <path d="M-21.5,-59.5 A29 29 0 0 1 21.5,-59.5" stroke="url(#wave-ribbon)" stroke-width="1.85"/>
+        <path d="M-16.8,-53.5 A22 22 0 0 1 16.8,-53.5" stroke="url(#wave-ribbon)" stroke-width="1.65"/>
+        <path d="M-11.8,-47.5 A15.2 15.2 0 0 1 11.8,-47.5" stroke="#85FFEE" stroke-opacity="0.92" stroke-width="1.45"/>
+        <!-- Inbound return-channel peer wave arcs (bidirectional WebRTC signaling) -->
+        <path d="M-10.2,-35.2 A14 14 0 0 0 10.2,-35.2" stroke="#47B5FF" stroke-opacity="0.72" stroke-width="1.25"/>
+        <path d="M-6.6,-30.5 A9.5 9.5 0 0 0 6.6,-30.5" stroke="#8CF7FF" stroke-opacity="0.62" stroke-width="1.0"/>
+      </g>
+
+      <!-- Symmetric WAV / PCM acoustic amplitude bars flanking the wave field -->
+      <g stroke="#5EF7DE" stroke-linecap="round" opacity="0.78">
+        <line x1="-18.5" y1="-65.5" x2="-15.0" y2="-65.5" stroke-width="1.2"/>
+        <line x1="-15.5" y1="-68.5" x2="-11.0" y2="-68.5" stroke-width="1.2"/>
+        <line x1="18.5" y1="-65.5" x2="15.0" y2="-65.5" stroke-width="1.2"/>
+        <line x1="15.5" y1="-68.5" x2="11.0" y2="-68.5" stroke-width="1.2"/>
+      </g>
+
+      <!-- Live WebRTC Peer Transceiver Orb at (0, -42.5) -->
+      <circle cx="0" cy="-42.5" r="5.6" fill="#062130" stroke="#54F5DC" stroke-opacity="0.75" stroke-width="0.9"/>
+      <circle cx="0" cy="-42.5" r="3.4" fill="url(#peer-orb)"/>
+      <circle cx="0" cy="-42.5" r="1.2" fill="#FFFFFF"/>
+
+      <!-- Crisp vital coral telemetry link pulse dot on outer perimeter -->
+      <circle cx="0" cy="-71.2" r="2.1" fill="#FF4F7B" stroke="#FFE5EC" stroke-width="0.65"/>
+    </g>
+
+    <!-- 3. Sculpted Clinical Star-of-Life Arm with Symmetrical ECG/WAV Waveform (along vertex axes: 0, 60, 120, 180, 240, 300) -->
+    <g id="star-arm-glow">
+      <rect x="-5.5" y="-76" width="11" height="58" rx="5.5" fill="#4CFFE0" opacity="0.45"/>
+    </g>
+
+    <g id="star-arm-unit">
+      <!-- Soft recessed drop shadow under medical bar -->
+      <rect x="-9.8" y="-77.5" width="19.6" height="60" rx="9.8" fill="#02111A" fill-opacity="0.62"/>
+
+      <!-- Outer rounded Star-of-Life clinical bar (classic pill/capsule silhouette) -->
+      <rect x="-8.8" y="-76.5" width="17.6" height="58" rx="8.8" fill="url(#star-arm-body)" stroke="#D9FFF9" stroke-opacity="0.88" stroke-width="0.9"/>
+
+      <!-- Smooth glass inner capsule highlight -->
+      <rect x="-7.2" y="-74.8" width="14.4" height="54.5" rx="7.2" fill="url(#star-arm-glass)" fill-opacity="0.22" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="0.5"/>
+
+      <!-- Deep clinical monitor trough inside the medical arm -->
+      <rect x="-5.4" y="-72.5" width="10.8" height="49.5" rx="5.4" fill="#051E2B" stroke="#3BD4C6" stroke-opacity="0.65" stroke-width="0.6"/>
+
+      <!-- Symmetrical mirrored ECG / Acoustic WAV amplitude waveform inside arm -->
+      <!-- Left + Right exact mirror of a clinical audio/QRS pulse waveform -->
+      <path d="M0,-69.5 L0,-65.5 L-1.6,-64.2 L0,-62.8 L0,-59.8 L-3.8,-57.5 L-1.2,-55.8 L-4.5,-53.2 L-1.4,-50.8 L-3.4,-48.2 L0,-46.2 L0,-43.0 L-2.6,-40.8 L0,-38.8 L0,-35.6 L-4.2,-33.0 L-1.5,-30.8 L-2.8,-28.8 L0,-27.2 L0,-24.5" fill="none" stroke="#5EFFDF" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M0,-69.5 L0,-65.5 L1.6,-64.2 L0,-62.8 L0,-59.8 L3.8,-57.5 L1.2,-55.8 L4.5,-53.2 L1.4,-50.8 L3.4,-48.2 L0,-46.2 L0,-43.0 L2.6,-40.8 L0,-38.8 L0,-35.6 L4.2,-33.0 L1.5,-30.8 L2.8,-28.8 L0,-27.2 L0,-24.5" fill="none" stroke="#5EFFDF" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Bright white waveform center baseline -->
+      <line x1="0" y1="-69.5" x2="0" y2="-24.5" stroke="#FFFFFF" stroke-opacity="0.92" stroke-width="0.9" stroke-linecap="round"/>
+
+      <!-- Vital crimson-coral peak markers at the primary QRS/WAV crest -->
+      <circle cx="0" cy="-53.2" r="2.2" fill="#FF4776" stroke="#FFFFFF" stroke-width="0.65"/>
+      <circle cx="0" cy="-67.8" r="1.45" fill="#BFFFF3"/>
+
+      <!-- Outer clean clinical tip indicator on vertex -->
+      <circle cx="0" cy="-82.2" r="2.2" fill="#E8FFFC" stroke="#1E8C96" stroke-width="0.75"/>
+    </g>
+
+    <!-- 4. Central Precision Circular Acoustic-Pulse Ring Tick (repeated 6x) -->
+    <g id="medallion-sector">
+      <!-- Radial clinical dial tick & coral pulse segment on circular lens -->
+      <path d="M-3.8,-24.2 A24.5 24.5 0 0 1 3.8,-24.2" fill="none" stroke="#FF5480" stroke-width="1.7" stroke-linecap="round"/>
+      <line x1="0" y1="-21.4" x2="0" y2="-16.4" stroke="#A6FFF0" stroke-width="1.15" stroke-linecap="round"/>
+      <circle cx="0" cy="-13.6" r="1.05" fill="#FFFFFF"/>
+    </g>
+  </defs>
+
+  <!-- ==================================================================== -->
+  <!-- ROOT HEXAGON CONTAINER (100% transparent outside R = 98 hexagon)     -->
+  <!-- ==================================================================== -->
+  <g transform="translate(100, 100)" clip-path="url(#hx-clip)">
+
+    <!-- Layer 0: Smooth Satin-Pearl Clinical Instrument Hexagon Rim -->
+    <polygon points="0,-98 84.87,-49 84.87,49 0,98 -84.87,49 -84.87,-49" fill="url(#pearl-rim)"/>
+    <!-- Crisp outer dark surgical hairline for clean contrast on light & dark pages -->
+    <polygon points="0,-97.4 84.35,-48.7 84.35,48.7 0,97.4 -84.35,48.7 -84.35,-48.7" stroke="#0C3846" stroke-opacity="0.78" stroke-width="1.2"/>
+    <!-- Delicate bio-teal accent seam inside pearl bezel -->
+    <polygon points="0,-91.4 79.15,-45.7 79.15,45.7 0,91.4 -79.15,45.7 -79.15,-45.7" stroke="#22B8B0" stroke-opacity="0.72" stroke-width="1.35"/>
+
+    <!-- Layer 1: Deep Clinical Telemetry Glass Field -->
+    <g clip-path="url(#hx-field-clip)">
+      <polygon points="0,-88 76.21,-44 76.21,44 0,88 -76.21,44 -76.21,-44" fill="url(#clinical-bg)"/>
+
+      <!-- Concentric acoustic oscilloscope circles -->
+      <circle cx="0" cy="0" r="68" stroke="#58F0DA" stroke-opacity="0.16" stroke-width="0.75"/>
+      <circle cx="0" cy="0" r="53" stroke="#4AB8FF" stroke-opacity="0.22" stroke-width="0.85" stroke-dasharray="2.5 3.5"/>
+      <circle cx="0" cy="0" r="38" stroke="#58F0DA" stroke-opacity="0.24" stroke-width="0.75"/>
+
+      <!-- Fine 6-fold ECG clinical chart grid -->
+      <g>
+        <use href="#ecg-grid-sector" transform="rotate(0)"/>
+        <use href="#ecg-grid-sector" transform="rotate(60)"/>
+        <use href="#ecg-grid-sector" transform="rotate(120)"/>
+        <use href="#ecg-grid-sector" transform="rotate(180)"/>
+        <use href="#ecg-grid-sector" transform="rotate(240)"/>
+        <use href="#ecg-grid-sector" transform="rotate(300)"/>
+      </g>
+
+      <!-- Soft glass vignette -->
+      <polygon points="0,-88 76.21,-44 76.21,44 0,88 -76.21,44 -76.21,-44" fill="url(#clinical-vignette)"/>
+
+      <!-- Bio-luminescent pulse bloom behind Star of Life & core -->
+      <g filter="url(#pulse-glow)">
+        <circle cx="0" cy="0" r="36" fill="url(#center-halo)"/>
+        <use href="#star-arm-glow" transform="rotate(0)"/>
+        <use href="#star-arm-glow" transform="rotate(60)"/>
+        <use href="#star-arm-glow" transform="rotate(120)"/>
+        <use href="#star-arm-glow" transform="rotate(180)"/>
+        <use href="#star-arm-glow" transform="rotate(240)"/>
+        <use href="#star-arm-glow" transform="rotate(300)"/>
+      </g>
+
+      <!-- Layer 2: Six WebRTC Signal & Acoustic Wave Sectors (between the 6 medical bars) -->
+      <g>
+        <use href="#webrtc-wave-sector" transform="rotate(30)"/>
+        <use href="#webrtc-wave-sector" transform="rotate(90)"/>
+        <use href="#webrtc-wave-sector" transform="rotate(150)"/>
+        <use href="#webrtc-wave-sector" transform="rotate(210)"/>
+        <use href="#webrtc-wave-sector" transform="rotate(270)"/>
+        <use href="#webrtc-wave-sector" transform="rotate(330)"/>
+      </g>
+
+      <!-- Layer 3: Six-Armed Clinical Star of Life with Live Symmetrical Audio/ECG Waveforms -->
+      <g>
+        <use href="#star-arm-unit" transform="rotate(0)"/>
+        <use href="#star-arm-unit" transform="rotate(60)"/>
+        <use href="#star-arm-unit" transform="rotate(120)"/>
+        <use href="#star-arm-unit" transform="rotate(180)"/>
+        <use href="#star-arm-unit" transform="rotate(240)"/>
+        <use href="#star-arm-unit" transform="rotate(300)"/>
+      </g>
+    </g>
+
+    <!-- Crisp inner glass bezel ring separating pearl frame from telemetry chamber -->
+    <polygon points="0,-88 76.21,-44 76.21,44 0,88 -76.21,44 -76.21,-44" stroke="#D9FFF9" stroke-opacity="0.82" stroke-width="1.2"/>
+
+    <!-- Layer 4: Central Circular Clinical Acoustic-Pulse Medallion -->
+    <g>
+      <!-- Outer frosted clinical silver ring -->
+      <circle cx="0" cy="0" r="27.2" fill="#041924" stroke="#E5FFFA" stroke-width="2.1"/>
+      <circle cx="0" cy="0" r="21.5" fill="url(#lens-glass)" stroke="#55F5DC" stroke-opacity="0.85" stroke-width="1.0"/>
+
+      <!-- 6-fold circular dial markings & vital coral arcs -->
+      <g>
+        <use href="#medallion-sector" transform="rotate(0)"/>
+        <use href="#medallion-sector" transform="rotate(60)"/>
+        <use href="#medallion-sector" transform="rotate(120)"/>
+        <use href="#medallion-sector" transform="rotate(180)"/>
+        <use href="#medallion-sector" transform="rotate(240)"/>
+        <use href="#medallion-sector" transform="rotate(300)"/>
+      </g>
+
+      <!-- Concentric acoustic iris rings inside the central lens -->
+      <circle cx="0" cy="0" r="16.2" stroke="#75FFEE" stroke-opacity="0.52" stroke-width="0.75"/>
+      <circle cx="0" cy="0" r="11.2" stroke="#FF6B91" stroke-opacity="0.75" stroke-width="1.15"/>
+
+      <!-- Luminous Vital Coral-White Clinical Pulse Core & Crisp Medical 6-Star -->
+      <g filter="url(#vital-glow)">
+        <circle cx="0" cy="0" r="9.6" fill="url(#vital-coral)"/>
+        <!-- Smooth 6-pointed clinical cross-star inside vital core -->
+        <g stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round">
+          <line x1="0" y1="-6.6" x2="0" y2="6.6"/>
+          <line x1="-5.72" y1="-3.3" x2="5.72" y2="3.3"/>
+          <line x1="-5.72" y1="3.3" x2="5.72" y2="-3.3"/>
+        </g>
+        <circle cx="0" cy="0" r="2.6" fill="#FFFFFF"/>
+      </g>
+    </g>
+
+  </g>
+</svg>

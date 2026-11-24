@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none" role="img" aria-label="MedEx clinical audio and WebRTC emblem">
+  <defs>
+    
+    <clipPath id="hex-outer-clip">
+      <polygon points="100,4 183.14,52 183.14,148 100,196 16.86,148 16.86,52" />
+    </clipPath>
+
+    <clipPath id="hex-inner-clip">
+      <polygon points="100,14 174.48,57 174.48,143 100,186 25.52,143 25.52,57" />
+    </clipPath>
+
+    
+    <linearGradient id="bezel-metal" x1="20" y1="12" x2="180" y2="188" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#94A3B8" />
+      <stop offset="22%" stop-color="#334155" />
+      <stop offset="50%" stop-color="#0F172A" />
+      <stop offset="78%" stop-color="#3B2D63" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    
+    <linearGradient id="bevel-inner" x1="180" y1="188" x2="20" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#67E8F9" stop-opacity="0.7" />
+      <stop offset="35%" stop-color="#1E293B" stop-opacity="0.9" />
+      <stop offset="70%" stop-color="#090D16" stop-opacity="1" />
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.65" />
+    </linearGradient>
+
+    
+    <radialGradient id="chassis-bg" cx="50%" cy="46%" r="62%" fx="44%" fy="36%">
+      <stop offset="0%" stop-color="#132338" />
+      <stop offset="48%" stop-color="#0B1320" />
+      <stop offset="85%" stop-color="#060A12" />
+      <stop offset="100%" stop-color="#04070D" />
+    </radialGradient>
+
+    
+    <radialGradient id="core-aura" cx="50%" cy="50%" r="48%">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.32" />
+      <stop offset="45%" stop-color="#6366F1" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0" />
+    </radialGradient>
+
+    
+    <linearGradient id="cross-fill" x1="44" y1="44" x2="156" y2="156" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#16324A" stop-opacity="0.92" />
+      <stop offset="50%" stop-color="#0D1E32" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#181B38" stop-opacity="0.92" />
+    </linearGradient>
+
+    <linearGradient id="cross-stroke" x1="44" y1="44" x2="156" y2="156" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#67E8F9" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#0EA5E9" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.8" />
+    </linearGradient>
+
+    
+    <radialGradient id="diaphragm-glass" cx="44%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#1E3A5F" stop-opacity="0.95" />
+      <stop offset="55%" stop-color="#0A1626" stop-opacity="0.96" />
+      <stop offset="88%" stop-color="#050B14" stop-opacity="0.98" />
+      <stop offset="100%" stop-color="#0E2942" stop-opacity="1" />
+    </radialGradient>
+
+    
+    <linearGradient id="pcm-wave-grad" x1="28" y1="100" x2="172" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.2" />
+      <stop offset="18%" stop-color="#22D3EE" stop-opacity="1" />
+      <stop offset="50%" stop-color="#ECFEFF" stop-opacity="1" />
+      <stop offset="82%" stop-color="#38BDF8" stop-opacity="1" />
+      <stop offset="100%" stop-color="#818CF8" stop-opacity="0.2" />
+    </linearGradient>
+
+    
+    <linearGradient id="opus-wave-grad" x1="28" y1="100" x2="172" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0" />
+      <stop offset="22%" stop-color="#8B5CF6" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#C084FC" stop-opacity="0.95" />
+      <stop offset="78%" stop-color="#22D3EE" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0" />
+    </linearGradient>
+
+    
+    <linearGradient id="ring-grad" x1="40" y1="40" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22D3EE" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+
+    
+    <linearGradient id="glass-sheen" x1="16" y1="10" x2="130" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22" />
+      <stop offset="45%" stop-color="#BAE6FD" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    
+    <pattern id="osc-grid" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M 12 0 L 0 0 0 12" fill="none" stroke="#38BDF8" stroke-width="0.45" stroke-opacity="0.11" />
+    </pattern>
+
+    
+    <filter id="signal-bloom" x="-25%" y="-35%" width="150%" height="170%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.1" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="inset-depth" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.7" />
+    </filter>
+  </defs>
+
+  
+  <g clip-path="url(#hex-outer-clip)">
+    
+    <polygon points="100,4 183.14,52 183.14,148 100,196 16.86,148 16.86,52" fill="url(#bezel-metal)" />
+    
+    <polygon points="100,4 183.14,52 174.48,57 100,14" fill="#FFFFFF" fill-opacity="0.16" />
+    <polygon points="100,4 16.86,52 25.52,57 100,14" fill="#E0F2FE" fill-opacity="0.24" />
+    <polygon points="16.86,52 16.86,148 25.52,143 25.52,57" fill="#38BDF8" fill-opacity="0.08" />
+    <polygon points="183.14,52 183.14,148 174.48,143 174.48,57" fill="#000000" fill-opacity="0.38" />
+    <polygon points="100,196 183.14,148 174.48,143 100,186" fill="#000000" fill-opacity="0.5" />
+    <polygon points="100,196 16.86,148 25.52,143 100,186" fill="#000000" fill-opacity="0.28" />
+
+    
+    <g clip-path="url(#hex-inner-clip)">
+      <polygon points="100,14 174.48,57 174.48,143 100,186 25.52,143 25.52,57" fill="url(#chassis-bg)" />
+      <rect x="14" y="14" width="172" height="172" fill="url(#osc-grid)" />
+      <circle cx="100" cy="100" r="78" fill="url(#core-aura)" />
+
+      
+      <g stroke="#38BDF8" stroke-width="0.6" stroke-opacity="0.16">
+        <line x1="100" y1="14" x2="100" y2="186" />
+        <line x1="25.52" y1="57" x2="174.48" y2="143" />
+        <line x1="174.48" y1="57" x2="25.52" y2="143" />
+      </g>
+
+      
+      <polygon points="100,24 165.82,62 165.82,138 100,176 34.18,138 34.18,62" fill="none" stroke="#38BDF8" stroke-width="0.75" stroke-opacity="0.22" stroke-dasharray="4 3" />
+
+      
+      <path d="M 88,43 L 112,43 L 115,46 L 115,85 L 154,85 L 157,88 L 157,112 L 154,115 L 115,115 L 115,154 L 112,157 L 88,157 L 85,154 L 85,115 L 46,115 L 43,112 L 43,88 L 46,85 L 85,85 L 85,46 Z" fill="url(#cross-fill)" stroke="url(#cross-stroke)" stroke-width="1.25" filter="url(#inset-depth)" />
+      
+      <path d="M 90,47 L 110,47 L 111,48 L 111,89 L 152,89 L 153,90 L 153,110 L 152,111 L 111,111 L 111,152 L 110,153 L 90,153 L 89,152 L 89,111 L 48,111 L 47,110 L 47,90 L 48,89 L 89,89 L 89,48 Z" fill="none" stroke="#FFFFFF" stroke-width="0.5" stroke-opacity="0.14" />
+
+      
+      
+      <circle cx="100" cy="100" r="58" fill="none" stroke="url(#ring-grad)" stroke-width="2" stroke-linecap="round" stroke-dasharray="36 24.74" transform="rotate(-72 100 100)" opacity="0.72" />
+
+      
+      <circle cx="100" cy="100" r="49" fill="none" stroke="#67E8F9" stroke-width="3.6" stroke-dasharray="1.15 7.402" transform="rotate(-90 100 100)" opacity="0.34" />
+      
+      <circle cx="100" cy="100" r="49" fill="none" stroke="#A5F3FC" stroke-width="6.5" stroke-dasharray="2 49.31" transform="rotate(-90 100 100)" opacity="0.82" />
+
+      
+      <circle cx="100" cy="100" r="39" fill="url(#diaphragm-glass)" stroke="url(#ring-grad)" stroke-width="1.5" filter="url(#inset-depth)" />
+      
+      <circle cx="100" cy="100" r="32" fill="none" stroke="#38BDF8" stroke-width="0.65" stroke-opacity="0.28" />
+      <circle cx="100" cy="100" r="23" fill="none" stroke="#818CF8" stroke-width="0.65" stroke-opacity="0.26" />
+      <circle cx="100" cy="100" r="14" fill="none" stroke="#22D3EE" stroke-width="0.65" stroke-opacity="0.22" />
+
+      
+      
+      <path d="M 28,100 C 46,100 54,114 68,114 C 82,114 88,82 100,82 C 112,82 118,116 132,116 C 146,116 154,100 172,100" fill="none" stroke="#A78BFA" stroke-width="1.2" stroke-opacity="0.32" />
+
+      
+      <path d="M 28,100 C 44,100 50,85 64,85 C 78,85 84,123 100,123 C 116,123 122,77 136,77 C 150,77 156,100 172,100" fill="none" stroke="url(#opus-wave-grad)" stroke-width="2.1" stroke-linecap="round" filter="url(#soft-glow)" />
+
+      
+      <path d="M 28,100 L 55,100 C 60,100 62,92 66,92 C 70,92 72,100 76,100 L 81,100 L 85,114 L 94,56 L 104,139 L 112,80 L 118,109 L 123,97 L 127,100 C 132,100 135,90 141,90 C 147,90 150,100 155,100 L 172,100" fill="none" stroke="url(#pcm-wave-grad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#signal-bloom)" />
+
+      
+      <path d="M 28,100 L 55,100 C 60,100 62,92 66,92 C 70,92 72,100 76,100 L 81,100 L 85,114 L 94,56 L 104,139 L 112,80 L 118,109 L 123,97 L 127,100 C 132,100 135,90 141,90 C 147,90 150,100 155,100 L 172,100" fill="none" stroke="#F0FDFF" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+
+      
+      <g filter="url(#soft-glow)">
+        <circle cx="55" cy="100" r="2.2" fill="#22D3EE" />
+        <circle cx="94" cy="56" r="2.6" fill="#FFFFFF" />
+        <circle cx="104" cy="139" r="2.3" fill="#A78BFA" />
+        <circle cx="155" cy="100" r="2.2" fill="#38BDF8" />
+      </g>
+
+      
+      <g>
+        <circle cx="100" cy="24" r="2.4" fill="#67E8F9" />
+        <circle cx="165.82" cy="62" r="2.4" fill="#38BDF8" />
+        <circle cx="165.82" cy="138" r="2.4" fill="#818CF8" />
+        <circle cx="100" cy="176" r="2.4" fill="#A78BFA" />
+        <circle cx="34.18" cy="138" r="2.4" fill="#38BDF8" />
+        <circle cx="34.18" cy="62" r="2.4" fill="#67E8F9" />
+      </g>
+
+      
+      <path d="M 100,14 L 174.48,57 L 174.48,80 C 132,68 74,78 25.52,118 L 25.52,57 Z" fill="url(#glass-sheen)" />
+    </g>
+
+    
+    <polygon points="100,14 174.48,57 174.48,143 100,186 25.52,143 25.52,57" fill="none" stroke="url(#bevel-inner)" stroke-width="1.5" />
+
+    
+    <polygon points="100,4 183.14,52 183.14,148 100,196 16.86,148 16.86,52" fill="none" stroke="#38BDF8" stroke-opacity="0.45" stroke-width="1.8" />
+  </g>
+</svg>
