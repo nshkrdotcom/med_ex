@@ -5,7 +5,8 @@ defmodule MedExOpus.MixProject do
   @version File.read!(Path.join(__DIR__, "VERSION")) |> String.trim()
   def project do
     defaults = [
-      {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", branch: "main"},
+      {:med_ex, "~> 0.2.0",
+       github: "nshkrdotcom/med_ex", ref: "83defa6d16e5062b3b027cb0e1dbec98bac38705"},
       {:membrane_core, "~> 1.0"},
       {:membrane_raw_audio_format, "~> 0.12.0"},
       {:membrane_opus_format, "~> 0.3.0"},

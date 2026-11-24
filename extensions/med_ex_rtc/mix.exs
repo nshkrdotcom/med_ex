@@ -5,7 +5,8 @@ defmodule MedExRTC.MixProject do
   @version File.read!(Path.join(__DIR__, "VERSION")) |> String.trim()
   def project do
     defaults = [
-      {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", branch: "main"},
+      {:med_ex, "~> 0.2.0",
+       github: "nshkrdotcom/med_ex", ref: "83defa6d16e5062b3b027cb0e1dbec98bac38705"},
       {:ex_webrtc, "~> 0.18.0"},
       {:ex_rtp, "~> 0.4"}
     ]

@@ -30,6 +30,9 @@ with open(sys.argv[1], "w", encoding="utf-8") as out:
     json.dump({"med_ex": {"path": sys.argv[2]}}, out)
 PYTHON
   (cd "$project" && mix deps.get && mix compile --warnings-as-errors && mix test)
+  # Hex archives require a registry dependency in their metadata. The
+  # consumer below overrides it with the matching unpacked SDK archive.
+  printf '%s\n' '{"med_ex":{"hex":"med_ex"}}' > "$project/.mix_sources.json"
   build_archive "$project" "$app"
 done
 

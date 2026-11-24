@@ -6,7 +6,7 @@ defmodule MedEx.PreviewTest do
   alias MedEx.Preview
 
   @tag :tmp_dir
-  test "a receive-only peer receives live encoded PCM as Opus RTP", %{tmp_dir: dir} do
+  test "a receive-only peer receives Opus RTP", %{tmp_dir: dir} do
     {:ok, receiver} = PeerConnection.start_link(ice_servers: [])
     on_exit(fn -> stop(receiver) end)
     {:ok, _} = PeerConnection.add_transceiver(receiver, :audio, direction: :recvonly)
@@ -34,14 +34,28 @@ defmodule MedEx.PreviewTest do
     {:ok, capture} =
       MedEx.Capture.start_link(owner: self(), acquisition_id: "rtc", artifact_dir: dir)
 
-    :ok = MedEx.Capture.subscribe(capture)
     pcm = for i <- 0..959, into: <<>>, do: <<trunc(4000 * :math.sin(i / 20))::little-signed-16>>
 
-    :ok = MedEx.Capture.push(capture, 0, pcm)
-    assert_receive {:med_ex_preview, ^capture, 0, packet}, 5_000
+    packet = capture_and_encode(capture, pcm)
     :ok = Preview.send_opus(preview, packet, 0, 0)
     assert_receive {:ex_webrtc, ^receiver, {:rtp, _track_id, nil, %{payload: ^packet}}}, 2_000
     assert {:ok, _evidence} = MedEx.Capture.finish(capture)
+  end
+
+  defp capture_and_encode(capture, pcm) do
+    case Application.get_env(:med_ex, :preview_provider) do
+      nil ->
+        assert {:error, :preview_unavailable} = MedEx.Capture.subscribe(capture)
+        assert :ok = MedEx.Capture.push(capture, 0, pcm)
+        # A 20 ms Opus silence frame exercises RTC without installing Opus.
+        <<0xF8, 0xFF, 0xFE>>
+
+      _provider ->
+        assert :ok = MedEx.Capture.subscribe(capture)
+        assert :ok = MedEx.Capture.push(capture, 0, pcm)
+        assert_receive {:med_ex_preview, ^capture, 0, packet}, 5_000
+        packet
+    end
   end
 
   defp stop(pid) do

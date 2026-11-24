@@ -46,11 +46,11 @@ defmodule MedEx.Opus.Provider do
              }}
 
           {:error, reason} ->
-            {:stop, reason}
+            {:error, reason}
         end
 
       _ ->
-        {:stop, :unsupported_format}
+        {:error, :unsupported_format}
     end
   end
 

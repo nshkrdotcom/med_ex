@@ -46,11 +46,11 @@ MIX_DEPS_PATH and MIX_LOCKFILE for alternate contexts. Unselected providers
 are inactive. Mix validates dependency identities and requirements at fetch/build.
 There is no automatic sibling SDK selection.
 
-The extension source defaults presently name the real GitHub repository and
-`main`. Before shipping a consuming default, commit the independently verified
-SDK base, make it reachable, and replace that branch with its actual verified
-SHA. Running against this local snapshot requires the direct source selection
-until that remote contains the new API. No release is made by this migration.
+The extension defaults pin the verified SDK base at
+`83defa6d16e5062b3b027cb0e1dbec98bac38705`. A consumer of both providers can
+select their verified source revision and use its own matching `:med_ex`
+dependency with `override: true`. For local development, select the checkout
+explicitly. The SDK product version remains `0.2.0`.
 
 For a packaged legacy 0.2.0 user, keep existing host calls, configure both
 providers explicitly when migrating to this source, and replace old direct
