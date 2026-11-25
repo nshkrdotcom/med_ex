@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0
 
 - Move encoder startup and lifecycle out of Capture callbacks into a bounded,
   disposable preview session with explicit replacement and teardown.
