@@ -137,9 +137,18 @@ manifest=../../build_support/weld.exs
 artifact=med_ex_opus
 mix release.prepare "$manifest" --artifact "$artifact"
 mix release.status "$manifest" --artifact "$artifact"
-mix release.track "$manifest" --artifact "$artifact" --identity <sha> --tag-release --push
-mix release.publish "$manifest" --artifact "$artifact" --identity <sha> --tag <tag>
-mix release.archive "$manifest" --artifact "$artifact" --identity <sha>
+```
+
+Set `identity` to the full bundle identity and `tag` to the default tag from
+status. Run the dry run before pushing the release tag, and archive after Hex
+confirms publication.
+
+```sh
+mix release.publish "$manifest" --artifact "$artifact" --identity "$identity" --dry-run
+mix release.track "$manifest" --artifact "$artifact" --identity "$identity" --tag-release --push
+mix release.verify_tag "$tag" "$manifest"
+mix release.publish "$manifest" --artifact "$artifact" --identity "$identity" --tag "$tag"
+mix release.archive "$manifest" --artifact "$artifact" --identity "$identity"
 ```
 
 The annotated tag and projection commit record the bundle identity. Local
