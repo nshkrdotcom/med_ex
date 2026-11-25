@@ -1,6 +1,6 @@
 {
-  "kind": "full",
   "artifact": "med_ex",
-  "schema": "weld.projection/v1",
-  "artifact_id": "ed8bc3385f3769f1f33d9a71039d63d307130e914f7d13d7d162926e42843cf7"
+  "artifact_id": "043bd33599625f000ea9d6826179ca5b5a362148786cef30e284d080ceda69cf",
+  "kind": "full",
+  "schema": "weld.projection/v1"
 }

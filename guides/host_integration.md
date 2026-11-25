@@ -1,27 +1,68 @@
-# Host integration
+# Host Integration and Browser Compatibility
 
-This guide covers everything a Phoenix or Elixir host needs to capture indexed
-mono PCM16LE audio with `MedEx.Capture`, stream an independent live Opus preview
-over `MedEx.Preview`, and serve MedEx's packaged browser helpers.
+`MedEx` supports two complementary host integration models inside the same `:med_ex` application:
 
-For this source revision, enable media by adding the independent Opus and RTC
-packages to the host and setting `:med_ex, :preview_provider` to
-`MedEx.Opus.Provider` and `:med_ex, :rtc_provider` to `MedEx.RTC.Provider`.
-Set the RTC provider before opening any peer; the facade retains the first
-configured provider for the VM lifetime. The base-only profile returns
-`{:error, :preview_unavailable}` from subscription and `{:error, :rtc_unavailable}`
-from negotiation. Raw capture remains available.
+1. **Multi-stream and sparse-measurement device gateways (Contract v1):** Hosts authenticate networked or local peripherals, decode `MEX1` waveform frames (`MedEx.Wire.FrameV1`) and `medex.device.v1` JSON envelopes (`MedEx.Wire.Control`), supervise fenced `MedEx.StreamWriter` processes per stream, persist `MedEx.MeasurementEvent` / `MedEx.StatusEvent` records, and optionally fan monitor audio out to `MedEx.PreviewProvider` / `MedEx.RTCProvider` (in-process or in an isolated sidecar OS process).
+2. **Browser continuous WAV capture and WebRTC preview:** Phoenix / Plug hosts capture indexed 48 kHz mono PCM16LE microphone audio over a WebSocket into content-addressed WAV files (`MedEx.Capture` + `MedEx.Evidence`), stream live Opus preview over `MedEx.Preview`, and serve `MedEx`'s packaged JavaScript helpers (`MedEx.Web`).
 
-## Prerequisites
+## Gateway Integration Pattern (Multi-Stream & Optional Preview)
+
+In a device gateway, keep authentication, encounter/device authorization, and writer fencing in the host, and drive `MedEx` contracts explicitly:
+
+```elixir
+defmodule MyGateway.StreamIngress do
+  alias MedEx.{SampleFrame, StreamWriter, Wire}
+
+  # 1. Start one fenced StreamWriter per admitted stream under a host DynamicSupervisor:
+  def open_stream(sup, spec, attempt_dir, fence) do
+    DynamicSupervisor.start_child(
+      sup,
+      {StreamWriter, owner: self(), stream: spec, artifact_dir: attempt_dir, fence: fence}
+    )
+  end
+
+  # 2. Decode MEX1 wire bytes, bind stream_number to the authenticated reservation, and push:
+  def handle_wire_frame(raw_bytes, %{streams: streams} = state) do
+    with {:ok, wire} <- Wire.FrameV1.decode(raw_bytes),
+         %{spec: spec, writer: writer, fence: fence} <- Map.get(streams, wire.stream_number),
+         frame = %SampleFrame{
+           stream_id: spec.stream_id,
+           source_epoch: wire.source_epoch,
+           descriptor_ref: spec.descriptor_ref,
+           sequence: wire.sequence,
+           first_sample: wire.first_sample,
+           sample_count: wire.sample_count,
+           config_epoch: wire.config_epoch,
+           payload: wire.payload
+         },
+         :ok <- SampleFrame.validate(frame, spec),
+         {:ok, receipt} <- StreamWriter.push(writer, fence, frame) do
+      # Report accepted/durable cursors back to the producer; only durable_* truncates its spool.
+      {:ok, receipt, state}
+    end
+  end
+end
+```
+
+When live audio monitoring is needed alongside `StreamWriter`, feed disposable 20 ms 48 kHz mono PCM16LE frames to `MedEx.Opus.Provider` (`start_link/1`, `offer/4`, `stop/1`) and transmit encoded packets with `MedEx.RTC.Provider` (`answer/2`, `send_opus/4`, `close/1`)—either in-VM or across a loopback HTTP/WebSocket boundary to a dedicated preview sidecar VM that holds zero database or artifact-storage credentials. See [Streams, Storage, Clock, and Control](stream_recording.md) for recovery, predecessor import, `ClockAlign`, and `ControlInterlock`.
+
+---
+
+## Browser Continuous WAV Capture And Live Preview
+
+The sections below cover everything a Phoenix or Elixir host needs to capture indexed mono PCM16LE browser audio with `MedEx.Capture`, stream an independent live Opus preview over `MedEx.Preview`, and serve `MedEx`'s packaged browser helpers.
+
+Enable in-VM browser preview media by adding the `:med_ex_opus` and `:med_ex_rtc` extension packages to the host and configuring `:med_ex, :preview_provider` (`MedEx.Opus.Provider`) and `:med_ex, :rtc_provider` (`MedEx.RTC.Provider`). Set `:rtc_provider` before opening any peer; `MedEx.Preview` caches the first configured provider for the VM lifetime. In a headless base-only build, `MedEx.Capture.subscribe/1` returns `{:error, :preview_unavailable}` and `MedEx.Preview.answer/2` returns `{:error, :rtc_unavailable}`, while lossless WAV recording remains available.
+
+Choose one compatible base source for both extensions when developing against
+the unreleased SDK. [Consumption, Extensions, and Verification](source_development.md)
+
+### Prerequisites
 
 - Elixir `~> 1.20`.
-- For the RTC extension, Ubuntu 26.04 native build packages for WebRTC (`ex_dtls`, `ex_libsrtp`):
-  `build-essential`, `pkg-config`, and `libssl-dev`.
-- Live Opus encoding uses `membrane_opus_plugin`, which uses precompiled
-  `libopus` binaries on supported Linux/macOS targets (install `libopus-dev` if
-  compiling `libopus` from source).
-- Browser microphone capture (`getUserMedia` + `AudioWorklet`) requires a secure
-  context (`https://`, or `http://localhost` / `http://127.0.0.1` for local dev).
+- For `:med_ex_rtc`, C build tools and OpenSSL headers (`build-essential`, `pkg-config`, and `libssl-dev` on Debian/Ubuntu) for `ex_dtls` and `ex_libsrtp`.
+- For `:med_ex_opus`, `membrane_opus_plugin` uses precompiled `libopus` binaries on supported Linux/macOS targets (install `libopus-dev` if compiling `libopus` from source).
+- Browser microphone capture (`getUserMedia` + `AudioWorklet`) requires a secure context (`https://`, or `http://localhost` / `http://127.0.0.1` for local development).
 
 ## 1. Serve the packaged browser assets
 

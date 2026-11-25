@@ -1,6 +1,11 @@
 defmodule MedEx.CaptureTest do
   use ExUnit.Case, async: true
 
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   @tag :tmp_dir
   test "producer death removes the unfinished recording", %{tmp_dir: dir} do
     test_pid = self()

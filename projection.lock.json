@@ -8,105 +8,130 @@
     }
   },
   "graph": {
-    "digest": "6333b387be303ee2b02dcabfcab9ecf040726e514deb811b4ea8158f892acd10",
+    "dependency_projects": [
+      "core/med_capture",
+      "core/med_core"
+    ],
+    "digest": "27e1a2d79112a095613ad10657ff6ae44d72eb5dc23c27d90f662a56bab01abc",
     "edges": [
       {
         "app": "med_core",
+        "externalized": false,
         "from": "core/med_capture",
         "kind": "runtime",
         "requirement": null,
         "to": "core/med_core"
+      },
+      {
+        "app": "med_ex",
+        "externalized": false,
+        "from": "extensions/med_ex_opus",
+        "kind": "runtime",
+        "requirement": "~> 0.2.0",
+        "to": "."
+      },
+      {
+        "app": "med_ex",
+        "externalized": false,
+        "from": "extensions/med_ex_rtc",
+        "kind": "runtime",
+        "requirement": "~> 0.2.0",
+        "to": "."
       }
     ],
     "excluded_projects": [
-      "core/med_capture",
-      "core/med_core",
       "extensions/med_ex_opus",
       "extensions/med_ex_rtc",
       "tools/maintainer"
     ],
+    "external_projects": [],
+    "inventory_members": [],
     "selected_projects": [
+      "core/med_capture",
+      "core/med_core"
+    ],
+    "source_members": [
+      "core/med_capture",
+      "core/med_core"
+    ],
+    "verification_projects": [
       "."
     ],
     "violations": []
   },
   "manifest": {
-    "digest": "3c540ebb339b44e90d4bec6f1e05e421c9527c76902e1ac1af25bc592c476771",
+    "digest": "2b7fc6a50655e55bec01e8ecaa365ad8ae90b30a4e9e073020d96fa214034867",
     "path": "build_support/weld.exs"
   },
   "projection": {
+    "artifact_id": "043bd33599625f000ea9d6826179ca5b5a362148786cef30e284d080ceda69cf",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
-      "VERSION",
       "assets/med_ex.svg",
-      "build_support/boundary_check.exs",
-      "build_support/check_architecture.exs",
-      "build_support/check_architecture.sh",
-      "build_support/check_consumers.sh",
-      "build_support/check_vectors.py",
-      "build_support/consumer_smoke.exs",
-      "build_support/module_ownership.exs",
-      "build_support/weld.exs",
-      "core/med_capture/lib/med_ex/capture.ex",
-      "core/med_capture/lib/med_ex/preview.ex",
-      "core/med_capture/lib/med_ex/preview_provider.ex",
-      "core/med_capture/lib/med_ex/preview_session.ex",
-      "core/med_capture/lib/med_ex/rtc_provider.ex",
-      "core/med_capture/lib/med_ex/storage.ex",
-      "core/med_capture/lib/med_ex/storage/file.ex",
-      "core/med_capture/lib/med_ex/storage/journal.ex",
-      "core/med_capture/lib/med_ex/storage/objects.ex",
-      "core/med_capture/lib/med_ex/storage/records.ex",
-      "core/med_capture/lib/med_ex/stream_writer.ex",
-      "core/med_capture/lib/med_ex/wav.ex",
-      "core/med_capture/lib/med_ex/web.ex",
-      "core/med_capture/test/base_only_test.exs",
-      "core/med_capture/test/capture_test.exs",
-      "core/med_capture/test/storage_contract_test.exs",
-      "core/med_capture/test/stream_writer_test.exs",
-      "core/med_capture/test/test_helper.exs",
-      "core/med_capture/test/wav_test.exs",
-      "core/med_capture/test/web_test.exs",
-      "core/med_core/lib/med_ex/canonical_json.ex",
-      "core/med_core/lib/med_ex/capture/frame_rules.ex",
-      "core/med_core/lib/med_ex/clock_align.ex",
-      "core/med_core/lib/med_ex/contract.ex",
-      "core/med_core/lib/med_ex/contract_rules.ex",
-      "core/med_core/lib/med_ex/control_interlock.ex",
-      "core/med_core/lib/med_ex/evidence.ex",
-      "core/med_core/lib/med_ex/format/wav.ex",
-      "core/med_core/lib/med_ex/frame_fingerprint.ex",
-      "core/med_core/lib/med_ex/integrity_span.ex",
-      "core/med_core/lib/med_ex/measurement_event.ex",
-      "core/med_core/lib/med_ex/preview/clock.ex",
-      "core/med_core/lib/med_ex/sample_frame.ex",
-      "core/med_core/lib/med_ex/segment_ref.ex",
-      "core/med_core/lib/med_ex/serialization.ex",
-      "core/med_core/lib/med_ex/status_event.ex",
-      "core/med_core/lib/med_ex/stream_cursor.ex",
-      "core/med_core/lib/med_ex/stream_index.ex",
-      "core/med_core/lib/med_ex/stream_spec.ex",
-      "core/med_core/lib/med_ex/wire/control.ex",
-      "core/med_core/lib/med_ex/wire/frame_v1.ex",
-      "core/med_core/test/canonical_json_test.exs",
-      "core/med_core/test/clock_align_test.exs",
-      "core/med_core/test/contracts_test.exs",
-      "core/med_core/test/control_interlock_test.exs",
-      "core/med_core/test/control_wire_test.exs",
-      "core/med_core/test/fixtures/wire/metadata.mej1",
-      "core/med_core/test/fixtures/wire/mex1_waveform.bin",
-      "core/med_core/test/fixtures/wire/reference_vectors.json",
-      "core/med_core/test/frame_properties_test.exs",
-      "core/med_core/test/frame_rules_test.exs",
-      "core/med_core/test/preview_clock_test.exs",
-      "core/med_core/test/semantic_vectors_test.exs",
-      "core/med_core/test/stream_cursor_test.exs",
-      "core/med_core/test/test_helper.exs",
-      "core/med_core/test/wire_frame_v1_test.exs",
+      "components/core/med_capture/lib/med_ex/capture.ex",
+      "components/core/med_capture/lib/med_ex/preview.ex",
+      "components/core/med_capture/lib/med_ex/preview_provider.ex",
+      "components/core/med_capture/lib/med_ex/preview_session.ex",
+      "components/core/med_capture/lib/med_ex/rtc_provider.ex",
+      "components/core/med_capture/lib/med_ex/storage.ex",
+      "components/core/med_capture/lib/med_ex/storage/file.ex",
+      "components/core/med_capture/lib/med_ex/storage/journal.ex",
+      "components/core/med_capture/lib/med_ex/storage/objects.ex",
+      "components/core/med_capture/lib/med_ex/storage/records.ex",
+      "components/core/med_capture/lib/med_ex/stream_writer.ex",
+      "components/core/med_capture/lib/med_ex/wav.ex",
+      "components/core/med_capture/lib/med_ex/web.ex",
+      "components/core/med_capture/test/base_only_test.exs",
+      "components/core/med_capture/test/capture_test.exs",
+      "components/core/med_capture/test/storage_contract_test.exs",
+      "components/core/med_capture/test/stream_writer_test.exs",
+      "components/core/med_capture/test/test_helper.exs",
+      "components/core/med_capture/test/wav_test.exs",
+      "components/core/med_capture/test/web_test.exs",
+      "components/core/med_core/lib/med_ex/canonical_json.ex",
+      "components/core/med_core/lib/med_ex/capture/frame_rules.ex",
+      "components/core/med_core/lib/med_ex/clock_align.ex",
+      "components/core/med_core/lib/med_ex/contract.ex",
+      "components/core/med_core/lib/med_ex/contract_rules.ex",
+      "components/core/med_core/lib/med_ex/control_interlock.ex",
+      "components/core/med_core/lib/med_ex/evidence.ex",
+      "components/core/med_core/lib/med_ex/format/wav.ex",
+      "components/core/med_core/lib/med_ex/frame_fingerprint.ex",
+      "components/core/med_core/lib/med_ex/integrity_span.ex",
+      "components/core/med_core/lib/med_ex/measurement_event.ex",
+      "components/core/med_core/lib/med_ex/preview/clock.ex",
+      "components/core/med_core/lib/med_ex/sample_frame.ex",
+      "components/core/med_core/lib/med_ex/segment_ref.ex",
+      "components/core/med_core/lib/med_ex/serialization.ex",
+      "components/core/med_core/lib/med_ex/status_event.ex",
+      "components/core/med_core/lib/med_ex/stream_cursor.ex",
+      "components/core/med_core/lib/med_ex/stream_index.ex",
+      "components/core/med_core/lib/med_ex/stream_spec.ex",
+      "components/core/med_core/lib/med_ex/wire/control.ex",
+      "components/core/med_core/lib/med_ex/wire/frame_v1.ex",
+      "components/core/med_core/test/canonical_json_test.exs",
+      "components/core/med_core/test/clock_align_test.exs",
+      "components/core/med_core/test/contracts_test.exs",
+      "components/core/med_core/test/control_interlock_test.exs",
+      "components/core/med_core/test/control_wire_test.exs",
+      "components/core/med_core/test/fixtures/wire/metadata.mej1",
+      "components/core/med_core/test/fixtures/wire/mex1_waveform.bin",
+      "components/core/med_core/test/fixtures/wire/reference_vectors.json",
+      "components/core/med_core/test/frame_properties_test.exs",
+      "components/core/med_core/test/frame_rules_test.exs",
+      "components/core/med_core/test/preview_clock_test.exs",
+      "components/core/med_core/test/semantic_vectors_test.exs",
+      "components/core/med_core/test/stream_cursor_test.exs",
+      "components/core/med_core/test/test_helper.exs",
+      "components/core/med_core/test/wire_frame_v1_test.exs",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
       "guides/architecture_and_roadmap.md",
       "guides/history/med_rtc_changelog.md",
       "guides/host_integration.md",
@@ -114,37 +139,653 @@
       "guides/source_development.md",
       "guides/stream_recording.md",
       "mix.exs",
-      "mix.lock",
       "priv/static/med_web/pcm_capture.js",
       "priv/static/med_web/pcm_worklet.js",
       "priv/static/med_web/session_hook.js",
-      "test/architecture/boundary_test.exs",
-      "test/pcm_capture_test.mjs",
-      "test/pcm_worklet_test.mjs",
-      "test/test_helper.exs"
+      "test/artifact_1/sdk_test.exs",
+      "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "6e69605f256925ea2f7e03a377fca9ad5bc6bce0",
+    "git_revision": "8a07eedcba83fca7ea37b675df2021af4ee433ff",
+    "linked_files": [],
     "package_files": [
-      "mix.exs",
-      "mix.lock",
-      "VERSION",
+      ".formatter.exs",
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
-      "CHANGELOG.md",
-      ".formatter.exs",
       "assets",
-      "guides",
-      "priv",
-      "test",
-      "core/med_core/lib",
-      "core/med_core/test",
-      "core/med_capture/lib",
-      "core/med_capture/test",
-      "build_support"
+      "components/core/med_capture/lib",
+      "components/core/med_core/lib",
+      "config",
+      "guides/architecture_and_roadmap.md",
+      "guides/history/med_rtc_changelog.md",
+      "guides/host_integration.md",
+      "guides/product_horizon.md",
+      "guides/source_development.md",
+      "guides/stream_recording.md",
+      "mix.exs",
+      "priv"
     ],
-    "tree_digest": "386da9530a4876e0e7bd5d1d88c41d60b63367b550cc9cb9dd5ea7cb2e238a19"
+    "tree_digest": "03cae60bd78ae705c311a97dd1cb22769c74353777183dd94730c5f9e0a65614",
+    "verification_files": [
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/med_ex.svg",
+      "components/core/med_capture/lib/med_ex/capture.ex",
+      "components/core/med_capture/lib/med_ex/preview.ex",
+      "components/core/med_capture/lib/med_ex/preview_provider.ex",
+      "components/core/med_capture/lib/med_ex/preview_session.ex",
+      "components/core/med_capture/lib/med_ex/rtc_provider.ex",
+      "components/core/med_capture/lib/med_ex/storage.ex",
+      "components/core/med_capture/lib/med_ex/storage/file.ex",
+      "components/core/med_capture/lib/med_ex/storage/journal.ex",
+      "components/core/med_capture/lib/med_ex/storage/objects.ex",
+      "components/core/med_capture/lib/med_ex/storage/records.ex",
+      "components/core/med_capture/lib/med_ex/stream_writer.ex",
+      "components/core/med_capture/lib/med_ex/wav.ex",
+      "components/core/med_capture/lib/med_ex/web.ex",
+      "components/core/med_capture/test/base_only_test.exs",
+      "components/core/med_capture/test/capture_test.exs",
+      "components/core/med_capture/test/storage_contract_test.exs",
+      "components/core/med_capture/test/stream_writer_test.exs",
+      "components/core/med_capture/test/test_helper.exs",
+      "components/core/med_capture/test/wav_test.exs",
+      "components/core/med_capture/test/web_test.exs",
+      "components/core/med_core/lib/med_ex/canonical_json.ex",
+      "components/core/med_core/lib/med_ex/capture/frame_rules.ex",
+      "components/core/med_core/lib/med_ex/clock_align.ex",
+      "components/core/med_core/lib/med_ex/contract.ex",
+      "components/core/med_core/lib/med_ex/contract_rules.ex",
+      "components/core/med_core/lib/med_ex/control_interlock.ex",
+      "components/core/med_core/lib/med_ex/evidence.ex",
+      "components/core/med_core/lib/med_ex/format/wav.ex",
+      "components/core/med_core/lib/med_ex/frame_fingerprint.ex",
+      "components/core/med_core/lib/med_ex/integrity_span.ex",
+      "components/core/med_core/lib/med_ex/measurement_event.ex",
+      "components/core/med_core/lib/med_ex/preview/clock.ex",
+      "components/core/med_core/lib/med_ex/sample_frame.ex",
+      "components/core/med_core/lib/med_ex/segment_ref.ex",
+      "components/core/med_core/lib/med_ex/serialization.ex",
+      "components/core/med_core/lib/med_ex/status_event.ex",
+      "components/core/med_core/lib/med_ex/stream_cursor.ex",
+      "components/core/med_core/lib/med_ex/stream_index.ex",
+      "components/core/med_core/lib/med_ex/stream_spec.ex",
+      "components/core/med_core/lib/med_ex/wire/control.ex",
+      "components/core/med_core/lib/med_ex/wire/frame_v1.ex",
+      "components/core/med_core/test/canonical_json_test.exs",
+      "components/core/med_core/test/clock_align_test.exs",
+      "components/core/med_core/test/contracts_test.exs",
+      "components/core/med_core/test/control_interlock_test.exs",
+      "components/core/med_core/test/control_wire_test.exs",
+      "components/core/med_core/test/fixtures/wire/metadata.mej1",
+      "components/core/med_core/test/fixtures/wire/mex1_waveform.bin",
+      "components/core/med_core/test/fixtures/wire/reference_vectors.json",
+      "components/core/med_core/test/frame_properties_test.exs",
+      "components/core/med_core/test/frame_rules_test.exs",
+      "components/core/med_core/test/preview_clock_test.exs",
+      "components/core/med_core/test/semantic_vectors_test.exs",
+      "components/core/med_core/test/stream_cursor_test.exs",
+      "components/core/med_core/test/test_helper.exs",
+      "components/core/med_core/test/wire_frame_v1_test.exs",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
+      "guides/architecture_and_roadmap.md",
+      "guides/history/med_rtc_changelog.md",
+      "guides/host_integration.md",
+      "guides/product_horizon.md",
+      "guides/source_development.md",
+      "guides/stream_recording.md",
+      "mix.exs",
+      "priv/static/med_web/pcm_capture.js",
+      "priv/static/med_web/pcm_worklet.js",
+      "priv/static/med_web/session_hook.js",
+      "test/artifact_1/sdk_test.exs",
+      "test/artifact_1/test_helper.exs"
+    ],
+    "verification_input_identity": "d2afb36c1e00dae96063904e517441888be437847e95342600a9e300626f8175"
+  },
+  "source": {
+    "inventory": [
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": ".",
+        "source": ".formatter.exs",
+        "target": ".formatter.exs"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "CHANGELOG.md",
+        "target": "CHANGELOG.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "LICENSE",
+        "target": "LICENSE"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "README.md",
+        "target": "README.md"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": ".",
+        "source": "assets/med_ex.svg",
+        "target": "assets/med_ex.svg"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/capture.ex",
+        "target": "components/core/med_capture/lib/med_ex/capture.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/preview.ex",
+        "target": "components/core/med_capture/lib/med_ex/preview.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/preview_provider.ex",
+        "target": "components/core/med_capture/lib/med_ex/preview_provider.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/preview_session.ex",
+        "target": "components/core/med_capture/lib/med_ex/preview_session.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/rtc_provider.ex",
+        "target": "components/core/med_capture/lib/med_ex/rtc_provider.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/storage.ex",
+        "target": "components/core/med_capture/lib/med_ex/storage.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/storage/file.ex",
+        "target": "components/core/med_capture/lib/med_ex/storage/file.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/storage/journal.ex",
+        "target": "components/core/med_capture/lib/med_ex/storage/journal.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/storage/objects.ex",
+        "target": "components/core/med_capture/lib/med_ex/storage/objects.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/storage/records.ex",
+        "target": "components/core/med_capture/lib/med_ex/storage/records.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/stream_writer.ex",
+        "target": "components/core/med_capture/lib/med_ex/stream_writer.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/wav.ex",
+        "target": "components/core/med_capture/lib/med_ex/wav.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/lib/med_ex/web.ex",
+        "target": "components/core/med_capture/lib/med_ex/web.ex"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/base_only_test.exs",
+        "target": "components/core/med_capture/test/base_only_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/capture_test.exs",
+        "target": "components/core/med_capture/test/capture_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/storage_contract_test.exs",
+        "target": "components/core/med_capture/test/storage_contract_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/stream_writer_test.exs",
+        "target": "components/core/med_capture/test/stream_writer_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/test_helper.exs",
+        "target": "components/core/med_capture/test/test_helper.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/wav_test.exs",
+        "target": "components/core/med_capture/test/wav_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/web_test.exs",
+        "target": "components/core/med_capture/test/web_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/canonical_json.ex",
+        "target": "components/core/med_core/lib/med_ex/canonical_json.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/capture/frame_rules.ex",
+        "target": "components/core/med_core/lib/med_ex/capture/frame_rules.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/clock_align.ex",
+        "target": "components/core/med_core/lib/med_ex/clock_align.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/contract.ex",
+        "target": "components/core/med_core/lib/med_ex/contract.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/contract_rules.ex",
+        "target": "components/core/med_core/lib/med_ex/contract_rules.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/control_interlock.ex",
+        "target": "components/core/med_core/lib/med_ex/control_interlock.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/evidence.ex",
+        "target": "components/core/med_core/lib/med_ex/evidence.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/format/wav.ex",
+        "target": "components/core/med_core/lib/med_ex/format/wav.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/frame_fingerprint.ex",
+        "target": "components/core/med_core/lib/med_ex/frame_fingerprint.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/integrity_span.ex",
+        "target": "components/core/med_core/lib/med_ex/integrity_span.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/measurement_event.ex",
+        "target": "components/core/med_core/lib/med_ex/measurement_event.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/preview/clock.ex",
+        "target": "components/core/med_core/lib/med_ex/preview/clock.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/sample_frame.ex",
+        "target": "components/core/med_core/lib/med_ex/sample_frame.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/segment_ref.ex",
+        "target": "components/core/med_core/lib/med_ex/segment_ref.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/serialization.ex",
+        "target": "components/core/med_core/lib/med_ex/serialization.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/status_event.ex",
+        "target": "components/core/med_core/lib/med_ex/status_event.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/stream_cursor.ex",
+        "target": "components/core/med_core/lib/med_ex/stream_cursor.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/stream_index.ex",
+        "target": "components/core/med_core/lib/med_ex/stream_index.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/stream_spec.ex",
+        "target": "components/core/med_core/lib/med_ex/stream_spec.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/wire/control.ex",
+        "target": "components/core/med_core/lib/med_ex/wire/control.ex"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "core/med_core",
+        "source": "core/med_core/lib/med_ex/wire/frame_v1.ex",
+        "target": "components/core/med_core/lib/med_ex/wire/frame_v1.ex"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/canonical_json_test.exs",
+        "target": "components/core/med_core/test/canonical_json_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/clock_align_test.exs",
+        "target": "components/core/med_core/test/clock_align_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/contracts_test.exs",
+        "target": "components/core/med_core/test/contracts_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/control_interlock_test.exs",
+        "target": "components/core/med_core/test/control_interlock_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/control_wire_test.exs",
+        "target": "components/core/med_core/test/control_wire_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/fixtures/wire/metadata.mej1",
+        "target": "components/core/med_core/test/fixtures/wire/metadata.mej1"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/fixtures/wire/mex1_waveform.bin",
+        "target": "components/core/med_core/test/fixtures/wire/mex1_waveform.bin"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/fixtures/wire/reference_vectors.json",
+        "target": "components/core/med_core/test/fixtures/wire/reference_vectors.json"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/frame_properties_test.exs",
+        "target": "components/core/med_core/test/frame_properties_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/frame_rules_test.exs",
+        "target": "components/core/med_core/test/frame_rules_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/preview_clock_test.exs",
+        "target": "components/core/med_core/test/preview_clock_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/semantic_vectors_test.exs",
+        "target": "components/core/med_core/test/semantic_vectors_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/stream_cursor_test.exs",
+        "target": "components/core/med_core/test/stream_cursor_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/test_helper.exs",
+        "target": "components/core/med_core/test/test_helper.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
+        "source": "core/med_core/test/wire_frame_v1_test.exs",
+        "target": "components/core/med_core/test/wire_frame_v1_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/architecture_and_roadmap.md",
+        "target": "guides/architecture_and_roadmap.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/history/med_rtc_changelog.md",
+        "target": "guides/history/med_rtc_changelog.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/host_integration.md",
+        "target": "guides/host_integration.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/product_horizon.md",
+        "target": "guides/product_horizon.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/source_development.md",
+        "target": "guides/source_development.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/stream_recording.md",
+        "target": "guides/stream_recording.md"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": ".",
+        "source": "priv/static/med_web/pcm_capture.js",
+        "target": "priv/static/med_web/pcm_capture.js"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": ".",
+        "source": "priv/static/med_web/pcm_worklet.js",
+        "target": "priv/static/med_web/pcm_worklet.js"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": ".",
+        "source": "priv/static/med_web/session_hook.js",
+        "target": "priv/static/med_web/session_hook.js"
+      },
+      {
+        "directory": false,
+        "kind": "artifact_test",
+        "owner": ".",
+        "source": "test/projection/sdk_test.exs",
+        "target": "test/artifact_1/sdk_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "artifact_test",
+        "owner": ".",
+        "source": "test/projection/test_helper.exs",
+        "target": "test/artifact_1/test_helper.exs"
+      }
+    ],
+    "output_inventory": [],
+    "structural_inputs": [
+      "VERSION",
+      "build_support/composition.exs",
+      "core/med_capture/mix.exs",
+      "core/med_capture/mix.lock",
+      "core/med_core/mix.exs",
+      "core/med_core/mix.lock",
+      "mix.exs",
+      "mix.lock"
+    ],
+    "target_basis": "projection"
   },
   "verification": [
+    {
+      "env": "test",
+      "project_test_counts": [
+        {
+          "app": "med_capture",
+          "project_id": "core/med_capture",
+          "test_count": 22
+        },
+        {
+          "app": "med_core",
+          "project_id": "core/med_core",
+          "test_count": 32
+        }
+      ],
+      "status": "ok",
+      "task": "selected_tests_baseline",
+      "test_count": 54
+    },
     {
       "env": "dev",
       "status": "ok",
@@ -162,10 +803,15 @@
     },
     {
       "env": "test",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "test",
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 57
+      "test_count": 55
     },
     {
       "env": "dev",

@@ -1,5 +1,11 @@
 defmodule MedEx.StreamWriterTest do
   use ExUnit.Case, async: true
+
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   alias MedEx.{IntegritySpan, SampleFrame, Serialization, StreamSpec, StreamWriter}
   alias MedEx.Storage.File, as: Store
   @moduletag :tmp_dir

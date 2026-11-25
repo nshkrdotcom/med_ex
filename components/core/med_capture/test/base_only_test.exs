@@ -1,5 +1,11 @@
 defmodule MedEx.BaseOnlyTest do
   use ExUnit.Case, async: true
+
+  setup context do
+    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   @tag :tmp_dir
   test "no installed encoder is needed for canonical evidence", %{tmp_dir: dir} do
     {:ok, pid} =
