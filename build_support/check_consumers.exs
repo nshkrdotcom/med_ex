@@ -1142,8 +1142,7 @@ defmodule MedEx.ConsumerCheck do
   defp verify_requirements!(app, version, requirements) do
     base = requirements["med_ex"] || %{}
 
-    %{major: major, minor: minor} = Version.parse!(version)
-    family = "~> #{major}.#{minor}.0"
+    family = provider_base_requirement(version)
 
     unless base["app"] == "med_ex" and base["requirement"] == family and
              Version.match?(version, family) and base["optional"] == false and
@@ -1160,6 +1159,11 @@ defmodule MedEx.ConsumerCheck do
            end) do
       raise "Unexpected or non-Hex dependency in #{app} metadata"
     end
+  end
+
+  defp provider_base_requirement(version) do
+    %{major: major, minor: minor} = Version.parse!(version)
+    "~> #{major}.#{minor}.0"
   end
 
   defp verify_package_files!(app, files) do
@@ -1400,7 +1404,8 @@ defmodule MedEx.ConsumerCheck do
         mix_env = [{"MIX_ENV", "test"} | Enum.map(@mix_paths, &{&1, nil})] ++ env
         output = command!(legacy_ctx, "reject", "mix", ["deps.get"], work, mix_env, :failure)
 
-        unless output =~ "med_ex" and output =~ "0.1.0" and output =~ "~> #{ctx.version}" and
+        unless output =~ "med_ex" and output =~ "0.1.0" and
+                 output =~ provider_base_requirement(ctx.version) and
                  output =~ ~r/version solving failed/i do
           raise "Expected the registry solver to reject the incompatible legacy base requirement"
         end
