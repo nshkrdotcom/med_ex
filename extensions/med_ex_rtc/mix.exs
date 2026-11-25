@@ -13,6 +13,8 @@ defmodule MedExRTC.MixProject do
         {:med_ex, "~> 0.2.0"},
         {:ex_webrtc, "~> 0.18.0"},
         {:ex_rtp, "~> 0.4"},
+        {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+        {:dialyxir, "~> 1.4", only: :dev, runtime: false},
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
       ],
       description: "Optional WebRTC and RTP provider for MedEx",
@@ -28,7 +30,7 @@ defmodule MedExRTC.MixProject do
         groups_for_extras: [Release: ["CHANGELOG.md", "LICENSE"]]
       ],
       package: [
-        files: ~w(mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
+        files: ~w(.formatter.exs mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
         licenses: ["MIT"],
         links: %{"Source" => @source}
       ]
