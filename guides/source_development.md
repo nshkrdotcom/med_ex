@@ -9,7 +9,7 @@ for maintainers and stays outside all three package dependencies.
 
 ## Choose a transport
 
-The unreleased 0.2.0 family implements contract revision 1
+The 0.2.0 family implements contract revision 1
 (`MedEx.Contract.api_revision() == 1`). The published 0.1.0 package provides
 the original browser WAV and preview contract. Use a 0.2.0 source for hosts
 that depend on streams, journal receipts or the separate providers.
@@ -86,10 +86,8 @@ Install a C toolchain and the platform prerequisites for the profile you use.
 
 ## Build and check the artifacts
 
-Weld 0.16.0 is a maintainer dependency. Until that release is available, run the
-following Mix tasks from the local candidate Weld checkout with the absolute
-MedEx manifest path. With the published Weld available, run them from
-`tools/maintainer` using the relative manifest path below.
+The maintainer project uses Weld 0.17.0 from Hex. Run the following Mix tasks
+from `tools/maintainer` using the relative manifest path below.
 
 ```sh
 cd tools/maintainer
@@ -214,4 +212,4 @@ Full qualification expects MedEx at the verified remote revision and Fabric
 at the corresponding pin. Use `--gate medex-matrix` to qualify the local
 artifact and consumer gates before the MedEx push. See `--help` for strict
 and cache-controlled runs. The official maintainer lock continues to resolve
-published Weld 0.16.0.
+published Weld 0.17.0.

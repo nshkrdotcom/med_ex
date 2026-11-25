@@ -41,13 +41,16 @@ declaration. Consumers choose `:med_ex` and add the independently installable
 
 ## Installation And Dependency Consumption
 
-The source checkout is the unreleased `0.2.0` SDK with contract revision 1
-and separate media providers. The published `0.1.0` package has the original
+The `0.2.0` SDK implements contract revision 1 and uses separate media
+providers. The `0.1.0` package has the original
 browser WAV capture and preview API. [Hex package history](https://hex.pm/packages/med_ex)
 
 Consumers use standard Mix dependencies and never need `Weld` installed:
 
 ```elixir
+# Hex, once 0.2.0 is available (headless base SDK)
+{:med_ex, "~> 0.2.0"}
+
 # Local source checkout (headless base SDK)
 {:med_ex, "~> 0.2.0", path: "../med_ex"}
 
