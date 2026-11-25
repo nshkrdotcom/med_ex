@@ -55,7 +55,7 @@ The sections below cover everything a Phoenix or Elixir host needs to capture in
 Enable in-VM browser preview media by adding the `:med_ex_opus` and `:med_ex_rtc` extension packages to the host and configuring `:med_ex, :preview_provider` (`MedEx.Opus.Provider`) and `:med_ex, :rtc_provider` (`MedEx.RTC.Provider`). Set `:rtc_provider` before opening any peer; `MedEx.Preview` caches the first configured provider for the VM lifetime. In a headless base-only build, `MedEx.Capture.subscribe/1` returns `{:error, :preview_unavailable}` and `MedEx.Preview.answer/2` returns `{:error, :rtc_unavailable}`, while lossless WAV recording remains available.
 
 Choose one compatible base source for both extensions when developing against
-the unreleased SDK. [Consumption, Extensions, and Verification](source_development.md)
+a checkout or Git revision. [Consumption, Extensions, and Verification](source_development.md)
 
 ### Prerequisites
 

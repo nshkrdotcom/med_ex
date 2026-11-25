@@ -9,7 +9,7 @@ for maintainers and stays outside all three package dependencies.
 
 ## Choose a transport
 
-The unreleased 0.2.0 family implements contract revision 1
+The 0.2.0 family implements contract revision 1
 (`MedEx.Contract.api_revision() == 1`). The published 0.1.0 package provides
 the original browser WAV and preview contract. Use a 0.2.0 source for hosts
 that depend on streams, journal receipts or the separate providers.

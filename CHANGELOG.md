@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 — 2026-11-24
+
+The base SDK covers stream recording and browser WAV capture. Hosts that use
+live Opus preview or WebRTC peer negotiation also install the corresponding
+provider packages. See the [host integration guide](guides/host_integration.md)
+for provider configuration.
 
 - Drive direct Mix compilation and the graph-composed base package from a
   shared component declaration. Generate separate live and full views for

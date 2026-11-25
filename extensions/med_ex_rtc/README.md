@@ -12,8 +12,8 @@ The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.2.0`.
 Install C build tools, pkg-config and OpenSSL development headers for the
 ExWebRTC DTLS and SRTP dependencies.
 
-MedEx 0.2.0 is unreleased. For the checkout, choose the base and this package in
-the host's Mix dependencies. Use the [source development guide][sources] for
+When using a checkout, choose compatible base and provider sources in the
+host's Mix dependencies. Use the [source development guide][sources] for
 the exact declarations and [host integration guide][integration] for
 configuration and process isolation.
 

@@ -13,8 +13,8 @@ Install a C compiler and native build tools for the Membrane Opus plugin.
 On supported Linux and macOS targets the plugin can use precompiled libopus.
 For a source build, install the libopus development headers and libraries.
 
-MedEx 0.2.0 is unreleased. For the checkout, choose the base and this package in
-the host's Mix dependencies. Use the [source development guide][sources] for
+When using a checkout, choose compatible base and provider sources in the
+host's Mix dependencies. Use the [source development guide][sources] for
 the exact declarations and [host integration guide][integration] for
 configuration and process isolation.
 
