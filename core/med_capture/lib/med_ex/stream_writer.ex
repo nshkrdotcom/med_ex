@@ -99,9 +99,13 @@ defmodule MedEx.StreamWriter do
   defp limits(list) when is_list(list), do: limits(Map.new(list))
 
   defp limits(map) when is_map(map) do
-    if Enum.all?(map, fn {key, value} ->
-         Map.has_key?(@defaults, key) and is_integer(value) and
-           value in 1..Map.fetch!(@defaults, key)
+    if Enum.all?(map, fn
+         {:checkpoint_ms, :manual} ->
+           true
+
+         {key, value} ->
+           Map.has_key?(@defaults, key) and is_integer(value) and
+             value in 1..Map.fetch!(@defaults, key)
        end) do
       {:ok, Map.merge(@defaults, map)}
     else
@@ -261,6 +265,8 @@ defmodule MedEx.StreamWriter do
         failure
     end
   end
+
+  defp arm_timer(%{limits: %{checkpoint_ms: :manual}} = s), do: s
 
   defp arm_timer(%{timer: nil} = s) do
     token = make_ref()

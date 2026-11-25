@@ -292,4 +292,25 @@ defmodule MedEx.StreamWriterTest do
     assert_receive {:slow_result, {:ok, %{durable_sample: 2}}}
     assert {:ok, _} = StreamWriter.interrupt(other, :disconnected)
   end
+
+  test "manual checkpoint mode disables timer flushes and commits only on explicit owner calls",
+       %{
+         tmp_dir: dir
+       } do
+    {:ok, w} = start(dir, limits: %{checkpoint_ms: :manual})
+    assert {:ok, accepted} = StreamWriter.push(w, frame(0, 0))
+    assert accepted.accepted_sequence == 1
+    assert accepted.durable_sequence == 0
+    refute_receive {:med_ex_durable, ^w, _}, 350
+
+    assert {:ok, current} = StreamWriter.receipt(w)
+    assert current.durable_sequence == 0
+
+    assert {:ok, durable} = StreamWriter.checkpoint(w)
+    assert durable.durable_sequence == 1
+    assert durable.durable_sample == 2
+
+    assert {:ok, index} = StreamWriter.finish(w)
+    assert index.next_sequence == 1
+  end
 end
