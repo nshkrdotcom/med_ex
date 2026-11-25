@@ -6,6 +6,10 @@ sha=$(git -C "$sdk" rev-parse HEAD)
 apps=(med_ex med_ex_opus med_ex_rtc)
 export MF_SOURCE_QC_CACHE=${2:?Provide a private source-lane cache directory}
 mkdir -p "$MF_SOURCE_QC_CACHE"
+registry_locks=()
+for lock in "$fabric"/apps/*/mix.lock "$fabric"/core/*/mix.lock; do
+  registry_locks+=(--registry-lock "$lock")
+done
 for transport in direct live full prepared git registry; do
   entries='{}'
   for app in "${apps[@]}"; do
@@ -32,7 +36,7 @@ for transport in direct live full prepared git registry; do
   done
   printf 'Fabric source lane %s\n' "$transport"
   if [[ "$transport" == registry ]]; then
-    MED_EX_SOURCE="$entries" "$sdk/build_support/check_consumers.sh" --registry --prepared-packages -- "$fabric/ops/qc_fabric_sources.sh"
+    MED_EX_SOURCE="$entries" "$sdk/build_support/check_consumers.sh" --registry --prepared-packages "${registry_locks[@]}" -- "$fabric/ops/qc_fabric_sources.sh"
   else
     MED_EX_SOURCE="$entries" "$fabric/ops/qc_fabric_sources.sh"
   fi

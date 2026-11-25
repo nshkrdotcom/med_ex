@@ -80,8 +80,7 @@ defmodule MedEx.Build.EcosystemQC do
       repos: repos,
       jobs: jobs,
       evidence: Path.expand(evidence),
-      opts: opts,
-      bash: System.find_executable("bash") || raise("Bash is required")
+      opts: opts
     }
   end
 
@@ -418,7 +417,7 @@ defmodule MedEx.Build.EcosystemQC do
 
     Receipt.fingerprint({
       id,
-      Receipt.source(root),
+      source_scope(root, id, args),
       Receipt.toolchain(),
       revision,
       remote,
@@ -428,6 +427,34 @@ defmodule MedEx.Build.EcosystemQC do
       parents,
       Receipt.source(config.repos["med_ex"], ["build_support"])
     })
+  end
+
+  defp source_scope(root, id, args) do
+    if String.starts_with?(id, "fabric-") do
+      selector = Path.join(root, ".mix_sources.json")
+
+      unless File.lstat(selector) == {:error, :enoent} do
+        raise "Use a default Fabric checkout for ecosystem qualification"
+      end
+    end
+
+    paths =
+      case args do
+        ["bash", "-ec", _, "qc", project] ->
+          upstream =
+            case project do
+              "core/store" -> ~w(core/domain)
+              "apps/exam" -> ~w(core/domain core/store core/interop)
+              _ -> []
+            end
+
+          [project, "config", "VERSION", ".tool-versions" | upstream]
+
+        _ ->
+          []
+      end
+
+    Receipt.source(root, paths)
   end
 
   defp official_registry(hex) do
@@ -493,7 +520,7 @@ defmodule MedEx.Build.EcosystemQC do
     extras =
       case id do
         "medex-matrix" ->
-          pointer_outputs(config, id, "*.{json,log}")
+          pointer_outputs(config, id, "*.{json,log,pem}")
 
         "medex-prepare" ->
           Enum.flat_map(@apps, fn app ->
@@ -536,7 +563,7 @@ defmodule MedEx.Build.EcosystemQC do
 
   defp run_command!(config, args, root, log, started) do
     [program | argv] = args
-    executable = System.find_executable("timeout") || raise("timeout is required")
+    executable = Path.join(__DIR__, "qualification_command.sh")
 
     service =
       System.get_env() |> Map.keys() |> Enum.filter(&String.starts_with?(&1, ["MF_", "PG"]))
@@ -566,7 +593,7 @@ defmodule MedEx.Build.EcosystemQC do
               {String.to_charlist(key),
                if(value == false, do: false, else: String.to_charlist(value))}
             end),
-          args: ["--signal=TERM", "--kill-after=30s", "2400s", program | argv]
+          args: [program | argv]
         ])
 
       exit = read_command(port, file, started, started + 15_000)

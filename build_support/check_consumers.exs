@@ -28,6 +28,7 @@ defmodule MedEx.ConsumerCheck do
     jobs: :integer,
     release_extras: :string,
     registry: :boolean,
+    registry_lock: :keep,
     prepared_packages: :boolean,
     transport: :string,
     profile: :string,
@@ -67,6 +68,8 @@ defmodule MedEx.ConsumerCheck do
   --functional runs the canonical direct profiles and the base architecture/browser checks.
   --affected BASE selects downstream profiles and checks. Add --plan to inspect scope.
   Registry builds real packages and runs COMMAND with an isolated signed Hex repo.
+  Pass --prepared-packages to use verified CURRENT archives and repeat --registry-lock
+  PATH to include genuine third-party dependencies from consumer lockfiles.
   """
 
   def main(argv) do
@@ -115,10 +118,15 @@ defmodule MedEx.ConsumerCheck do
               do: prepared_archives!(ctx),
               else: build_family!(ctx, direct(), "registry")
 
-          with_registry(ctx, archives, fn env, _packages ->
-            [program | args] = command
-            IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
-          end)
+          with_registry(
+            ctx,
+            archives,
+            fn env, _packages ->
+              [program | args] = command
+              IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
+            end,
+            Keyword.get_values(opts, :registry_lock)
+          )
 
         opts[:release_extras] ->
           release_extras!(ctx, opts[:release_extras])
@@ -196,7 +204,7 @@ defmodule MedEx.ConsumerCheck do
                   Keyword.take(opts, [:affected, :optimized, :full, :strict_full, :resume]),
                   &elem(&1, 1)
                 )) and
-             (!opts[:prepared_packages] or opts[:registry] == true) and
+             (!(opts[:prepared_packages] || opts[:registry_lock]) or opts[:registry] == true) and
              opts[:registry] == true == (command != []) and
              is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
              (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
@@ -1302,12 +1310,9 @@ defmodule MedEx.ConsumerCheck do
           do: {to_string(package), version, repo, checksum}
 
     legacy =
-      if extra_lock do
-        for {_, {:hex, package, version, _, _, _, repo, checksum}} <- read_lock(extra_lock),
-            do: {to_string(package), version, repo, checksum}
-      else
-        []
-      end
+      for path <- List.wrap(extra_lock),
+          {_, {:hex, package, version, _, _, _, repo, checksum}} <- read_lock(path),
+          do: {to_string(package), version, repo, checksum}
 
     for {package, version, repo, checksum} <- Enum.uniq(packages ++ legacy) do
       unless repo == "hexpm" and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, package) and
