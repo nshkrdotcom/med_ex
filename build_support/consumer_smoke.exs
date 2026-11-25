@@ -12,7 +12,6 @@ defmodule ExternalDeviceDriverTest do
     profile = System.fetch_env!("SDK_PROFILE")
     transport = System.fetch_env!("SDK_TRANSPORT")
     source = System.fetch_env!("SDK_SOURCE_ROOT")
-    version = source |> Path.join("VERSION") |> File.read!() |> String.trim()
     dependency_projects = Mix.Project.deps_paths()
     deps = Map.keys(dependency_projects)
     opus? = profile in ["opus", "both"]
@@ -44,6 +43,11 @@ defmodule ExternalDeviceDriverTest do
     modules =
       for app <- apps, into: %{} do
         assert MapSet.member?(started, app)
+
+        source_dir =
+          if app == :med_ex, do: source, else: Path.join([source, "extensions", to_string(app)])
+
+        version = source_dir |> Path.join("VERSION") |> File.read!() |> String.trim()
         assert to_string(Application.spec(app, :vsn)) == version
         owned = Application.spec(app, :modules)
         assert is_list(owned) and owned != []

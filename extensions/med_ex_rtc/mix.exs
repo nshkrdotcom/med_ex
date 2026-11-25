@@ -16,9 +16,19 @@ defmodule MedExRTC.MixProject do
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
       ],
       description: "Optional WebRTC and RTP provider for MedEx",
-      docs: [main: "readme", extras: ["README.md"]],
+      docs: [
+        main: "readme",
+        logo: "assets/med_ex_rtc.svg",
+        assets: %{"assets" => "assets"},
+        extras: [
+          "README.md": [title: "Overview"],
+          "CHANGELOG.md": [title: "Changelog"],
+          LICENSE: [title: "License"]
+        ],
+        groups_for_extras: [Release: ["CHANGELOG.md", "LICENSE"]]
+      ],
       package: [
-        files: ~w(mix.exs VERSION LICENSE README.md lib),
+        files: ~w(mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
         licenses: ["MIT"],
         links: %{"Source" => @source}
       ]

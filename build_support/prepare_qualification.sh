@@ -11,7 +11,7 @@ manifest="$root/build_support/weld.exs"
 (
   cd "$invoker"
   mix deps.get --check-locked
-  mix run --no-start -e 'unless Weld.version() == "0.17.0", do: Mix.raise("Expected the official Weld lock")'
+  mix run --no-start -e 'unless Weld.version() == "0.17.1", do: Mix.raise("Expected the official Weld lock")'
   mix weld.setup "$manifest"
   for app in med_ex med_ex_opus med_ex_rtc; do
     mix weld.inspect "$manifest" --artifact "$app" --format json >/dev/null

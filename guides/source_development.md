@@ -23,7 +23,7 @@ that depend on streams, journal receipts or the separate providers.
 | Weld full path | `../med_ex/.weld/full/med_ex/project` | `../med_ex/.weld/full/<artifact>/project` |
 | Weld prepared path | `../med_ex/.weld/releases/med_ex/<identity>/project` | `../med_ex/.weld/releases/<artifact>/<identity>/project` |
 | Tracked projection snapshot | Exact revision on `projection/med_ex` | Exact revision on `projection/<artifact>` |
-| Hex, after the family is released | `{:med_ex, "~> 0.2.0"}` | `{:med_ex_opus, "~> 0.2.0"}` or `{:med_ex_rtc, "~> 0.2.0"}` |
+| Hex, after the family is released | `{:med_ex, "~> 0.2.0"}` | `{:med_ex_opus, "~> 0.1.0"}` or `{:med_ex_rtc, "~> 0.1.0"}` |
 
 Use ordinary Mix dependency declarations. A headless host needs only
 `{:med_ex, "~> 0.2.0", path: "../med_ex"}`. Before the 0.2.0 Hex release,
@@ -33,8 +33,8 @@ chosen source:
 ```elixir
 [
   {:med_ex, "~> 0.2.0", path: "../med_ex", override: true},
-  {:med_ex_opus, "~> 0.2.0", path: "../med_ex/extensions/med_ex_opus"},
-  {:med_ex_rtc, "~> 0.2.0", path: "../med_ex/extensions/med_ex_rtc"}
+  {:med_ex_opus, "~> 0.1.0", path: "../med_ex/extensions/med_ex_opus"},
+  {:med_ex_rtc, "~> 0.1.0", path: "../med_ex/extensions/med_ex_rtc"}
 ]
 ```
 
@@ -44,9 +44,9 @@ For Git, use the same exact reachable commit for the base and any extensions:
 ```elixir
 [
   {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit, override: true},
-  {:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+  {:med_ex_opus, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: commit,
    subdir: "extensions/med_ex_opus"},
-  {:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+  {:med_ex_rtc, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: commit,
    subdir: "extensions/med_ex_rtc"}
 ]
 ```
@@ -59,8 +59,8 @@ Opus and `:rtc_provider` for WebRTC.
 ## Work on an extension
 
 Each extension declares the normal Hex dependency `{:med_ex, "~> 0.2.0"}`
-and keeps its own `VERSION`. All three versions are coordinated. Release the
-base first when the packages are ready for distribution.
+and keeps its own `VERSION`. The first provider releases are 0.1.0 and
+require the published 0.2.0 base.
 
 For a local edit, run the real provider suites from fresh outer Mix consumers
 with the explicit path dependencies above:
@@ -86,7 +86,7 @@ Install a C toolchain and the platform prerequisites for the profile you use.
 
 ## Build and check the artifacts
 
-The maintainer project uses Weld 0.17.0 from Hex. Run the following Mix tasks
+The maintainer project uses Weld 0.17.1 from Hex. Run the following Mix tasks
 from `tools/maintainer` using the relative manifest path below.
 
 ```sh
@@ -126,6 +126,12 @@ Run `mix release.prepare` with the same manifest and artifact in that registry
 context to prepare portable projects from a clean committed source. Use
 `mix release.track` with the same manifest and artifact to record a prepared
 snapshot on its local projection branch.
+
+For the provider releases, verify and prepare against the public Hex base.
+From `tools/maintainer`, stage the verified provider with
+`mix release.stage ../../build_support/weld.exs --artifact med_ex_opus`
+or select `med_ex_rtc`. Run `mix hex.publish` from the printed
+`.weld/publish/` project directory.
 
 ## Repository checks
 
@@ -212,4 +218,4 @@ Full qualification expects MedEx at the verified remote revision and Fabric
 at the corresponding pin. Use `--gate medex-matrix` to qualify the local
 artifact and consumer gates before the MedEx push. See `--help` for strict
 and cache-controlled runs. The official maintainer lock continues to resolve
-published Weld 0.17.0.
+published Weld 0.17.1.

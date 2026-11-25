@@ -98,11 +98,18 @@ defmodule MedEx.ConsumerCheck do
 
     try do
       version = @repo |> Path.join("VERSION") |> File.read!() |> String.trim()
-      {:ok, _} = Version.parse(version)
+
+      versions =
+        Map.new(direct(), fn {app, opts} ->
+          value = opts[:path] |> Path.join("VERSION") |> File.read!() |> String.trim()
+          {:ok, _} = Version.parse(value)
+          {app, value}
+        end)
 
       ctx = %{
         stage: stage,
         version: version,
+        versions: versions,
         evidence: opts[:resume] || evidence_directory!(opts[:evidence]),
         hex_home: Path.join(stage, "official-hex"),
         git_url: opts[:git_url],
@@ -933,7 +940,7 @@ defmodule MedEx.ConsumerCheck do
       for app <- apps do
         options = Map.fetch!(specs, app)
         options = if app == :med_ex and override?, do: options ++ [override: true], else: options
-        requirement = Map.get(requirements, app, "~> #{ctx.version}")
+        requirement = Map.get(requirements, app, "~> #{ctx.versions[app]}")
         if options == [], do: {app, requirement}, else: {app, requirement, options}
       end
 
@@ -986,7 +993,7 @@ defmodule MedEx.ConsumerCheck do
     for app <- apps do
       case {Map.fetch!(specs, app), Map.get(lock, app)} do
         {[], {:hex, ^app, version, _, _, _, "hexpm", checksum}} ->
-          unless version == ctx.version and checksum == archives[app].sha256 do
+          unless version == ctx.versions[app] and checksum == archives[app].sha256 do
             raise "Registry resolution differs from the candidate tarball for #{app}"
           end
 
@@ -1013,7 +1020,7 @@ defmodule MedEx.ConsumerCheck do
 
     Map.new(@apps, fn app ->
       {project, integrity} = projection_path!(app, "prepared", revision)
-      name = "#{app}-#{ctx.version}.tar"
+      name = "#{app}-#{ctx.versions[app]}.tar"
       source = Path.join(Path.dirname(project), name)
       path = Path.join([ctx.stage, "packages", "prepared", to_string(app), name])
 
@@ -1030,7 +1037,7 @@ defmodule MedEx.ConsumerCheck do
     Map.new(@apps, fn app ->
       dir = Path.join([ctx.stage, "packages", label, to_string(app)])
       File.mkdir_p!(dir)
-      archive = Path.join(dir, "#{app}-#{ctx.version}.tar")
+      archive = Path.join(dir, "#{app}-#{ctx.versions[app]}.tar")
       source = specs[app][:path]
 
       mix!(
@@ -1061,7 +1068,7 @@ defmodule MedEx.ConsumerCheck do
     for key <- ~w(name app),
         do: unless(fields[key] == name, do: raise("Wrong Hex #{key} in #{archive}"))
 
-    unless fields["version"] == ctx.version, do: raise("Wrong Hex version in #{archive}")
+    unless fields["version"] == ctx.versions[app], do: raise("Wrong Hex version in #{archive}")
     verify_requirements!(app, ctx.version, requirements)
 
     gzip = Map.fetch!(entries, "contents.tar.gz")
@@ -1408,7 +1415,7 @@ defmodule MedEx.ConsumerCheck do
 
     for app <- @apps do
       unless Enum.filter(installed, &String.starts_with?(&1, "#{app}-")) == [
-               "#{app}-#{ctx.version}"
+               "#{app}-#{ctx.versions[app]}"
              ] do
         raise "Unexpected #{app} release application inventory"
       end

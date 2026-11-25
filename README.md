@@ -59,8 +59,8 @@ Consumers use standard Mix dependencies and never need `Weld` installed:
 
 # Optional live media extensions (from checkout or Git subdir; use override: true on :med_ex so extensions converge on your chosen base)
 {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
-{:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
-{:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
+{:med_ex_opus, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
+{:med_ex_rtc, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
 
 # Previously published 0.1.0 legacy browser WAV/preview package on Hex
 {:med_ex, "~> 0.1.0"}

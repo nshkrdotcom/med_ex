@@ -13,8 +13,6 @@ extension_artifacts =
     root = Path.join(__DIR__, "../" <> project)
     version = File.read!(Path.join(root, "VERSION")) |> String.trim()
 
-    unless version == base[:version], do: raise("#{app} VERSION must match the base VERSION")
-
     optional = Enum.filter(~w(mix.lock .formatter.exs), &File.regular?(Path.join(root, &1)))
 
     {app,
@@ -23,7 +21,7 @@ extension_artifacts =
        roots: [project],
        external_projects: ["."],
        source_project: [
-         files: ~w(mix.exs VERSION LICENSE README.md lib test) ++ optional,
+         files: ~w(mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib test) ++ optional,
          structural_inputs: ["VERSION"]
        ],
        package: [
