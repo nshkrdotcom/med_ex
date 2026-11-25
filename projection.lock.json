@@ -76,7 +76,7 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "86eecb3be1bd850e697486061959d22da81a8357",
+    "git_revision": "f73254f64648f95c2addb93e42cce36e4af20826",
     "linked_files": [],
     "package_files": [
       "LICENSE",
