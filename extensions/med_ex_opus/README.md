@@ -24,6 +24,21 @@ Install a C compiler and native build tools for the Membrane Opus plugin.
 On supported Linux and macOS targets the plugin can use precompiled libopus.
 For a source build, install the libopus development headers and libraries.
 
+## Encoding lifecycle
+
+For direct use, call `MedEx.Opus.Provider.start_link(owner: self())` from the
+process that will offer frames. Call `offer(pid, operation, sample_index, pcm)`
+with one 20 ms frame (960 samples, 1,920 bytes) and a nonnegative sample index
+on the 48 kHz clock. The provider accepts one frame at a time. An `:ok` reply
+means the frame was accepted. The owner receives
+`{:med_ex_encoded, operation, sample_index, opus}` when encoding finishes.
+`{:error, :busy}` means the encoder is starting or already has a frame in
+flight. Call `stop(pid)` when preview ends.
+
+This provider encodes audio for preview. For browser delivery, pair it with a
+WebRTC transport such as `med_ex_rtc`. Use MedEx capture or stream recording
+for the authoritative PCM.
+
 When using a checkout, choose compatible base and provider sources in the
 host's Mix dependencies. Use the [source development guide][sources] for
 the exact declarations and [host integration guide][integration] for
