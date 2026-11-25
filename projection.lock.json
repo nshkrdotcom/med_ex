@@ -145,7 +145,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "f73254f64648f95c2addb93e42cce36e4af20826",
+    "git_revision": "b016bcc453b5e0c38a17be51ae22aa6477cd3f7d",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
