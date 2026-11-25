@@ -4,14 +4,14 @@
     "package": {
       "name": "med_ex_opus",
       "otp_app": "med_ex_opus",
-      "version": "0.2.0"
+      "version": "0.1.0"
     }
   },
   "graph": {
     "dependency_projects": [
       "extensions/med_ex_opus"
     ],
-    "digest": "c4d830f9c723480d3fe4f0d5a8811827f838017a0b25c6e4b0e29fd6a64091bf",
+    "digest": "72c38379c84fa0cf200bd74662dcf247b94ddb31005803e7ff83b1a8c8b8c240",
     "edges": [
       {
         "app": "med_core",
@@ -57,16 +57,18 @@
     "violations": []
   },
   "manifest": {
-    "digest": "a444a797a10ea75c1b1cb8152c346abf9d11f5a3476470d12954485381194045",
+    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "cbfeabc19392504bdd44173bf148f4cde83f4a1bc1fe908bad7d498d590fdc32",
+    "artifact_id": "5e3666c73723fd63f9bb46a76607da0001bbfca91c36e6e4f0d179852d2b3fff",
     "build_path": ".weld/full/med_ex_opus/project",
     "copied_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets/med_ex_opus.svg",
       "lib/med_ex/opus/encoder.ex",
       "lib/med_ex/opus/provider.ex",
       "mix.exs",
@@ -76,12 +78,14 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "e3daef9a2e72558119c3307d75605062b297a76a",
+    "git_revision": "b6249b424340f8da3d47ba99b41798b0ec9cb802",
     "linked_files": [],
     "package_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets",
       "lib",
       "mix.exs"
     ],
@@ -90,13 +94,17 @@
       "VERSION",
       "LICENSE",
       "README.md",
+      "CHANGELOG.md",
+      "assets",
       "lib"
     ],
-    "tree_digest": "8f92b3dfad31194d834a6b130b4e215e211f324f6cd6b75a1b51a490fa32702a",
+    "tree_digest": "03155b5353c89ba0ae16c391bde14fae24615392c5dd8602efe7e6025a9fa5f9",
     "verification_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets/med_ex_opus.svg",
       "lib/med_ex/opus/encoder.ex",
       "lib/med_ex/opus/provider.ex",
       "mix.exs",
@@ -106,10 +114,17 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "f20df9715c04905716c4bea0a693250c2532dcaa867195b8ef3187ccf2c00900"
+    "verification_input_identity": "c313d0508cdda3fd4997c474afe277fddf12debff39d6888ac515eda79924cbd"
   },
   "source": {
     "inventory": [
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/CHANGELOG.md",
+        "target": "CHANGELOG.md"
+      },
       {
         "directory": false,
         "kind": "docs",
@@ -130,6 +145,13 @@
         "owner": "extensions/med_ex_opus",
         "source": "extensions/med_ex_opus/VERSION",
         "target": "VERSION"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/assets/med_ex_opus.svg",
+        "target": "assets/med_ex_opus.svg"
       },
       {
         "directory": false,
