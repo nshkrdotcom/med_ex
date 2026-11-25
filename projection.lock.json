@@ -1,0 +1,241 @@
+{
+  "artifact": {
+    "id": "med_ex_rtc",
+    "package": {
+      "name": "med_ex_rtc",
+      "otp_app": "med_ex_rtc",
+      "version": "0.2.0"
+    }
+  },
+  "graph": {
+    "dependency_projects": [
+      "extensions/med_ex_rtc"
+    ],
+    "digest": "1ffab4755826775febf6cc0c4753f14c8bee9fa6c5f266f2aa3621c03e394cdb",
+    "edges": [
+      {
+        "app": "med_core",
+        "externalized": false,
+        "from": "core/med_capture",
+        "kind": "runtime",
+        "requirement": null,
+        "to": "core/med_core"
+      },
+      {
+        "app": "med_ex",
+        "externalized": false,
+        "from": "extensions/med_ex_opus",
+        "kind": "runtime",
+        "requirement": "~> 0.2.0",
+        "to": "."
+      },
+      {
+        "app": "med_ex",
+        "externalized": true,
+        "from": "extensions/med_ex_rtc",
+        "kind": "runtime",
+        "requirement": "~> 0.2.0",
+        "to": "."
+      }
+    ],
+    "excluded_projects": [
+      ".",
+      "core/med_capture",
+      "core/med_core",
+      "extensions/med_ex_opus",
+      "tools/maintainer"
+    ],
+    "external_projects": [
+      "."
+    ],
+    "inventory_members": [],
+    "selected_projects": [
+      "extensions/med_ex_rtc"
+    ],
+    "source_members": [],
+    "verification_projects": [],
+    "violations": []
+  },
+  "manifest": {
+    "digest": "2b7fc6a50655e55bec01e8ecaa365ad8ae90b30a4e9e073020d96fa214034867",
+    "path": "build_support/weld.exs"
+  },
+  "projection": {
+    "artifact_id": "86785a52860df56a814221a61673a35083f0a1730cc10f5ff4bc0d581eba8fd8",
+    "build_path": ".weld/full/med_ex_rtc/project",
+    "copied_files": [
+      "LICENSE",
+      "README.md",
+      "VERSION",
+      "lib/med_ex/rtc/provider.ex",
+      "mix.exs",
+      "mix.lock",
+      "test/preview_test.exs",
+      "test/test_helper.exs"
+    ],
+    "git_revision": "8a07eedcba83fca7ea37b675df2021af4ee433ff",
+    "linked_files": [],
+    "package_files": [
+      "LICENSE",
+      "README.md",
+      "VERSION",
+      "lib",
+      "mix.exs"
+    ],
+    "package_patterns": [
+      "mix.exs",
+      "VERSION",
+      "LICENSE",
+      "README.md",
+      "lib"
+    ],
+    "tree_digest": "3717583043c78bb61ee2f8b4e5ce0445a9ffa8a6e30ddab108bf49345c27f2ae",
+    "verification_files": [
+      "LICENSE",
+      "README.md",
+      "VERSION",
+      "lib/med_ex/rtc/provider.ex",
+      "mix.exs",
+      "mix.lock",
+      "test/preview_test.exs",
+      "test/test_helper.exs"
+    ],
+    "verification_input_identity": "285f74d9e1010e76a49dd81ac49b845bc62106f571a60c49a3923b875f00546f"
+  },
+  "source": {
+    "inventory": [
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/LICENSE",
+        "target": "LICENSE"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/README.md",
+        "target": "README.md"
+      },
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/VERSION",
+        "target": "VERSION"
+      },
+      {
+        "directory": false,
+        "kind": "compiled",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/lib/med_ex/rtc/provider.ex",
+        "target": "lib/med_ex/rtc/provider.ex"
+      },
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/mix.exs",
+        "target": "mix.exs"
+      },
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/mix.lock",
+        "target": "mix.lock"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/test/preview_test.exs",
+        "target": "test/preview_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/test/test_helper.exs",
+        "target": "test/test_helper.exs"
+      }
+    ],
+    "output_inventory": [],
+    "structural_inputs": [
+      "extensions/med_ex_rtc/VERSION",
+      "extensions/med_ex_rtc/mix.exs",
+      "extensions/med_ex_rtc/mix.lock",
+      "mix.exs",
+      "mix.lock"
+    ],
+    "target_basis": "projection"
+  },
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "test",
+      "failure_count": 0,
+      "status": "ok",
+      "task": "test",
+      "test_count": 1
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "reason": "artifact_opted_out",
+      "status": "skipped",
+      "task": "hex.publish --dry-run --yes"
+    }
+  ],
+  "workspace": {
+    "discovery": {
+      "adapter": null,
+      "globs": [
+        "core/*",
+        "extensions/*",
+        "tools/*"
+      ],
+      "project_ids": [
+        ".",
+        "core/med_capture",
+        "core/med_core",
+        "extensions/med_ex_opus",
+        "extensions/med_ex_rtc",
+        "tools/maintainer"
+      ],
+      "root_project?": true,
+      "source": "manifest"
+    },
+    "project_count": 6,
+    "root": "."
+  }
+}
