@@ -61,7 +61,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "86785a52860df56a814221a61673a35083f0a1730cc10f5ff4bc0d581eba8fd8",
+    "artifact_id": "7ec58529ceec5e150707fad99b22382b428db10943d9e81279d2be9867a67b62",
     "build_path": ".weld/full/med_ex_rtc/project",
     "copied_files": [
       "LICENSE",
@@ -73,7 +73,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "b30d517305f93b84c94664bb0f9767c9aad23c29",
+    "git_revision": "86eecb3be1bd850e697486061959d22da81a8357",
     "linked_files": [],
     "package_files": [
       "LICENSE",
