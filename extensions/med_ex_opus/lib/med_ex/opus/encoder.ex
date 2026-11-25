@@ -8,7 +8,8 @@ defmodule MedEx.Opus.Encoder.Source do
   def handle_playing(_ctx, state) do
     {[
        stream_format:
-         {:output, %Membrane.RawAudio{sample_rate: 48_000, channels: 1, sample_format: :s16le}}
+         {:output, %Membrane.RawAudio{sample_rate: 48_000, channels: 1, sample_format: :s16le}},
+       notify_parent: :source_playing
      ], state}
   end
 
@@ -44,17 +45,16 @@ defmodule MedEx.Opus.Encoder do
   end
 
   @impl true
-  def handle_playing(_ctx, {owner, _} = state) do
-    send(owner, {:preview_ready, self()})
-    {[], state}
-  end
-
-  @impl true
   def handle_info({:pcm, index, pcm}, _ctx, {owner, nil}) do
     {[notify_child: {:source, {index, pcm}}], {owner, index}}
   end
 
   @impl true
+  def handle_child_notification(:source_playing, :source, _ctx, {owner, _} = state) do
+    send(owner, {:preview_ready, self()})
+    {[], state}
+  end
+
   def handle_child_notification(payload, :sink, _ctx, {owner, index}) do
     send(owner, {:preview_encoded, self(), index, payload})
     {[], {owner, nil}}

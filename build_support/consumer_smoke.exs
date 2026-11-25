@@ -106,7 +106,12 @@ defmodule ExternalDeviceDriverTest do
              ]}
           end)
 
-        specification = Application.spec(app)
+        specification =
+          app
+          |> Application.spec()
+          |> Keyword.drop([:description, :id])
+          |> Enum.sort()
+
         {app, %{beams: executable, application: hash(:erlang.term_to_binary(specification))}}
       end)
 
