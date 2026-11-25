@@ -61,7 +61,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "928876d5e92fd8e3aaf1a0eb6c2d16fecf43f9757b0286f2267e65ecaf87d0e6",
+    "artifact_id": "efea56d71491fb88226dd3fa437d3ad50248710d48642fd72e7e54187984416d",
     "build_path": ".weld/full/med_ex_opus/project",
     "copied_files": [
       "LICENSE",
@@ -76,7 +76,7 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "f73254f64648f95c2addb93e42cce36e4af20826",
+    "git_revision": "b016bcc453b5e0c38a17be51ae22aa6477cd3f7d",
     "linked_files": [],
     "package_files": [
       "LICENSE",
@@ -92,7 +92,7 @@
       "README.md",
       "lib"
     ],
-    "tree_digest": "bbd6316cf1e0b662098e324cf7c2bbff04ce753e14ee6a2ae930f8f94c2ae3ff",
+    "tree_digest": "05268d638910f7f922d262cddb07810ab2ef9f06ef8b7b7f5a9c072289238436",
     "verification_files": [
       "LICENSE",
       "README.md",
@@ -106,7 +106,7 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "1bfb7fb51cd12a4eb67f67d258cbf46e67b8dc0894093859d4e8a145bbac1c9d"
+    "verification_input_identity": "fe7a95e16e48c91c41e3f8340bcbad6e52676bec37b8eaebd8b682ee669a7401"
   },
   "source": {
     "inventory": [
