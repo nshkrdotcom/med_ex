@@ -4,14 +4,14 @@
     "package": {
       "name": "med_ex_rtc",
       "otp_app": "med_ex_rtc",
-      "version": "0.2.0"
+      "version": "0.1.0"
     }
   },
   "graph": {
     "dependency_projects": [
       "extensions/med_ex_rtc"
     ],
-    "digest": "1ffab4755826775febf6cc0c4753f14c8bee9fa6c5f266f2aa3621c03e394cdb",
+    "digest": "13184d51d25b83673cc599bb16547b279ab89070ecc195719c834c3eec0922f2",
     "edges": [
       {
         "app": "med_core",
@@ -57,28 +57,32 @@
     "violations": []
   },
   "manifest": {
-    "digest": "a444a797a10ea75c1b1cb8152c346abf9d11f5a3476470d12954485381194045",
+    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "63aa433888c400b259906639372afe064b869c912ce073700ac9fb1553304bc2",
+    "artifact_id": "de0e424f059a8d058be678641491b90c99214ced40bd3c7833a49a20237e3118",
     "build_path": ".weld/full/med_ex_rtc/project",
     "copied_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets/med_ex_rtc.svg",
       "lib/med_ex/rtc/provider.ex",
       "mix.exs",
       "mix.lock",
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "e3daef9a2e72558119c3307d75605062b297a76a",
+    "git_revision": "b6249b424340f8da3d47ba99b41798b0ec9cb802",
     "linked_files": [],
     "package_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets",
       "lib",
       "mix.exs"
     ],
@@ -87,23 +91,34 @@
       "VERSION",
       "LICENSE",
       "README.md",
+      "CHANGELOG.md",
+      "assets",
       "lib"
     ],
-    "tree_digest": "ebaac59cb62ce430979b1ea0fdb7c3940043106a27f80c619b22abbafaff87ea",
+    "tree_digest": "3cf74e10ba1fbcdb37621c8398fbe58b16b2d5f4bb98126b46fa6126d038998f",
     "verification_files": [
+      "CHANGELOG.md",
       "LICENSE",
       "README.md",
       "VERSION",
+      "assets/med_ex_rtc.svg",
       "lib/med_ex/rtc/provider.ex",
       "mix.exs",
       "mix.lock",
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "3d125bbf5de86fc8ce56cb17fc91dc1c3fa6ac96cf80a346a75164cfdf412e9c"
+    "verification_input_identity": "d51aa39a79afb139b55bc7487bb9dda098f2381ec17630184ba92a0ebb7c939f"
   },
   "source": {
     "inventory": [
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/CHANGELOG.md",
+        "target": "CHANGELOG.md"
+      },
       {
         "directory": false,
         "kind": "docs",
@@ -124,6 +139,13 @@
         "owner": "extensions/med_ex_rtc",
         "source": "extensions/med_ex_rtc/VERSION",
         "target": "VERSION"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/assets/med_ex_rtc.svg",
+        "target": "assets/med_ex_rtc.svg"
       },
       {
         "directory": false,
