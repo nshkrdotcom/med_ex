@@ -60,11 +60,11 @@
     "violations": []
   },
   "manifest": {
-    "digest": "2b7fc6a50655e55bec01e8ecaa365ad8ae90b30a4e9e073020d96fa214034867",
+    "digest": "a444a797a10ea75c1b1cb8152c346abf9d11f5a3476470d12954485381194045",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "3b0198a2cc7ba926368777761edcf57f16ee458fbb3b07b988b96cab065ffd19",
+    "artifact_id": "2704a35f11c6fa90b0918a9e746612940b6d0e3335d3bc28c07661ce6e4964e2",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
       ".formatter.exs",
@@ -145,7 +145,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "93723fe4c5748aced55e7651f2e7d6a89df7f45c",
+    "git_revision": "e3daef9a2e72558119c3307d75605062b297a76a",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -165,7 +165,7 @@
       "mix.exs",
       "priv"
     ],
-    "tree_digest": "5c30d39f9cd2397b7d798596573b2dacbdcec37ad9edc14b803e13029ecf233f",
+    "tree_digest": "4fb6730725ea5dc525c2c90f78863a4c3ad5c42ddb238d810e2f1ff64f6f256e",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -245,7 +245,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "verification_input_identity": "c82aa59a36cdbb71ddffdc9ac92bae6f6d32832c156830ac5117c539e63091ad"
+    "verification_input_identity": "37387eca2bbe79e9ca0c44cd997d038dc91e359cb0432d215f7f643403589dab"
   },
   "source": {
     "inventory": [

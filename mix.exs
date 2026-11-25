@@ -95,6 +95,7 @@ defmodule MedEx.MixProject do
           {"Release", ["CHANGELOG.md", "guides/history/med_rtc_changelog.md", "LICENSE"]}
         ],
         assets: %{"assets" => "assets"},
+        source_ref: "med_ex-v0.2.0",
         source_url: "https://github.com/nshkrdotcom/med_ex",
         logo: "assets/med_ex.svg",
         main: "readme",
