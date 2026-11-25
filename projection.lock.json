@@ -73,7 +73,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "8a07eedcba83fca7ea37b675df2021af4ee433ff",
+    "git_revision": "b30d517305f93b84c94664bb0f9767c9aad23c29",
     "linked_files": [],
     "package_files": [
       "LICENSE",
