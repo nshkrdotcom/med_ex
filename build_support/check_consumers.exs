@@ -13,6 +13,7 @@ defmodule MedEx.ConsumerCheck do
   @switches [
     quick: :boolean,
     full: :boolean,
+    release_extras: :string,
     registry: :boolean,
     transport: :string,
     profile: :string,
@@ -36,6 +37,8 @@ defmodule MedEx.ConsumerCheck do
 
   Transports: #{Enum.join(@transports, ", ")}
   Quick (default): all four direct source profiles.
+  Release extras: --release-extras PREVIOUS_MATRIX_EVIDENCE
+  Resume standalone suites, combined release and legacy rejection.
   Full: all 32 transport/profile cells, plus standalone registry extension suites.
   Full expects all three live, full, and prepared candidates, a committed source
   checkout, and local projection/<package> trees matching the prepared projects
@@ -78,6 +81,9 @@ defmodule MedEx.ConsumerCheck do
             IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
           end)
 
+        opts[:release_extras] ->
+          release_extras!(ctx, opts[:release_extras])
+
         opts[:full] ->
           full_matrix!(ctx)
 
@@ -97,11 +103,15 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp validate_options!(opts, command) do
-    modes = Enum.count([opts[:quick], opts[:full], opts[:transport], opts[:registry]], & &1)
+    modes =
+      Enum.count(
+        [opts[:quick], opts[:full], opts[:transport], opts[:registry], opts[:release_extras]],
+        & &1
+      )
 
     unless modes <= 1 and (opts[:transport] || "direct") in @transports and
              (!opts[:profile] or opts[:profile] in Enum.map(Keyword.keys(@profiles), &to_string/1)) and
-             (!opts[:profile] or !(opts[:full] || opts[:registry])) and
+             (!opts[:profile] or !(opts[:full] || opts[:registry] || opts[:release_extras])) and
              opts[:registry] == true == (command != []) and
              is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
              (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
@@ -147,11 +157,66 @@ defmodule MedEx.ConsumerCheck do
     with_registry(ctx, archives, fn env, packages ->
       consumer_matrix!(ctx, "registry", registry_specs(), @profiles, env, packages)
       standalone_extensions!(ctx, full, env, packages)
-      verify_combined_release!(ctx, env)
+      verify_combined_release!(ctx, env, packages)
     end)
 
     verify_legacy_base_rejection!(ctx, archives)
     verify_source_revision!(ctx, source_revision, "finish")
+  end
+
+  defp release_extras!(ctx, previous) do
+    revision = git_revision!(ctx, "resume-source-head", @repo, "HEAD")
+
+    for phase <- ["start", "checkpoint"] do
+      [_, recorded] =
+        previous
+        |> Path.join("git-source-head-#{phase}.log")
+        |> File.read!()
+        |> String.split("\n", parts: 2)
+
+      unless String.trim(recorded) == revision do
+        raise "Previous matrix source revision differs"
+      end
+    end
+
+    for transport <- @transports, {profile, _} <- @profiles do
+      label = "#{transport}-#{profile}-test"
+
+      summary =
+        previous
+        |> Path.join("#{label}.log")
+        |> File.read!()
+        |> String.split("\n", parts: 2)
+        |> hd()
+
+      unless String.ends_with?(summary, "exit 0)") do
+        raise "Missing successful matrix evidence for #{label}"
+      end
+    end
+
+    full = projected!(ctx, "full")
+    archives = build_family!(ctx, full, "projected")
+
+    for app <- @apps do
+      recorded = read_json!(Path.join(previous, "projected-#{app}-hex.json"))
+
+      unless recorded["sha256"] == archives[app].sha256 do
+        raise "Projected archive changed since the matrix: #{app}"
+      end
+    end
+
+    IO.puts("Confirmed 32 successful matrix cells and identical archives")
+
+    with_registry(ctx, archives, fn env, packages ->
+      standalone_extensions!(ctx, full, env, packages)
+
+      work = Path.join([ctx.stage, "consumers", "registry-both"])
+      create_consumer!(ctx, work, @apps, registry_specs(), false)
+
+      verify_combined_release!(ctx, env, packages)
+    end)
+
+    verify_legacy_base_rejection!(ctx, archives)
   end
 
   defp verify_git_checkpoint!(ctx, revision, prepared, tracked) do
@@ -812,6 +877,7 @@ defmodule MedEx.ConsumerCheck do
   defp standalone_extensions!(ctx, full, env, archives) do
     for app <- @apps -- [:med_ex] do
       work = detach!(ctx, full[app][:path], "standalone-#{app}")
+      mix!(ctx, "#{app}-standalone-unlock", work, ["deps.unlock", "med_ex"], env)
       mix!(ctx, "#{app}-standalone-resolve", work, ["deps.get"], env)
       assert_lock!(ctx, work, [:med_ex], registry_specs(), archives)
       mix!(ctx, "#{app}-standalone-test", work, ["test"], env)
@@ -855,10 +921,11 @@ defmodule MedEx.ConsumerCheck do
     )
   end
 
-  defp verify_combined_release!(ctx, env) do
+  defp verify_combined_release!(ctx, env, archives) do
     work = Path.join([ctx.stage, "consumers", "registry-both"])
     release = Path.join(work, "release")
     mix!(ctx, "combined-release-resolve", work, ["deps.get"], env, "prod")
+    assert_lock!(ctx, work, @apps, registry_specs(), archives)
     mix!(ctx, "combined-release", work, ["release", "--path", release], env, "prod")
     installed = release |> Path.join("lib") |> File.ls!()
 
@@ -908,9 +975,29 @@ defmodule MedEx.ConsumerCheck do
     if ctx.evidence,
       do: File.write!(Path.join(ctx.evidence, "#{label}.log"), [summary, "\n", output])
 
-    if status == 0 != (expected == :success), do: raise("#{summary} in #{cwd}\n\n#{output}")
-    if List.first(args) in ["test", "deps.tree"], do: IO.write(output)
+    if status == 0 != (expected == :success),
+      do: raise("#{summary} in #{cwd}\n\n#{failure_output(ctx, label, output)}")
+
+    if List.first(args) == "test" do
+      output
+      |> String.split("\n")
+      |> Enum.filter(&String.starts_with?(&1, ["Result:", "Finished in "]))
+      |> Enum.each(&IO.puts/1)
+    end
+
     output
+  end
+
+  defp failure_output(%{evidence: nil}, _label, output), do: output
+
+  defp failure_output(ctx, label, output) do
+    tail =
+      output
+      |> String.split("\n")
+      |> Enum.take(-40)
+      |> Enum.join("\n")
+
+    "Full log: #{Path.join(ctx.evidence, label <> ".log")}\n#{tail}"
   end
 
   defp read_lock(path) do
