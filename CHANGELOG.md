@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.2.1
+## 0.2.1 — 2026-11-25
 
 - Verify descriptor identity before opening a stream writer.
+- Support `checkpoint_ms: :manual` in `MedEx.StreamWriter` so fenced hosts own every batch flush and owner loss never flushes volatile frames outside the host fence.
 - Decode typed segment references and preserve status scalar types in canonical metadata. The earlier generic status mapping could collapse integers and unknown values into strings.
 - Align provider packaging verification with independent provider releases.
 
