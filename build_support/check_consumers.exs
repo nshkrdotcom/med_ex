@@ -782,14 +782,27 @@ defmodule MedEx.ConsumerCheck do
       target = Path.join(tarballs, "#{package}-#{version}.tar")
 
       unless File.exists?(target) do
-        mix!(
-          ctx,
-          "fetch-#{package}-#{version}",
-          ctx.stage,
-          ["hex.package", "fetch", package, version, "--repo", repo, "--output", target],
-          official_env(ctx),
-          "dev"
-        )
+        cached =
+          Path.join([
+            ctx.hex_home,
+            "packages",
+            repo,
+            "#{package}-#{version}.tar"
+          ])
+
+        if File.regular?(cached) do
+          File.cp!(cached, target)
+          IO.puts("Reusing official tarball: #{package}-#{version}")
+        else
+          mix!(
+            ctx,
+            "fetch-#{package}-#{version}",
+            tarballs,
+            ["hex.package", "fetch", package, version, "--repo", repo],
+            official_env(ctx),
+            "dev"
+          )
+        end
       end
 
       unless digest(File.read!(target)) == checksum, do: raise("Checksum mismatch for #{target}")
