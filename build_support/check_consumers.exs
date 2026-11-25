@@ -1,5 +1,10 @@
+Code.require_file("qualification_scope.exs", __DIR__)
+
 defmodule MedEx.ConsumerCheck do
   @moduledoc false
+
+  alias MedEx.Build.QualificationReceipt, as: Receipt
+  alias MedEx.Build.QualificationScope, as: Scope
 
   @repo Path.expand("..", __DIR__)
   @apps [:med_ex, :med_ex_opus, :med_ex_rtc]
@@ -13,8 +18,17 @@ defmodule MedEx.ConsumerCheck do
   @switches [
     quick: :boolean,
     full: :boolean,
+    strict_full: :boolean,
+    optimized: :boolean,
+    functional: :boolean,
+    compatibility: :boolean,
+    affected: :string,
+    resume: :string,
+    plan: :boolean,
+    jobs: :integer,
     release_extras: :string,
     registry: :boolean,
+    prepared_packages: :boolean,
     transport: :string,
     profile: :string,
     git_url: :string,
@@ -43,6 +57,15 @@ defmodule MedEx.ConsumerCheck do
   Full expects all three live, full, and prepared candidates, a committed source
   checkout, and local projection/<package> trees matching the prepared projects
   for that source revision. It does not generate views.
+  --strict-full is an alias for the original exhaustive --full.
+  --optimized --evidence DIR runs the same 32 cells and release extras.
+  Equivalent cells prove their own lock, installed modules and smoke behavior,
+  then reuse provider tests from the direct profile. Distinct inputs run the full suite.
+  --resume DIR validates retained cell receipts and reruns missing cells.
+  --jobs N runs up to four isolated optimized cells at a time (default 1).
+  --compatibility --transport TRANSPORT --evidence DIR compares a single transport to direct.
+  --functional runs the canonical direct profiles and the base architecture/browser checks.
+  --affected BASE selects downstream profiles and checks. Add --plan to inspect scope.
   Registry builds real packages and runs COMMAND with an isolated signed Hex repo.
   """
 
@@ -59,6 +82,15 @@ defmodule MedEx.ConsumerCheck do
   defp run(opts, command) do
     validate_options!(opts, command)
     ensure_toolchain!()
+
+    if opts[:plan] do
+      plan(opts)
+    else
+      run_checks(opts, command)
+    end
+  end
+
+  defp run_checks(opts, command) do
     stage = temporary_directory!()
 
     try do
@@ -68,15 +100,22 @@ defmodule MedEx.ConsumerCheck do
       ctx = %{
         stage: stage,
         version: version,
-        evidence: evidence_directory!(opts[:evidence]),
+        evidence: opts[:resume] || evidence_directory!(opts[:evidence]),
         hex_home: Path.join(stage, "official-hex"),
         git_url: opts[:git_url],
-        git_ref: opts[:git_ref]
+        git_ref: opts[:git_ref],
+        jobs: opts[:jobs] || 1,
+        optimized: opts[:optimized] || opts[:resume] != nil
       }
 
       cond do
         opts[:registry] ->
-          with_registry(ctx, build_family!(ctx, direct(), "registry"), fn env, _packages ->
+          archives =
+            if opts[:prepared_packages],
+              do: prepared_archives!(ctx),
+              else: build_family!(ctx, direct(), "registry")
+
+          with_registry(ctx, archives, fn env, _packages ->
             [program | args] = command
             IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
           end)
@@ -84,8 +123,27 @@ defmodule MedEx.ConsumerCheck do
         opts[:release_extras] ->
           release_extras!(ctx, opts[:release_extras])
 
-        opts[:full] ->
+        ctx.optimized ->
+          run_optimized!(ctx)
+
+        opts[:full] || opts[:strict_full] ->
           full_matrix!(ctx)
+
+        opts[:compatibility] ->
+          input = source_input()
+          ctx = Map.merge(ctx, %{optimized: true, source_input: input})
+          selected = Keyword.take(@profiles, matching_profiles(opts))
+          optimized_cells!(ctx, [{"direct", direct()}], nil, %{}, selected)
+          compatibility!(ctx, opts[:transport], selected)
+
+          unless source_input() == input,
+            do: raise("Source or toolchain drifted during compatibility checks")
+
+        opts[:functional] ->
+          canonical!(ctx, @profiles, true)
+
+        opts[:affected] ->
+          affected!(ctx, opts[:affected])
 
         true ->
           name = opts[:transport] || "direct"
@@ -105,17 +163,139 @@ defmodule MedEx.ConsumerCheck do
   defp validate_options!(opts, command) do
     modes =
       Enum.count(
-        [opts[:quick], opts[:full], opts[:transport], opts[:registry], opts[:release_extras]],
+        [
+          opts[:quick],
+          opts[:full],
+          opts[:strict_full],
+          opts[:optimized],
+          opts[:functional],
+          opts[:affected],
+          opts[:transport],
+          opts[:registry],
+          opts[:release_extras],
+          opts[:resume]
+        ],
         & &1
       )
 
     unless modes <= 1 and (opts[:transport] || "direct") in @transports and
              (!opts[:profile] or opts[:profile] in Enum.map(Keyword.keys(@profiles), &to_string/1)) and
-             (!opts[:profile] or !(opts[:full] || opts[:registry] || opts[:release_extras])) and
+             (!opts[:profile] or
+                !(opts[:full] || opts[:strict_full] || opts[:optimized] ||
+                    opts[:resume] || opts[:registry] || opts[:release_extras] || opts[:functional] ||
+                    opts[:affected])) and
+             (!opts[:jobs] or
+                (opts[:jobs] in 1..4 and (opts[:optimized] || not is_nil(opts[:resume])))) and
+             ((!(opts[:optimized] || opts[:compatibility]) or opts[:plan]) ||
+                not is_nil(opts[:evidence])) and
+             (!opts[:compatibility] or
+                (is_binary(opts[:transport]) and opts[:transport] != "direct")) and
+             (!opts[:resume] or (is_nil(opts[:evidence]) and File.dir?(opts[:resume]))) and
+             (!opts[:plan] or
+                Enum.any?(
+                  Keyword.take(opts, [:affected, :optimized, :full, :strict_full, :resume]),
+                  &elem(&1, 1)
+                )) and
+             (!opts[:prepared_packages] or opts[:registry] == true) and
              opts[:registry] == true == (command != []) and
              is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
              (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
       raise ArgumentError, @usage
+    end
+  end
+
+  defp plan(opts) do
+    description =
+      if base = opts[:affected] do
+        paths = Scope.changed(@repo, base)
+        %{changed: paths, work: Scope.medex(paths)}
+      else
+        %{transports: @transports, profiles: Keyword.keys(@profiles), release_extras: true}
+      end
+
+    IO.puts(JSON.encode!(description))
+  end
+
+  defp canonical!(ctx, profiles, architecture?) do
+    if architecture? do
+      command!(ctx, "architecture", "./build_support/check_architecture.sh", [], @repo)
+
+      command!(
+        ctx,
+        "browser-assets",
+        "node",
+        ["--test" | Path.wildcard(Path.join(@repo, "test/*.mjs"))],
+        @repo
+      )
+    end
+
+    consumer_matrix!(ctx, "direct", direct(), profiles)
+  end
+
+  defp affected!(ctx, base) do
+    paths = Scope.changed(@repo, base)
+    work = Scope.medex(paths)
+    IO.puts(JSON.encode!(%{changed: paths, work: work}))
+    profiles = Keyword.take(@profiles, work.profiles)
+    canonical!(ctx, profiles, work.architecture)
+
+    if work.docs,
+      do: mix!(ctx, "affected-docs", @repo, ["docs", "--warnings-as-errors"], [], "dev")
+
+    if work.packaging, do: build_family!(ctx, direct(), "affected")
+  end
+
+  defp source_input do
+    Receipt.fingerprint({Receipt.source(@repo), Receipt.toolchain(), System.get_env("PATH")})
+  end
+
+  defp run_optimized!(ctx) do
+    identity = source_input()
+
+    evidence = Path.expand(ctx.evidence)
+    {:ok, %{type: :directory, mode: mode}} = File.lstat(evidence)
+    if Bitwise.band(mode, 0o077) != 0, do: raise("Use a private qualification evidence directory")
+    executable = System.find_executable("flock") || raise "Optimized qualification needs flock"
+
+    if System.get_env("MEDEX_CONSUMER_LOCKED") != evidence do
+      args =
+        [
+          "--exclusive",
+          "--nonblock",
+          Path.join(evidence, ".qualification.lock"),
+          Path.join(@repo, "build_support/check_consumers.sh"),
+          "--resume",
+          evidence,
+          "--jobs",
+          Integer.to_string(ctx.jobs)
+        ] ++ if(ctx.git_url, do: ["--git-url", ctx.git_url, "--git-ref", ctx.git_ref], else: [])
+
+      env = [{~c"MEDEX_CONSUMER_LOCKED", String.to_charlist(evidence)}]
+
+      port =
+        Port.open({:spawn_executable, executable}, [:binary, :exit_status, args: args, env: env])
+
+      relay!(port)
+    else
+      ctx = Map.merge(ctx, %{evidence: evidence, source_input: identity})
+      full_matrix!(ctx)
+
+      unless source_input() == identity,
+        do: raise("Source or toolchain drifted during qualification")
+    end
+  end
+
+  defp relay!(port) do
+    receive do
+      {^port, {:data, data}} ->
+        IO.write(data)
+        relay!(port)
+
+      {^port, {:exit_status, 0}} ->
+        :ok
+
+      {^port, {:exit_status, status}} ->
+        raise "optimized qualification failed with exit #{status} (or evidence directory is in use)"
     end
   end
 
@@ -140,28 +320,105 @@ defmodule MedEx.ConsumerCheck do
       unless archives[app].signature == direct_archives[app].signature do
         raise "Direct and projected Hex metadata differ for #{app}"
       end
+
+      unless runtime_payload(archives[app]) == runtime_payload(direct_archives[app]),
+        do: raise("Direct and projected runtime archives differ for #{app}")
     end
 
-    for {name, specs} <- [
-          {"direct", direct()},
-          {"live", live},
-          {"full", full},
-          {"prepared", prepared},
-          {"git", git},
-          {"tracked", tracked},
-          {"archive", archive_paths(ctx, archives)}
-        ] do
-      consumer_matrix!(ctx, name, specs, @profiles)
+    transports = [
+      {"direct", direct()},
+      {"live", live},
+      {"full", full},
+      {"prepared", prepared},
+      {"git", git},
+      {"tracked", tracked},
+      {"archive", archive_paths(ctx, archives)}
+    ]
+
+    if ctx.optimized do
+      official_bootstrap!(ctx)
+      optimized_cells!(ctx, [hd(transports)], nil, %{})
+      optimized_cells!(ctx, tl(transports), nil, %{})
+    else
+      for {name, specs} <- transports, do: consumer_matrix!(ctx, name, specs, @profiles)
     end
 
     with_registry(ctx, archives, fn env, packages ->
-      consumer_matrix!(ctx, "registry", registry_specs(), @profiles, env, packages)
-      standalone_extensions!(ctx, full, env, packages)
-      verify_combined_release!(ctx, env, packages)
+      if ctx.optimized do
+        optimized_cells!(ctx, [{"registry", registry_specs()}], env, packages)
+        work = Path.join([ctx.stage, "consumers", "registry-both"])
+        create_consumer!(ctx, work, @apps, registry_specs(), false)
+      else
+        consumer_matrix!(ctx, "registry", registry_specs(), @profiles, env, packages)
+      end
+
+      extra!(ctx, "standalone", packages, env, standalone_logs(), fn ->
+        standalone_extensions!(ctx, full, env, packages)
+      end)
+
+      extra!(ctx, "combined", packages, env, ~w(combined-release-resolve combined-release), fn ->
+        verify_combined_release!(ctx, env, packages)
+      end)
     end)
 
-    verify_legacy_base_rejection!(ctx, archives)
+    extra!(
+      ctx,
+      "legacy",
+      archives,
+      nil,
+      ~w(legacy-public-resolve legacy-signed-legacy-resolve legacy-reject),
+      fn ->
+        verify_legacy_base_rejection!(ctx, archives)
+      end
+    )
+
     verify_source_revision!(ctx, source_revision, "finish")
+  end
+
+  defp runtime_payload(archive) do
+    archive.files
+    |> Enum.filter(fn {path, _bytes} ->
+      String.starts_with?(path, ["lib/", "priv/", "core/", "components/core/"])
+    end)
+    |> Map.new(fn {path, bytes} ->
+      {String.replace_prefix(path, "components/", ""), digest(bytes)}
+    end)
+  end
+
+  defp standalone_logs do
+    for app <- @apps -- [:med_ex],
+        step <- ~w(unlock resolve test doc-deps docs),
+        do: "#{app}-standalone-#{step}"
+  end
+
+  defp extra!(%{optimized: false}, _, _, _, _, action), do: action.()
+
+  defp extra!(ctx, name, archives, env, logs, action) do
+    files = Map.new(logs, &{&1, Path.join(ctx.evidence, &1 <> ".log")})
+
+    lock = Path.join([ctx.stage, "official-resolution", "mix.lock"]) |> File.read!() |> digest()
+
+    trust =
+      if env,
+        do: Path.join([ctx.stage, "registry", "public_key"]) |> File.read!() |> digest(),
+        else: "official-hexpm"
+
+    key =
+      Receipt.fingerprint(
+        {ctx.source_input, name, Map.new(archives, fn {app, a} -> {app, a.sha256} end), lock,
+         trust}
+      )
+
+    path = Path.join(ctx.evidence, "extra-#{name}.receipt.json")
+
+    case Receipt.read(path, key, files) do
+      {:ok, _} ->
+        IO.puts("REUSED #{name} extras (matching inputs and outputs)")
+
+      :miss ->
+        action.()
+        Receipt.write!(path, key, files, %{"extras" => name})
+    end
   end
 
   defp release_extras!(ctx, previous) do
@@ -260,6 +517,22 @@ defmodule MedEx.ConsumerCheck do
     git_revision!(ctx, "git-source-head-#{phase}", @repo, "HEAD")
   end
 
+  defp matching_profiles(opts) do
+    for {name, _} <- @profiles,
+        is_nil(opts[:profile]) or to_string(name) == opts[:profile],
+        do: name
+  end
+
+  defp compatibility!(ctx, "registry", profiles) do
+    with_registry(ctx, build_family!(ctx, direct(), "registry"), fn env, packages ->
+      optimized_cells!(ctx, [{"registry", registry_specs()}], env, packages, profiles)
+    end)
+  end
+
+  defp compatibility!(ctx, name, profiles) do
+    optimized_cells!(ctx, [{name, transport_specs!(ctx, name)}], nil, %{}, profiles)
+  end
+
   defp single_transport!(ctx, "registry", profiles) do
     with_registry(ctx, build_family!(ctx, direct(), "registry"), fn env, packages ->
       consumer_matrix!(ctx, "registry", registry_specs(), profiles, env, packages)
@@ -267,16 +540,17 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp single_transport!(ctx, name, profiles) do
-    specs =
-      case name do
-        "direct" -> direct()
-        "git" -> git_family!(ctx, :root)
-        "tracked" -> git_family!(ctx, :tracked)
-        "archive" -> archive_paths(ctx, build_family!(ctx, direct(), "direct"))
-        projected -> projected!(ctx, projected)
-      end
+    consumer_matrix!(ctx, name, transport_specs!(ctx, name), profiles)
+  end
 
-    consumer_matrix!(ctx, name, specs, profiles)
+  defp transport_specs!(ctx, name) do
+    case name do
+      "direct" -> direct()
+      "git" -> git_family!(ctx, :root)
+      "tracked" -> git_family!(ctx, :tracked)
+      "archive" -> archive_paths(ctx, build_family!(ctx, direct(), "direct"))
+      projected -> projected!(ctx, projected)
+    end
   end
 
   defp direct do
@@ -464,29 +738,184 @@ defmodule MedEx.ConsumerCheck do
 
   defp consumer_matrix!(ctx, name, specs, profiles, env \\ nil, archives \\ %{}) do
     env = env || official_env(ctx)
+    for {profile, apps} <- profiles, do: run_cell!(ctx, name, specs, profile, apps, env, archives)
+  end
 
-    for {profile, apps} <- profiles do
-      label = "#{name}-#{profile}"
-      work = Path.join([ctx.stage, "consumers", label])
-      create_consumer!(ctx, work, apps, specs, name != "registry")
-      stage_tests!(work, apps)
-      inventory = Path.join(work, "modules.json")
+  defp optimized_cells!(ctx, transports, env, archives, profiles \\ @profiles) do
+    cells =
+      for {name, specs} <- transports, {profile, apps} <- profiles do
+        {name, specs, profile, apps, cell_input(ctx, name, specs, profile, apps, env, archives)}
+      end
 
-      test_env =
-        [
-          {"SDK_PROFILE", to_string(profile)},
-          {"SDK_TRANSPORT", name},
-          {"SDK_SOURCE_ROOT", @repo},
-          {"SDK_MODULE_INVENTORY", inventory}
-        ] ++ env
+    cells
+    |> Task.async_stream(
+      fn {name, specs, profile, apps, input} ->
+        label = "#{name}-#{profile}"
+        receipt = Path.join(ctx.evidence, "#{label}.receipt.json")
+        files = cell_outputs(ctx, label)
+        canonical = canonical_proof(ctx, name, profile)
 
-      mix!(ctx, "#{label}-resolve", work, ["deps.get"], test_env)
-      assert_lock!(ctx, work, apps, specs, archives)
-      mix!(ctx, "#{label}-tree", work, ["deps.tree"], test_env)
-      mix!(ctx, "#{label}-compile", work, ["compile", "--warnings-as-errors"], test_env)
-      mix!(ctx, "#{label}-test", work, ["test"], test_env)
+        case Receipt.read(receipt, input, files) do
+          {:ok, %{"functional_source" => "own"} = details} ->
+            IO.puts("REUSED #{label} (#{details["tests"]} tests, verified inputs and outputs)")
+
+          {:ok, %{"functional_source" => ^canonical} = details} when not is_nil(canonical) ->
+            IO.puts("REUSED #{label} (#{details["tests"]} tests, verified canonical evidence)")
+
+          _ ->
+            private_env = private_hex!(ctx, label, env)
+            details = run_cell!(ctx, name, specs, profile, apps, private_env, archives)
+
+            unless input == cell_input(ctx, name, specs, profile, apps, env, archives),
+              do: raise("Input changed during #{label}")
+
+            Receipt.write!(receipt, input, files, details)
+        end
+      end,
+      max_concurrency: ctx.jobs,
+      timeout: :infinity,
+      ordered: false
+    )
+    |> Enum.each(fn {:ok, _result} -> :ok end)
+  end
+
+  defp private_hex!(ctx, label, nil) do
+    copy = Path.join(ctx.stage, "hex-#{label}")
+    if File.dir?(ctx.hex_home), do: File.cp_r!(ctx.hex_home, copy)
+    official_env(%{ctx | hex_home: copy})
+  end
+
+  defp private_hex!(ctx, label, env) do
+    {"HEX_HOME", seed} = List.keyfind(env, "HEX_HOME", 0)
+    copy = Path.join(ctx.stage, "hex-#{label}")
+    File.cp_r!(seed, copy)
+    List.keyreplace(env, "HEX_HOME", 0, {"HEX_HOME", copy})
+  end
+
+  defp cell_outputs(ctx, label) do
+    names = Enum.map(~w(resolve tree compile test inputs lock modules), &{"#{label}-#{&1}", &1})
+
+    Map.new(names, fn {key, step} ->
+      suffix = if step in ~w(inputs lock modules), do: ".json", else: ".log"
+      {step, Path.join(ctx.evidence, key <> suffix)}
+    end)
+  end
+
+  defp cell_input(ctx, name, specs, profile, apps, env, archives) do
+    selection =
+      for app <- apps do
+        case Map.fetch!(specs, app) do
+          [path: path] -> {app, path_fingerprint(path)}
+          [] -> {app, archives[app].sha256}
+          options -> {app, Keyword.update!(options, :git, &normalize_git(&1, ctx.stage))}
+        end
+      end
+
+    trust =
+      if env do
+        key = Path.join([ctx.stage, "registry", "public_key"])
+        key |> File.read!() |> digest()
+      else
+        "official-hexpm"
+      end
+
+    Receipt.fingerprint({ctx.source_input, name, profile, selection, trust})
+  end
+
+  defp normalize_git(url, stage) do
+    if String.starts_with?(url, stage <> "/"), do: Path.relative_to(url, stage), else: url
+  end
+
+  defp path_fingerprint(path) do
+    patterns = ~w(mix.exs mix.lock VERSION lib/**/* components/**/* core/**/lib/**/*
+                  config/**/* priv/**/* build_support/composition.exs projection.lock.json
+                  weld.provenance.json)
+
+    for pattern <- patterns,
+        file <- Path.wildcard(Path.join(path, pattern), match_dot: true),
+        File.regular?(file) do
+      {Path.relative_to(file, path), file |> File.read!() |> digest()}
+    end
+    |> Enum.sort()
+    |> Receipt.fingerprint()
+  end
+
+  defp canonical_proof(_ctx, "direct", _profile), do: nil
+
+  defp canonical_proof(ctx, _name, profile) do
+    path = Path.join(ctx.evidence, "direct-#{profile}.receipt.json")
+    if File.regular?(path), do: path |> File.read!() |> digest()
+  end
+
+  defp run_cell!(ctx, name, specs, profile, apps, env, archives) do
+    label = "#{name}-#{profile}"
+    work = Path.join([ctx.stage, "consumers", label])
+    create_consumer!(ctx, work, apps, specs, name != "registry")
+    stage_tests!(work, apps)
+    inventory = Path.join(work, "modules.json")
+    outputs = if ctx.optimized, do: cell_outputs(ctx, label), else: %{}
+
+    test_env =
+      [
+        {"SDK_PROFILE", to_string(profile)},
+        {"SDK_TRANSPORT", name},
+        {"SDK_SOURCE_ROOT", @repo},
+        {"SDK_MODULE_INVENTORY", inventory},
+        {"SDK_EFFECTIVE_INPUTS", outputs["inputs"]}
+      ] ++ env
+
+    mix!(ctx, "#{label}-resolve", work, ["deps.get"], test_env)
+    assert_lock!(ctx, work, apps, specs, archives)
+    mix!(ctx, "#{label}-tree", work, ["deps.tree"], test_env)
+    mix!(ctx, "#{label}-compile", work, ["compile", "--warnings-as-errors"], test_env)
+
+    if ctx.optimized && name != "direct" do
+      mix!(ctx, "#{label}-smoke", work, ["test", "test/consumer_smoke_test.exs"], test_env)
+
+      if read_json!(outputs["inputs"]) ==
+           read_json!(cell_outputs(ctx, "direct-#{profile}")["inputs"]) do
+        File.cp!(Path.join(ctx.evidence, "#{label}-smoke.log"), outputs["test"])
+
+        finish_cell!(
+          ctx,
+          label,
+          profile,
+          work,
+          inventory,
+          outputs,
+          canonical_proof(ctx, name, profile),
+          2
+        )
+      else
+        IO.puts("DISTINCT #{label} (effective inputs differ, running its behavioral suite)")
+        full_cell!(ctx, label, profile, work, inventory, outputs, test_env)
+      end
+    else
+      full_cell!(ctx, label, profile, work, inventory, outputs, test_env)
+    end
+  end
+
+  defp full_cell!(ctx, label, profile, work, inventory, outputs, env) do
+    output = mix!(ctx, "#{label}-test", work, ["test"], env)
+
+    if ctx.optimized do
+      [_, count] = Regex.run(~r/^Result: (\d+) passed$/m, output)
+      finish_cell!(ctx, label, profile, work, inventory, outputs, "own", String.to_integer(count))
+    else
       compare_modules!(ctx, profile, inventory)
     end
+  end
+
+  defp finish_cell!(ctx, label, profile, work, inventory, outputs, source, count) do
+    File.cp!(inventory, outputs["modules"])
+    lock = read_lock(Path.join(work, "mix.lock"))
+    File.write!(outputs["lock"], JSON.encode!(Map.new(lock, fn {k, v} -> {k, inspect(v)} end)))
+    reference = cell_outputs(ctx, "direct-#{profile}")["modules"]
+
+    unless read_json!(reference) == read_json!(inventory),
+      do: raise("Module inventory differs for #{label}")
+
+    %{"tests" => count, "functional_source" => source}
   end
 
   defp create_consumer!(ctx, work, apps, specs, override?, requirements \\ %{}) do
@@ -569,6 +998,24 @@ defmodule MedEx.ConsumerCheck do
           raise "Unexpected Mix source in lock for #{app} at #{work}"
       end
     end
+  end
+
+  defp prepared_archives!(ctx) do
+    revision = clean_source_revision!(ctx, "registry")
+
+    Map.new(@apps, fn app ->
+      {project, integrity} = projection_path!(app, "prepared", revision)
+      name = "#{app}-#{ctx.version}.tar"
+      source = Path.join(Path.dirname(project), name)
+      path = Path.join([ctx.stage, "packages", "prepared", to_string(app), name])
+
+      unless digest(File.read!(source)) == integrity["archive_sha256"],
+        do: raise("Invalid prepared archive for #{app}")
+
+      File.mkdir_p!(Path.dirname(path))
+      File.cp!(source, path)
+      {app, inspect_archive!(ctx, app, path)}
+    end)
   end
 
   defp build_family!(ctx, specs, label) do
@@ -746,9 +1193,7 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp with_registry(ctx, archives, action, extra_lock \\ nil) do
-    bootstrap = Path.join(ctx.stage, "official-resolution")
-    create_consumer!(ctx, bootstrap, @apps, direct(), true)
-    mix!(ctx, "official-resolve", bootstrap, ["deps.get"], official_env(ctx))
+    bootstrap = official_bootstrap!(ctx)
     public = Path.join(ctx.stage, "registry")
     tarballs = Path.join(public, "tarballs")
     File.mkdir_p!(tarballs)
@@ -758,9 +1203,7 @@ defmodule MedEx.ConsumerCheck do
       File.cp!(archive.archive, Path.join(tarballs, Path.basename(archive.archive)))
     end
 
-    key = Path.join(ctx.stage, "registry-key.pem")
-    command!(ctx, "registry-key", "openssl", ["genrsa", "-out", key, "2048"], ctx.stage)
-    File.chmod!(key, 0o600)
+    key = registry_key!(ctx)
 
     mix!(
       ctx,
@@ -814,6 +1257,35 @@ defmodule MedEx.ConsumerCheck do
       action.(env, archives)
     after
       :inets.stop(:httpd, server)
+    end
+  end
+
+  defp official_bootstrap!(ctx) do
+    bootstrap = Path.join(ctx.stage, "official-resolution")
+
+    unless File.regular?(Path.join(bootstrap, "mix.lock")) do
+      create_consumer!(ctx, bootstrap, @apps, direct(), true)
+      mix!(ctx, "official-resolve", bootstrap, ["deps.get"], official_env(ctx))
+    end
+
+    bootstrap
+  end
+
+  defp registry_key!(ctx) do
+    retained? = ctx.optimized && Map.get(ctx, :label) != "legacy-"
+    key = Path.join(if(retained?, do: ctx.evidence, else: ctx.stage), "registry-key.pem")
+
+    case File.lstat(key) do
+      {:ok, %{type: :regular, mode: mode}} when retained? and Bitwise.band(mode, 0o077) == 0 ->
+        key
+
+      {:error, :enoent} ->
+        command!(ctx, "registry-key", "openssl", ["genrsa", "-out", key, "2048"], ctx.stage)
+        File.chmod!(key, 0o600)
+        key
+
+      _ ->
+        raise "Unsafe qualification registry key"
     end
   end
 

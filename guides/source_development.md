@@ -161,3 +161,57 @@ It inspects actual Hex archives and resolves the packages from a temporary
 signed registry. Use `--transport live` or another named transport for a
 single lane. Use `--evidence /absolute/path/to/new-directory` to retain command
 logs. The quick lane works from the checkout without Weld.
+
+## Daily feedback and resumable qualification
+
+Run the affected check against your current commit for unstaged, staged and
+untracked changes. Use a merge base or another Git revision to include commits.
+
+```sh
+./build_support/check_consumers.sh --affected HEAD --plan
+./build_support/check_consumers.sh --affected HEAD
+./build_support/check_consumers.sh --functional
+```
+
+A private component or shared asset change selects all downstream SDK profiles.
+A provider change selects its single-provider and combined profiles. Guide
+changes select docs and package checks. Unknown inputs take the conservative
+path.
+
+Use `--optimized` after preparing and tracking the three official artifacts.
+The direct profiles run the full consumer suites. Every transport still
+resolves its own dependency lock, compiles and starts the installed SDK, and
+runs the ownership, asset and raw-stream smoke tests. Provider suites run
+again whenever the effective source, compiled code, compiler options, app
+metadata, dependency lock, assets or test inputs differ. For example, a
+dependency macro can embed its compilation path in a provider BEAM and make
+two installations distinct. The original `--full` remains available as
+`--strict-full`.
+
+```sh
+./build_support/check_consumers.sh --optimized --jobs 2 --evidence /private/new-medex-evidence
+./build_support/check_consumers.sh --resume /private/new-medex-evidence --jobs 2
+```
+
+The evidence directory contains the cell receipts, lock and module inventories
+and timing logs. Resume checks current inputs and the hashes of recorded
+outputs. The optimized run keeps a per-directory synthetic signing key with
+private permissions for registry cell reuse. Keep the directory private and
+remove the key when retiring the evidence from active qualification.
+
+The optional workstation runner operates on sibling checkouts and reports
+what it selected. Ordinary Mix commands remain available in each project.
+
+```sh
+./build_support/qualify_ecosystem.sh plan --base HEAD
+./build_support/qualify_ecosystem.sh dev --base HEAD
+./build_support/qualify_ecosystem.sh full --jobs 2 --evidence /private/ecosystem-evidence
+./build_support/qualify_ecosystem.sh status --evidence /private/ecosystem-evidence
+./build_support/qualify_ecosystem.sh resume --jobs 2 --evidence /private/ecosystem-evidence
+```
+
+Full qualification expects MedEx at the verified remote revision and Fabric
+at the corresponding pin. Use `--gate medex-matrix` to qualify the local
+artifact and consumer gates before the MedEx push. See `--help` for strict
+and cache-controlled runs. The official maintainer lock continues to resolve
+published Weld 0.16.0.

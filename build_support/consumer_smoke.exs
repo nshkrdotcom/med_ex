@@ -72,11 +72,72 @@ defmodule ExternalDeviceDriverTest do
                File.read!(Path.join([source, "priv", "static", "med_web", asset]))
     end
 
+    if evidence = System.get_env("SDK_EFFECTIVE_INPUTS") do
+      File.write!(evidence, JSON.encode!(effective_inputs(modules, dependency_projects, source)))
+    end
+
     File.write!(
       System.fetch_env!("SDK_MODULE_INVENTORY"),
       JSON.encode!(Map.new(modules, fn {app, owned} -> {app, Enum.map(owned, &to_string/1)} end))
     )
   end
+
+  defp effective_inputs(modules, paths, source) do
+    lock = Mix.Dep.Lock.read()
+
+    for {app, {:git, _url, revision, _opts}} <- Map.take(lock, Map.keys(modules)) do
+      assert {^revision, 0} =
+               subprocess_head(Map.fetch!(paths, app))
+    end
+
+    sdk =
+      Map.new(modules, fn {app, owned} ->
+        executable =
+          Map.new(owned, fn module ->
+            path = :code.which(module)
+            {:ok, {^module, md5}} = :beam_lib.md5(path)
+            metadata = module.module_info(:compile)
+
+            {inspect(module),
+             [
+               Base.encode16(md5, case: :lower),
+               hash(File.read!(metadata[:source])),
+               hash(:erlang.term_to_binary(metadata[:options], [:deterministic]))
+             ]}
+          end)
+
+        specification = Application.spec(app)
+        {app, %{beams: executable, application: hash(:erlang.term_to_binary(specification))}}
+      end)
+
+    assets =
+      Map.new(~w(pcm_capture.js pcm_worklet.js session_hook.js), fn asset ->
+        {asset, hash(File.read!(MedEx.Web.asset_path(asset)))}
+      end)
+
+    test_inputs =
+      for app <- Map.keys(modules) -- [:med_ex],
+          file <- Path.wildcard(Path.join([source, "extensions", to_string(app), "test", "**/*"])),
+          File.regular?(file),
+          do: {Path.relative_to(file, source), hash(File.read!(file))}
+
+    %{
+      sdk: sdk,
+      assets: assets,
+      provider_tests: Enum.sort(test_inputs) |> Map.new(),
+      dependency_lock:
+        hash(:erlang.term_to_binary(Map.drop(lock, Map.keys(modules)), [:deterministic])),
+      compiler_env: Mix.env(),
+      compiler_target: Mix.target()
+    }
+  end
+
+  defp subprocess_head(path) do
+    {output, status} = System.cmd("git", ["rev-parse", "HEAD"], cd: path)
+    {String.trim(output), status}
+  end
+
+  defp hash(bytes), do: :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)
 
   @tag :tmp_dir
   test "public root records both raw streams with the stream-v1 contract", %{tmp_dir: dir} do
