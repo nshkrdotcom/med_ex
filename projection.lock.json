@@ -57,7 +57,7 @@
     "violations": []
   },
   "manifest": {
-    "digest": "2b7fc6a50655e55bec01e8ecaa365ad8ae90b30a4e9e073020d96fa214034867",
+    "digest": "a444a797a10ea75c1b1cb8152c346abf9d11f5a3476470d12954485381194045",
     "path": "build_support/weld.exs"
   },
   "projection": {
@@ -76,7 +76,7 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "93723fe4c5748aced55e7651f2e7d6a89df7f45c",
+    "git_revision": "e3daef9a2e72558119c3307d75605062b297a76a",
     "linked_files": [],
     "package_files": [
       "LICENSE",
