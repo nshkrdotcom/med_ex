@@ -1,5 +1,6 @@
 {composition, _binding} = Code.eval_file("composition.exs", __DIR__)
 base = composition.package
+base_docs = Keyword.put(base[:docs], :source_ref, "med_ex-v#{base[:version]}")
 
 extensions = [
   med_ex_opus: "Optional Opus encoding provider for MedEx",
@@ -51,7 +52,7 @@ extension_artifacts =
         mode: :package_projection,
         roots: composition.components,
         structural_inputs: [composition.version_file, "mix.exs", "build_support/composition.exs"],
-        package: base,
+        package: Keyword.put(base, :docs, base_docs),
         output: [docs: composition.documents, assets: composition.assets],
         verify: [
           component_tests: true,
