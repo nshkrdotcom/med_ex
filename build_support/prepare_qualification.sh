@@ -19,7 +19,9 @@ manifest="$root/build_support/weld.exs"
     mix weld.project "$manifest" --artifact "$app"
   done
 )
-./build_support/check_consumers.sh --registry --evidence "$evidence" --   bash -euo pipefail -c '
+./build_support/check_consumers.sh --registry --evidence "$evidence" \
+  --registry-lock extensions/med_ex_opus/mix.lock \
+  --registry-lock extensions/med_ex_rtc/mix.lock -- bash -euo pipefail -c '
     unset MIX_ENV MIX_TARGET MIX_EXS MIX_DEPS_PATH MIX_LOCKFILE MIX_BUILD_PATH MIX_BUILD_ROOT
     cd "$1"
     for app in med_ex med_ex_opus med_ex_rtc; do
