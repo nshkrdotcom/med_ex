@@ -534,10 +534,7 @@ defmodule MedEx.ConsumerCheck do
     {:ok, fields} = :file.consult(String.to_charlist(metadata))
     fields = Map.new(fields, fn {name, value} -> {to_string(name), value} end)
 
-    requirements =
-      Map.new(Map.fetch!(fields, "requirements"), fn {name, props} ->
-        {to_string(name), Map.new(props, fn {key, value} -> {to_string(key), value} end)}
-      end)
+    requirements = normalize_requirements!(Map.fetch!(fields, "requirements"))
 
     name = to_string(app)
 
@@ -573,6 +570,39 @@ defmodule MedEx.ConsumerCheck do
     end
 
     result
+  end
+
+  @doc false
+  def normalize_requirements!(requirements) do
+    entries =
+      Enum.map(requirements, fn
+        {name, properties} ->
+          name = to_string(name)
+          props = normalize_requirement_properties(properties)
+
+          if Map.get(props, "name", name) != name do
+            raise "Hex requirement name mismatch: #{name}"
+          end
+
+          {name, Map.put(props, "name", name)}
+
+        properties when is_list(properties) or is_map(properties) ->
+          props = normalize_requirement_properties(properties)
+          name = Map.fetch!(props, "name")
+          {name, props}
+      end)
+
+    normalized = Map.new(entries)
+
+    unless map_size(normalized) == length(entries) do
+      raise "Duplicate Hex requirement names"
+    end
+
+    normalized
+  end
+
+  defp normalize_requirement_properties(properties) do
+    Map.new(properties, fn {key, value} -> {to_string(key), value} end)
   end
 
   defp verify_requirements!(:med_ex, _version, requirements) when map_size(requirements) == 0,

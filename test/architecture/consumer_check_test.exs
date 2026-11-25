@@ -3,6 +3,34 @@ Code.require_file("../../build_support/check_consumers.exs", __DIR__)
 defmodule MedEx.ConsumerCheckTest do
   use ExUnit.Case, async: true
 
+  test "normalizes Hex requirements without losing identity or constraints" do
+    properties = [
+      {"app", "med_ex"},
+      {"name", "med_ex"},
+      {"optional", false},
+      {"repository", "hexpm"},
+      {"requirement", "~> 0.2.0"}
+    ]
+
+    expected = %{"med_ex" => Map.new(properties)}
+
+    assert %{} == MedEx.ConsumerCheck.normalize_requirements!([])
+
+    assert expected ==
+             MedEx.ConsumerCheck.normalize_requirements!([properties])
+
+    assert expected ==
+             MedEx.ConsumerCheck.normalize_requirements!([{"med_ex", properties}])
+
+    assert_raise RuntimeError, ~r/Duplicate Hex requirement/, fn ->
+      MedEx.ConsumerCheck.normalize_requirements!([properties, properties])
+    end
+
+    assert_raise RuntimeError, ~r/Hex requirement name mismatch/, fn ->
+      MedEx.ConsumerCheck.normalize_requirements!([{"wrong", properties}])
+    end
+  end
+
   @tag :tmp_dir
   test "prepared verification checks the report, source bytes and executable bits", %{
     tmp_dir: root
