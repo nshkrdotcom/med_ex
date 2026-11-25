@@ -183,15 +183,25 @@ defmodule MedEx.Build.Boundaries do
         :membrane_raw_audio_format,
         :membrane_opus_format,
         :membrane_opus_plugin,
+        :credo,
+        :dialyxir,
         :ex_doc
       ],
-      med_ex_rtc: [:med_ex, :ex_webrtc, :ex_rtp, :ex_doc]
+      med_ex_rtc: [:med_ex, :ex_webrtc, :ex_rtp, :credo, :dialyxir, :ex_doc]
     }
 
     names = Enum.map(deps, &elem(&1, 0)) |> Enum.sort()
 
     unless names == Enum.sort(Map.fetch!(expected, app)),
       do: raise("undeclared dependency in #{app}: #{inspect(names)}")
+
+    for tool <- [:credo, :dialyxir], tool in names do
+      {^tool, _, opts} = List.keyfind(deps, tool, 0)
+
+      unless opts[:runtime] == false and
+               Enum.sort(List.wrap(opts[:only])) in [[:dev], [:dev, :test]],
+             do: raise("development tooling leaked into #{app} consumer")
+    end
 
     if :ex_doc in names do
       unless match?({:ex_doc, _, [only: :dev, runtime: false]}, List.keyfind(deps, :ex_doc, 0)),

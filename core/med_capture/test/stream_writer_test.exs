@@ -11,7 +11,7 @@ defmodule MedEx.StreamWriterTest do
   @moduletag :tmp_dir
 
   defp spec do
-    %StreamSpec{
+    spec = %StreamSpec{
       acquisition_id: "recording",
       source_ref: "credential:1",
       boot_id: "boot",
@@ -30,6 +30,8 @@ defmodule MedEx.StreamWriterTest do
         replay: :durable_spool
       }
     }
+
+    %{spec | descriptor_ref: Serialization.descriptor_ref(spec)}
   end
 
   defp frame(seq, sample, epoch \\ 0),

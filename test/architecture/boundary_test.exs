@@ -128,14 +128,18 @@ defmodule MedEx.ArchitectureTest do
       assert extension[:roots] == ["extensions/#{app}"]
       assert extension[:mode] == :source_project
       assert extension[:external_projects] == ["."]
-      assert extension[:package][:version] == cfg[:version]
+      version = File.read!("extensions/#{app}/VERSION") |> String.trim()
+      assert extension[:package][:version] == version
 
       Mix.Project.in_project(app, "extensions/#{app}", [], fn _ ->
         config = Mix.Project.config()
         assert config[:app] == app
-        assert config[:version] == cfg[:version]
+        assert config[:version] == version
         assert {:med_ex, "~> 0.2.0"} in config[:deps]
-        assert Enum.sort(config[:package][:files]) == ~w(LICENSE README.md VERSION lib mix.exs)
+
+        assert Enum.sort(config[:package][:files]) ==
+                 ~w(.formatter.exs CHANGELOG.md LICENSE README.md VERSION assets lib mix.exs)
+
         assert :ok == Boundaries.dependencies!(app, config[:deps])
       end)
     end

@@ -4,7 +4,15 @@ defmodule MedEx.Serialization do
   are decimal strings, rational rates are ordered pairs and enums are strings.
   Decode using the field's declared type. Arbitrary protocol payloads use Base64.
   """
-  alias MedEx.{CanonicalJSON, ContractRules, MeasurementEvent, StreamSpec}
+  alias MedEx.{
+    CanonicalJSON,
+    ContractRules,
+    MeasurementEvent,
+    SegmentRef,
+    StatusEvent,
+    StreamSpec
+  }
+
   @receipt_ids ~w(stream_id descriptor_ref fence journal_id journal_digest)a
   @receipt_counts ~w(source_epoch journal_generation accepted_sequence accepted_sample durable_sequence durable_sample)a
 
@@ -24,6 +32,14 @@ defmodule MedEx.Serialization do
       {:bytes, bytes} -> %{"base64" => Base.encode64(bytes)}
       {:sha256, sha} -> %{"sha256" => sha}
     end)
+    |> to_map()
+  end
+
+  def to_map(%StatusEvent{} = event) do
+    event
+    |> Map.from_struct()
+    |> Map.update!(:state, &scalar/1)
+    |> Map.update!(:acknowledgement, &scalar/1)
     |> to_map()
   end
 
@@ -61,6 +77,57 @@ defmodule MedEx.Serialization do
   def unscalar!(%{"unknown" => true} = v) when map_size(v) == 1, do: :unknown
   def unscalar!(%{"integer" => n} = v) when map_size(v) == 1, do: integer!(n)
   def unscalar!(v) when is_binary(v) or is_boolean(v), do: v
+
+  def status_event(map) do
+    event = %StatusEvent{
+      schema_version: integer!(map["schema_version"]),
+      event_id: map["event_id"],
+      acquisition_id: map["acquisition_id"],
+      source_ref: map["source_ref"],
+      boot_id: map["boot_id"],
+      stream_id: map["stream_id"],
+      source_epoch: integer!(map["source_epoch"]),
+      descriptor_ref: map["descriptor_ref"],
+      sequence: integer!(map["sequence"]),
+      code: map["code"],
+      observed_interval: observed_interval!(map["observed_interval"]),
+      source_alarm_id: map["source_alarm_id"],
+      state: unscalar!(map["state"]),
+      acknowledgement: unscalar!(map["acknowledgement"])
+    }
+
+    if StatusEvent.validate(event) == :ok and to_map(event) == map,
+      do: {:ok, event},
+      else: {:error, :invalid_status}
+  rescue
+    _ in [ArgumentError, FunctionClauseError, BadMapError] -> {:error, :invalid_status}
+  end
+
+  defp observed_interval!("unknown"), do: :unknown
+
+  defp observed_interval!(%{"clock_id" => id, "earliest" => first, "latest" => last}),
+    do: %{clock_id: id, earliest: integer!(first), latest: integer!(last)}
+
+  def segment_ref(map) do
+    segment = %SegmentRef{
+      key: map["key"],
+      sha256: map["sha256"],
+      descriptor_ref: map["descriptor_ref"],
+      byte_size: integer!(map["byte_size"]),
+      first_sample: integer!(map["first_sample"]),
+      end_sample: integer!(map["end_sample"]),
+      first_sequence: integer!(map["first_sequence"]),
+      next_sequence: integer!(map["next_sequence"]),
+      config_epoch:
+        if(map["config_epoch"] == "unknown", do: :unknown, else: integer!(map["config_epoch"]))
+    }
+
+    if SegmentRef.validate(segment) == :ok and to_map(segment) == map,
+      do: {:ok, segment},
+      else: {:error, :invalid_segment_ref}
+  rescue
+    _ in [ArgumentError, FunctionClauseError, BadMapError] -> {:error, :invalid_segment_ref}
+  end
 
   def stream_spec(map) do
     s =

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Verify descriptor identity before opening a stream writer.
+- Decode typed segment references and preserve status scalar types in canonical metadata. The earlier generic status mapping could collapse integers and unknown values into strings.
+- Align provider packaging verification with independent provider releases.
+
 ## 0.2.0 — 2026-11-24
 
 The base SDK covers stream recording and browser WAV capture. Hosts that use

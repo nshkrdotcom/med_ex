@@ -54,6 +54,7 @@ defmodule MedEx.StreamWriter do
     with true <- is_pid(owner) and ContractRules.id?(fence),
          {:ok, limits} <- limits(opts[:limits] || %{}),
          {:ok, cursor} <- StreamCursor.new(stream),
+         :ok <- verify_descriptor(stream),
          {:ok, adapter, receipt} <- storage.open(opts) do
       if valid_receipt?(receipt, stream, fence) and
            receipt.accepted_sequence == receipt.durable_sequence and
@@ -87,6 +88,12 @@ defmodule MedEx.StreamWriter do
       {:error, reason} -> {:error, reason}
       false -> {:error, :invalid_owner_or_fence}
     end
+  end
+
+  defp verify_descriptor(stream) do
+    if stream.descriptor_ref == Serialization.descriptor_ref(stream),
+      do: :ok,
+      else: {:error, :invalid_descriptor}
   end
 
   defp limits(list) when is_list(list), do: limits(Map.new(list))

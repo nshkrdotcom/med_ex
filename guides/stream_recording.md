@@ -136,3 +136,6 @@ When a host adjusts a technical device or monitor setting (such as gain or filte
 2. Only after the host commits that intent durably does `ControlInterlock.step(state, {:intent_committed, id})` emit `[{:dispatch, command}]`.
 3. On `{:applied, id, fingerprint, boot_id, next_epoch, boundary}`, the interlock advances `current_epoch`. On `{:timeout, id}` or `{:boot_changed, new_boot, epoch}`, it transitions the command to `:outcome_unknown`, records the ambiguous watermark span in `historical_unknown`, and emits `{:query_actual_state, target}`. A later `{:actual_state, target, boot, epoch, observed}` reconciles the *current* epoch while preserving `:historical_boundary_unknown`—because reading current state cannot establish when an unobserved transition occurred on the waveform timeline.
 4. On the device side, `ControlInterlock.device_decide(ledger, command, actual_epoch)` checks the durable command ledger by `command.id` **before** checking `expected_epoch`, ensuring retried commands after a lost acknowledgement return `{:cached, result}` instead of a spurious `:stale_configuration` error.
+
+The default 1,800-second writer cap is a resource limit. End-to-end duration
+qualification is specific to the host, storage and review path.
