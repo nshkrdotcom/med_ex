@@ -86,7 +86,7 @@ Install a C toolchain and the platform prerequisites for the profile you use.
 
 ## Build and check the artifacts
 
-The maintainer project uses Weld 0.17.1 from Hex. Run the following Mix tasks
+The maintainer project uses Weld 0.18.0 from Hex. Run the following Mix tasks
 from `tools/maintainer` using the relative manifest path below.
 
 ```sh
@@ -94,6 +94,7 @@ cd tools/maintainer
 mix deps.get
 manifest=../../build_support/weld.exs
 mix weld.setup "$manifest"
+mix release.status "$manifest"
 for artifact in med_ex med_ex_opus med_ex_rtc; do
   mix weld.project "$manifest" --artifact "$artifact" --live
   mix weld.project "$manifest" --artifact "$artifact"
@@ -127,11 +128,22 @@ context to prepare portable projects from a clean committed source. Use
 `mix release.track` with the same manifest and artifact to record a prepared
 snapshot on its local projection branch.
 
-For the provider releases, verify and prepare against the public Hex base.
-From `tools/maintainer`, stage the verified provider with
-`mix release.stage ../../build_support/weld.exs --artifact med_ex_opus`
-or select `med_ex_rtc`. Run `mix hex.publish` from the printed
-`.weld/publish/` project directory.
+For provider releases, verify and prepare against the public Hex base. From
+`tools/maintainer`, select `med_ex_opus` or `med_ex_rtc` and carry the full
+identity printed by prepare through the handoff.
+
+```sh
+manifest=../../build_support/weld.exs
+artifact=med_ex_opus
+mix release.prepare "$manifest" --artifact "$artifact"
+mix release.status "$manifest" --artifact "$artifact"
+mix release.track "$manifest" --artifact "$artifact" --identity <sha> --tag-release --push
+mix release.publish "$manifest" --artifact "$artifact" --identity <sha> --tag <tag>
+mix release.archive "$manifest" --artifact "$artifact" --identity <sha>
+```
+
+The annotated tag and projection commit record the bundle identity. Local
+bundles and publish workspaces live under the checkout's `.weld/` directory.
 
 ## Repository checks
 
@@ -218,4 +230,4 @@ Full qualification expects MedEx at the verified remote revision and Fabric
 at the corresponding pin. Use `--gate medex-matrix` to qualify the local
 artifact and consumer gates before the MedEx push. See `--help` for strict
 and cache-controlled runs. The official maintainer lock continues to resolve
-published Weld 0.17.1.
+published Weld 0.18.0.
