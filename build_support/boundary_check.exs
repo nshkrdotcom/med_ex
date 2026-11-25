@@ -119,7 +119,7 @@ defmodule MedEx.Build.Boundaries do
   def check_edge!(file, mod, fun) do
     {roots, core_modules} = :persistent_term.get(__MODULE__)
 
-    if {owner, _} = Ownership.source_owner(file, roots) do
+    with {owner, _} <- Ownership.source_owner(file, roots) do
       name = Atom.to_string(mod)
 
       if Enum.any?(@media, &(name == &1 or String.starts_with?(name, &1 <> "."))),

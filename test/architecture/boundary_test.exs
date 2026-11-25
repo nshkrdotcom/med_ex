@@ -15,6 +15,9 @@ defmodule MedEx.ArchitectureTest do
   test "negative fixtures fail for their own boundary" do
     Boundaries.configure([med_core: Path.dirname(@fixture_path)], [MedEx.StreamSpec])
 
+    assert :ok ==
+             Boundaries.check_edge!("/outside/owned/roots.ex", File, :read!)
+
     assert_raise RuntimeError, ~r/reverse dependency/, fn ->
       Boundaries.check_edge!(@fixture_path, MedEx.StreamWriter, :push)
     end

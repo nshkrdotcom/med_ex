@@ -101,7 +101,7 @@ defmodule MedEx.ConsumerCheck do
 
     unless modes <= 1 and (opts[:transport] || "direct") in @transports and
              (!opts[:profile] or opts[:profile] in Enum.map(Keyword.keys(@profiles), &to_string/1)) and
-             (!opts[:profile] or !(opts[:full] or opts[:registry])) and
+             (!opts[:profile] or !(opts[:full] || opts[:registry])) and
              opts[:registry] == true == (command != []) and
              is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
              (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
@@ -620,7 +620,9 @@ defmodule MedEx.ConsumerCheck do
 
     case app do
       :med_ex ->
-        for asset <- @assets, do: Map.fetch!(Map.new(files), "priv/static/med_web/#{asset}")
+        for asset <- @assets, "priv/static/med_web/#{asset}" not in names do
+          raise "Missing browser asset: #{asset}"
+        end
 
         if Enum.any?(names, &Regex.match?(~r{(^|/)lib/med_ex/(opus|rtc)/}, &1)),
           do: raise("Native extension source in base tarball")
@@ -686,7 +688,8 @@ defmodule MedEx.ConsumerCheck do
       )
 
     try do
-      [port: port] = :httpd.info(server, [:port])
+      {:httpd, ^server, info} = List.keyfind(:inets.services_info(), server, 1)
+      port = Keyword.fetch!(info, :port)
       url = "http://127.0.0.1:#{port}"
       env = registry_env(ctx)
 
