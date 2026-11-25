@@ -1142,8 +1142,12 @@ defmodule MedEx.ConsumerCheck do
   defp verify_requirements!(app, version, requirements) do
     base = requirements["med_ex"] || %{}
 
-    unless base["app"] == "med_ex" and base["requirement"] == "~> #{version}" and
-             base["optional"] == false and base["repository"] in [nil, "hexpm"] do
+    %{major: major, minor: minor} = Version.parse!(version)
+    family = "~> #{major}.#{minor}.0"
+
+    unless base["app"] == "med_ex" and base["requirement"] == family and
+             Version.match?(version, family) and base["optional"] == false and
+             base["repository"] in [nil, "hexpm"] do
       raise "#{app} does not publish the ordinary required :med_ex Hex dependency"
     end
 
