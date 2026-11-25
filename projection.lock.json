@@ -64,7 +64,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "043bd33599625f000ea9d6826179ca5b5a362148786cef30e284d080ceda69cf",
+    "artifact_id": "b0cd6060fea6c76a3ad0cbede4a604cf79082578bbf134b11d4410d75ae90cdd",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
       ".formatter.exs",
@@ -145,7 +145,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "b30d517305f93b84c94664bb0f9767c9aad23c29",
+    "git_revision": "86eecb3be1bd850e697486061959d22da81a8357",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -165,7 +165,7 @@
       "mix.exs",
       "priv"
     ],
-    "tree_digest": "03cae60bd78ae705c311a97dd1cb22769c74353777183dd94730c5f9e0a65614",
+    "tree_digest": "7e43bc2101622aefb4ff76e79cf63d0491d7b1e95baa6ae93d770019c1f24ca9",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -245,7 +245,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "verification_input_identity": "d2afb36c1e00dae96063904e517441888be437847e95342600a9e300626f8175"
+    "verification_input_identity": "587dca43f42de560abd320ac0b43537eb2a6bd2d4266c037ca45627373cf08a3"
   },
   "source": {
     "inventory": [
