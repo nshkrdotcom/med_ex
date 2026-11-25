@@ -6,6 +6,9 @@ defmodule MedEx.StreamWriter do
   accepted (volatile) from journal-backed durable boundaries. A timer checkpoint
   sends the owner `{:med_ex_durable, writer, receipt}`. A call timeout or process
   exit is an unknown outcome. Reconcile storage before granting a replacement.
+
+  With `checkpoint_ms: :manual`, owner loss closes storage without committing
+  pending frames or writing a terminal record. The host controls explicit writes.
   """
   use GenServer, restart: :temporary
   alias MedEx.{ContractRules, FrameFingerprint, Serialization, StreamCursor, StreamIndex}
@@ -412,6 +415,12 @@ defmodule MedEx.StreamWriter do
   end
 
   def handle_info({:checkpoint, _}, s), do: {:noreply, s}
+
+  def handle_info(
+        {:DOWN, ref, :process, _, _},
+        %{monitor: ref, limits: %{checkpoint_ms: :manual}} = s
+      ),
+      do: {:stop, :normal, s}
 
   def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s) do
     # If flushing fails, the host must recover the verified prefix.

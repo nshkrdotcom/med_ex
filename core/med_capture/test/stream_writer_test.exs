@@ -313,4 +313,34 @@ defmodule MedEx.StreamWriterTest do
     assert {:ok, index} = StreamWriter.finish(w)
     assert index.next_sequence == 1
   end
+
+  test "manual writer owner exit leaves the durable prefix unchanged", %{tmp_dir: dir} do
+    parent = self()
+
+    owner =
+      spawn(fn ->
+        {:ok, writer} = start(dir, limits: %{checkpoint_ms: :manual})
+
+        assert {:ok, %{durable_sequence: 1}} =
+                 with(
+                   {:ok, _} <- StreamWriter.push(writer, frame(0, 0)),
+                   do: StreamWriter.checkpoint(writer)
+                 )
+
+        assert {:ok, %{accepted_sequence: 2, durable_sequence: 1}} =
+                 StreamWriter.push(writer, frame(1, 2))
+
+        send(parent, {:pending, writer})
+
+        receive do
+          :exit -> :ok
+        end
+      end)
+
+    assert_receive {:pending, writer}, 2_000
+    ref = Process.monitor(writer)
+    send(owner, :exit)
+    assert_receive {:DOWN, ^ref, :process, ^writer, :normal}, 2_000
+    assert {:ok, %{terminal_recorded: false, receipt: %{durable_sequence: 1}}} = recover(dir)
+  end
 end
