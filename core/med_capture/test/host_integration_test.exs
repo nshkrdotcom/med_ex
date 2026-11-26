@@ -53,7 +53,8 @@ defmodule MedEx.HostIntegrationTest do
       DynamicSupervisor.start_child(
         sup,
         {StreamWriter,
-         owner: self(), fence: "f1", stream: s, artifact_dir: dir, checkpoint_ms: :manual}
+         owner: self(), fence: "f1", stream: s, artifact_dir: dir,
+         limits: %{checkpoint_ms: :manual}}
       )
 
     # Non-owner is rejected
@@ -63,9 +64,13 @@ defmodule MedEx.HostIntegrationTest do
     # Stale fence is rejected
     assert {:error, _} = StreamWriter.push(writer, "wrong-fence", frame(s, 0))
 
-    assert {:ok, _} = StreamWriter.push(writer, "f1", frame(s, 0))
+    assert {:ok, %{accepted_sequence: 1, durable_sequence: 0}} =
+             StreamWriter.push(writer, "f1", frame(s, 0))
+
+    refute_receive {:med_ex_durable, ^writer, _}, 350
+    assert {:ok, %{durable_sequence: 0}} = StreamWriter.receipt(writer)
     assert {:ok, cp} = StreamWriter.checkpoint(writer)
-    assert cp.journal_generation >= 1
+    assert {cp.durable_sequence, cp.durable_sample} == {1, 10}
 
     assert {:ok, _} = StreamWriter.finish(writer)
     assert {:ok, recovered} = Store.recover(dir, stream: s, fence: "f1")

@@ -57,9 +57,9 @@ Opus and `:rtc_provider` for WebRTC.
 
 ## Work on an extension
 
-Each extension declares the normal Hex dependency `{:med_ex, "~> 0.3.0"}`
-and keeps its own `VERSION`. The published 0.1.0 provider packages can
-resolve MedEx 0.3.0 within that requirement.
+Each 0.2.0 extension declares the normal Hex dependency `{:med_ex, "~> 0.3.0"}`
+and keeps its own `VERSION`. The earlier 0.1.0 provider packages require the
+MedEx 0.2.x family; they cannot resolve MedEx 0.3.0 under that requirement.
 
 For a local edit, run the real provider suites from fresh outer Mix consumers
 with the explicit path dependencies above:
@@ -79,13 +79,16 @@ helpers configure the provider being exercised. Fetch the base through normal
 Hex SCM for this lane. The outer path consumer checks source builds, and the
 registry lane checks the package requirements.
 
-The Opus package runs a vendored-libopus encoder as an OS process over a Port. RTC uses ExWebRTC and ExRTP.
+The Opus package runs an encoder linked to pinned libopus source as an OS process
+over a Port. RTC uses ExWebRTC and ExRTP.
 Install a C toolchain and the platform prerequisites for the profile you use.
 [Native build prerequisites](host_integration.md#prerequisites)
 
 ## Build and check the artifacts
 
-The maintainer project uses Weld 0.19.0 from Hex. Run the following Mix tasks
+The maintainer project requires Weld 0.19.0 from Hex. After that release is
+available, refresh and commit its lock with `mix deps.update weld` before
+running locked qualification. Run the following Mix tasks
 from `tools/maintainer` using the relative manifest path below.
 
 ```sh
@@ -114,18 +117,43 @@ following with the path to the installed maintainer project or candidate Weld
 checkout:
 
 ```sh
-./build_support/check_consumers.sh --registry -- sh -eu -c '
+invoker=/absolute/path/to/weld-invoker
+./build_support/check_consumers.sh --registry --projected-packages \
+  --weld-invoker "$invoker" -- sh -eu -c '
   cd "$1"
   for artifact in med_ex med_ex_opus med_ex_rtc; do
     mix weld.verify "$2" --artifact "$artifact"
   done
-' registry /absolute/path/to/weld-invoker "$(pwd)/build_support/weld.exs"
+' registry "$invoker" "$(pwd)/build_support/weld.exs"
 ```
 
 Run `mix release.prepare` with the same manifest and artifact in that registry
 context to prepare portable projects from a clean committed source. Use
 `mix release.track` with the same manifest and artifact to record a prepared
 snapshot on its local projection branch.
+
+`--projected-packages` first runs `mix weld.project` for all three artifacts,
+then builds registry archives from those full projections. Weld checks current
+source inputs and its cache receipts, including the case where a dirty projection
+was created and the source was later restored to the same Git revision. The
+consumer check also verifies the recorded revision and portable content before
+packaging. This selects the same base package layout used for publication,
+so provider locks for that published base do not encounter a different direct-source
+archive with the same version. The default Weld invoker is `tools/maintainer`;
+`--weld-invoker` accepts an absolute directory containing an already configured
+Mix project with Weld available, such as the audited Weld checkout before its
+new version is published. It is allowed only with `--registry --projected-packages`.
+Do not repair locks inside generated or frozen release directories.
+
+After all releases are prepared, `--registry --prepared-packages` instead uses
+the verified exact `CURRENT` archives. The two package-selection flags are
+mutually exclusive and require `--registry`. Plain `--registry` retains the
+direct-source archive lane for ordinary consumer checks.
+
+The maintainer-only regression for projection refresh uses real Weld and a
+temporary Git fixture. Run `mix test` from `tools/maintainer` after installing
+its locked dependency. Before publication, the same test can run in the candidate
+Weld checkout with `mix test /absolute/path/to/med_ex/tools/maintainer/test/projected_registry_test.exs`.
 
 For provider releases, verify and prepare against the public Hex base. From
 `tools/maintainer`, select `med_ex_opus` or `med_ex_rtc` and carry the full
@@ -237,5 +265,5 @@ what it selected. Ordinary Mix commands remain available in each project.
 Full qualification expects MedEx at the verified remote revision and Fabric
 at the corresponding pin. Use `--gate medex-matrix` to qualify the local
 artifact and consumer gates before the MedEx push. See `--help` for strict
-and cache-controlled runs. The official maintainer lock continues to resolve
-published Weld 0.19.0.
+and cache-controlled runs. Qualification requires the maintainer lock to resolve
+published Weld 0.19.0; an older supplied lock must be refreshed before that gate.

@@ -6,29 +6,40 @@ defmodule MedEx.Opus.Encoder do
   use GenServer
 
   @hello "med_ex_opus/1 "
+  @start_timeout 5_000
 
-  def start_link(owner), do: GenServer.start_link(__MODULE__, owner)
-
-  @impl true
-  def init(owner) do
+  def start_link(owner) do
     exe = Path.join(:code.priv_dir(:med_ex_opus), "opus_encoder")
-    port = Port.open({:spawn_executable, exe}, [:binary, :exit_status, {:packet, 4}])
-    {:ok, %{owner: owner, port: port, ready: false, index: nil}}
+    GenServer.start_link(__MODULE__, {owner, exe}, timeout: @start_timeout)
   end
 
   @impl true
-  def handle_info({:pcm, index, pcm}, %{ready: true, index: nil} = s) do
+  def init({owner, exe}) do
+    port = Port.open({:spawn_executable, exe}, [:binary, :exit_status, {:packet, 4}])
+
+    receive do
+      {^port, {:data, @hello <> version}} when byte_size(version) > 0 ->
+        send(owner, {:preview_ready, self()})
+        {:ok, %{owner: owner, port: port, index: nil}}
+
+      {^port, {:exit_status, status}} ->
+        {:error, {:encoder_exit, status}}
+
+      {^port, {:data, _}} ->
+        {:error, :protocol_error}
+    after
+      @start_timeout -> {:error, :startup_timeout}
+    end
+  end
+
+  @impl true
+  def handle_info({:pcm, index, pcm}, %{index: nil} = s) do
     Port.command(s.port, pcm)
     {:noreply, %{s | index: index}}
   end
 
-  def handle_info({port, {:data, @hello <> _}}, %{port: port, ready: false} = s) do
-    send(s.owner, {:preview_ready, self()})
-    {:noreply, %{s | ready: true}}
-  end
-
-  def handle_info({port, {:data, packet}}, %{port: port, ready: true, index: index} = s)
-      when index != nil do
+  def handle_info({port, {:data, packet}}, %{port: port, index: index} = s)
+      when index != nil and byte_size(packet) in 1..1275 do
     send(s.owner, {:preview_encoded, self(), index, packet})
     {:noreply, %{s | index: nil}}
   end

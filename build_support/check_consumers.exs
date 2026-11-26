@@ -30,6 +30,8 @@ defmodule MedEx.ConsumerCheck do
     registry: :boolean,
     registry_lock: :keep,
     prepared_packages: :boolean,
+    projected_packages: :boolean,
+    weld_invoker: :string,
     transport: :string,
     profile: :string,
     git_url: :string,
@@ -67,8 +69,12 @@ defmodule MedEx.ConsumerCheck do
   --compatibility --transport TRANSPORT --evidence DIR compares a single transport to direct.
   --functional runs the canonical direct profiles and the base architecture/browser checks.
   --affected BASE selects downstream profiles and checks. Add --plan to inspect scope.
-  Registry builds real packages and runs COMMAND with an isolated signed Hex repo.
-  Pass --prepared-packages to use verified CURRENT archives and repeat --registry-lock
+  Registry builds direct-source packages and runs COMMAND with an isolated signed Hex repo.
+  Pass --projected-packages to refresh and build full projections of the clean current
+  revision before preparing releases. It runs Weld from tools/maintainer; use
+  --weld-invoker ABSOLUTE_DIRECTORY for an already configured candidate Weld checkout.
+  Use --prepared-packages to read verified CURRENT
+  archives afterward. These selections are mutually exclusive. Repeat --registry-lock
   PATH to include genuine third-party dependencies from consumer lockfiles.
   """
 
@@ -121,9 +127,11 @@ defmodule MedEx.ConsumerCheck do
       cond do
         opts[:registry] ->
           archives =
-            if opts[:prepared_packages],
-              do: prepared_archives!(ctx),
-              else: build_family!(ctx, direct(), "registry")
+            cond do
+              opts[:prepared_packages] -> prepared_archives!(ctx)
+              opts[:projected_packages] -> projected_archives!(ctx, opts[:weld_invoker])
+              true -> build_family!(ctx, direct(), "registry")
+            end
 
           with_registry(
             ctx,
@@ -175,7 +183,8 @@ defmodule MedEx.ConsumerCheck do
     end
   end
 
-  defp validate_options!(opts, command) do
+  @doc false
+  def validate_options!(opts, command) do
     modes =
       Enum.count(
         [
@@ -211,12 +220,21 @@ defmodule MedEx.ConsumerCheck do
                   Keyword.take(opts, [:affected, :optimized, :full, :strict_full, :resume]),
                   &elem(&1, 1)
                 )) and
-             (!(opts[:prepared_packages] || opts[:registry_lock]) or opts[:registry] == true) and
+             (!(opts[:prepared_packages] || opts[:projected_packages] || opts[:registry_lock]) or
+                opts[:registry] == true) and
+             !(opts[:prepared_packages] && opts[:projected_packages]) and
+             (is_nil(opts[:weld_invoker]) or
+                (opts[:projected_packages] == true and
+                   Path.type(opts[:weld_invoker]) == :absolute and
+                   File.dir?(opts[:weld_invoker]) and
+                   File.regular?(Path.join(opts[:weld_invoker], "mix.exs")))) and
              opts[:registry] == true == (command != []) and
              is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
              (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
       raise ArgumentError, @usage
     end
+
+    :ok
   end
 
   defp plan(opts) do
@@ -587,6 +605,7 @@ defmodule MedEx.ConsumerCheck do
 
       path = if kind == "live", do: source, else: detach!(ctx, source, "#{kind}-#{app}")
       if integrity, do: verify_prepared_tree!(path, integrity)
+      if kind == "full" and revision, do: verify_full_projection!(path, app, revision)
 
       {app, [path: path]}
     end)
@@ -620,6 +639,31 @@ defmodule MedEx.ConsumerCheck do
 
     verify_prepared_tree!(path, metadata["integrity"])
     {path, metadata["integrity"]}
+  end
+
+  @doc false
+  def verify_full_projection!(root, app, revision) do
+    marker = read_json!(Path.join(root, "weld.provenance.json"))
+    lock = read_json!(Path.join(root, "projection.lock.json"))
+    artifact = to_string(app)
+
+    unless marker["schema"] == "weld.projection/v1" and marker["kind"] == "full" and
+             marker["artifact"] == artifact and get_in(lock, ["artifact", "id"]) == artifact do
+      raise "Unexpected full projection provenance for #{app}"
+    end
+
+    unless get_in(lock, ["projection", "git_revision"]) == revision,
+      do: raise("Full projection for #{app} does not match the current source revision; refresh it")
+
+    content =
+      for {relative, path, mode} <- project_files!(root),
+          relative not in ~w(weld.provenance.json projection.lock.json),
+          do: :erlang.term_to_binary({relative, Bitwise.band(mode, 0o111), digest(File.read!(path))})
+
+    unless marker["artifact_id"] == digest(content),
+      do: raise("Full projection portable content changed for #{app}; refresh it")
+
+    :ok
   end
 
   @doc false
@@ -841,8 +885,9 @@ defmodule MedEx.ConsumerCheck do
     if String.starts_with?(url, stage <> "/"), do: Path.relative_to(url, stage), else: url
   end
 
-  defp path_fingerprint(path) do
-    patterns = ~w(mix.exs mix.lock VERSION lib/**/* components/**/* core/**/lib/**/*
+  @doc false
+  def path_fingerprint(path) do
+    patterns = ~w(mix.exs mix.lock VERSION Makefile c_src/**/* lib/**/* components/**/* core/**/lib/**/*
                   config/**/* priv/**/* build_support/composition.exs projection.lock.json
                   weld.provenance.json)
 
@@ -885,11 +930,13 @@ defmodule MedEx.ConsumerCheck do
     mix!(ctx, "#{label}-compile", work, ["compile", "--warnings-as-errors"], test_env)
 
     if ctx.optimized && name != "direct" do
-      mix!(ctx, "#{label}-smoke", work, ["test", "test/consumer_smoke_test.exs"], test_env)
+      output =
+        mix!(ctx, "#{label}-smoke", work, ["test", "test/consumer_smoke_test.exs"], test_env)
 
       if read_json!(outputs["inputs"]) ==
            read_json!(cell_outputs(ctx, "direct-#{profile}")["inputs"]) do
         File.cp!(Path.join(ctx.evidence, "#{label}-smoke.log"), outputs["test"])
+        [_, count] = Regex.run(~r/^Result: (\d+) passed$/m, output)
 
         finish_cell!(
           ctx,
@@ -899,7 +946,7 @@ defmodule MedEx.ConsumerCheck do
           inventory,
           outputs,
           canonical_proof(ctx, name, profile),
-          2
+          String.to_integer(count)
         )
       else
         IO.puts("DISTINCT #{label} (effective inputs differ, running its behavioral suite)")
@@ -1013,6 +1060,32 @@ defmodule MedEx.ConsumerCheck do
           raise "Unexpected Mix source in lock for #{app} at #{work}"
       end
     end
+  end
+
+  defp projected_archives!(ctx, invoker) do
+    revision = clean_source_revision!(ctx, "projected-registry")
+    invoker = invoker || Path.join(@repo, "tools/maintainer")
+    manifest = Path.join(@repo, "build_support/weld.exs")
+
+    for app <- @apps, do: refresh_projection!(ctx, invoker, manifest, app)
+    verify_source_revision!(ctx, revision, "projected-registry-refresh")
+
+    projects = projected!(ctx, "full", revision)
+    archives = build_family!(ctx, projects, "projected")
+    verify_source_revision!(ctx, revision, "projected-registry-finish")
+    archives
+  end
+
+  @doc false
+  def refresh_projection!(ctx, invoker, manifest, app) do
+    mix!(
+      ctx,
+      "projected-refresh-#{app}",
+      invoker,
+      ["weld.project", manifest, "--artifact", to_string(app)],
+      official_env(ctx),
+      "dev"
+    )
   end
 
   defp prepared_archives!(ctx) do
@@ -1166,7 +1239,8 @@ defmodule MedEx.ConsumerCheck do
     "~> #{major}.#{minor}.0"
   end
 
-  defp verify_package_files!(app, files) do
+  @doc false
+  def verify_package_files!(app, files) do
     names = Enum.map(files, &elem(&1, 0))
 
     for path <- names do
@@ -1193,11 +1267,16 @@ defmodule MedEx.ConsumerCheck do
           do: raise("Native extension source in base tarball")
 
       :med_ex_opus ->
-        unless "lib/med_ex/opus/provider.ex" in names, do: raise("Opus provider source missing")
+        for input <- ~w(lib/med_ex/opus/provider.ex lib/med_ex/opus/encoder.ex Makefile
+                        c_src/opus_encoder.c c_src/vendor/SHA256SUMS),
+            input not in names,
+            do: raise("Opus build input missing: #{input}")
 
       :med_ex_rtc ->
         unless "lib/med_ex/rtc/provider.ex" in names, do: raise("RTC provider source missing")
     end
+
+    :ok
   end
 
   defp archive_paths(ctx, archives) do

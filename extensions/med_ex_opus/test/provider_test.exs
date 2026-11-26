@@ -31,6 +31,45 @@ defmodule MedEx.Opus.ProviderTest do
     refute_receive {:med_ex_encoded, "stalled", _, _}
   end
 
+  test "normal owner exit retires the provider and closes the native port" do
+    test = self()
+
+    owner =
+      spawn(fn ->
+        {:ok, provider} = Provider.start_link(owner: self())
+        send(test, {:provider, provider})
+
+        receive do
+          :done -> :ok
+        end
+      end)
+
+    assert_receive {:provider, provider}, 6_000
+    %{pipeline: encoder} = :sys.get_state(provider)
+    %{port: port} = :sys.get_state(encoder)
+    provider_ref = Process.monitor(provider)
+    encoder_ref = Process.monitor(encoder)
+    send(owner, :done)
+    assert_receive {:DOWN, ^provider_ref, :process, ^provider, :normal}, 2_000
+    assert_receive {:DOWN, ^encoder_ref, :process, ^encoder, _}, 2_000
+    assert Port.info(port) == nil
+  end
+
+  test "stopping with a pending offer sends one failure and closes the encoder" do
+    assert {:ok, provider} = Provider.start_link(owner: self())
+    %{pipeline: encoder} = ready(provider, System.monotonic_time(:millisecond) + 5_000)
+    %{port: port} = :sys.get_state(encoder)
+    ref = Process.monitor(encoder)
+    :ok = :sys.suspend(encoder)
+    assert :ok = Provider.offer(provider, :pending, 0, :binary.copy(<<0>>, 1920))
+    assert :ok = Provider.stop(provider)
+    assert_receive {:med_ex_encode_failed, :pending, :encoder_stopped}
+    assert_receive {:DOWN, ^ref, :process, ^encoder, _}, 2_000
+    assert Port.info(port) == nil
+    refute_receive {:med_ex_encode_failed, :pending, _}
+    refute_receive {:med_ex_encoded, :pending, _, _}
+  end
+
   defp ready(pid, deadline) do
     state = :sys.get_state(pid)
 

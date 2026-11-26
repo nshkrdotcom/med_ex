@@ -10,9 +10,12 @@ test that exercises it.
   `push/2` or `push/3` are buffered until the batch limit or checkpoint timer fires.
   A frame is durable only after `checkpoint/1` or `finish/1` returns `{:ok, receipt}`
   (or a periodic flush commits it to `stream.mejournal`).
-- **Host-fenced manual checkpoints (`checkpoint_ms: :manual`):** The writer never
+- **Host-fenced manual checkpoints (`limits: %{checkpoint_ms: :manual}`):** The writer never
   flushes on a timer and never flushes volatile frames on owner loss. The host
-  owns every durable boundary via explicit `checkpoint/1` and `finish/1` calls.
+  must hold its fence across every operation that can write: `push/3` can flush
+  at frame/byte limits or a configuration change, and gap, checkpoint, finish,
+  and interruption calls can also commit. Manual mode disables background
+  commits; it does not make checkpoint and finish the only write boundaries.
   *(Proved by `stream_writer_test.exs`: "manual checkpoint mode disables timer
   flushes and commits only on explicit owner calls" and "manual writer owner exit
   leaves the durable prefix unchanged"; `host_integration_test.exs` exercises the
@@ -24,8 +27,10 @@ test that exercises it.
   mutating calls from any other PID (`{:error, :not_owner}`).
 - Fenced `push/3` calls must carry the writer's active `:fence` token; a
   mismatched fence returns an error.
-- On owner exit, the writer terminates cleanly (`restart: :temporary`), leaving
-  only previously committed batches in the durable prefix.
+- On owner exit in manual mode, the writer terminates cleanly
+  (`restart: :temporary`), leaving only previously committed batches in the
+  durable prefix. Periodic mode instead attempts to flush pending frames and
+  record an interruption; recover storage to determine the resulting prefix.
   *(Proved by `stream_writer_test.exs`: "owner, fence, accepted versus durable,
   exact replay and immutable final bytes" and the owner-exit test above;
   `host_integration_test.exs` checks `:not_owner` and wrong-fence rejection.)*
@@ -56,7 +61,7 @@ test that exercises it.
 - `StreamCursor.plan/2` returns explicit append, reconcile, gap and replay intents
   and is pure. *(`stream_cursor_test.exs`.)*
 - `Wire.FrameV1` (`MEX1`) round-trips random payloads and coordinates;
-  `CanonicalJSON` (`MEJ1`) is independent of map key order and rejects numbers.
+  `CanonicalJSON` (`MEJ1`) sorts object keys at every nesting level and rejects numbers.
   *(`core_properties_test.exs`; fixed-seed random cases, not a property-testing
   library.)*
 - `Wire.Control` rejects nested duplicate keys. *(`control_wire_test.exs`.)*

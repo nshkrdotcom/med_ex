@@ -33,7 +33,7 @@ This classification is a proposal made on 2026-11-26 from module docs and usage;
 
 ## 0.x Compatibility Rules
 
-1. **Patch releases (`0.2.x`):** Bug fixes, additive options (such as
+1. **Patch releases within one minor family (for example, `0.3.x`):** Bug fixes, additive options (such as
    `checkpoint_ms: :manual`), and docs only. Must not break existing callers or
    previously qualified provider packages (`med_ex_opus`, `med_ex_rtc`).
 2. **Minor releases (`0.x.0`):** May tighten provisional contracts or deprecate
@@ -41,4 +41,9 @@ This classification is a proposal made on 2026-11-26 from module docs and usage;
 3. **Frozen predecessor import:** Streams sealed under revision-1 `MEX1`/`MEJ1`
    remain readable by `MedEx.Storage.File.recover/2` across `0.x` releases.
 4. **Provider compatibility:** Provider packages declare normal Hex requirements
-   on `:med_ex` (e.g., `~> 0.2.0`) and are qualified against base patch releases.
+   on `:med_ex` and are qualified against base patch releases.
+
+| Provider family | Required MedEx family |
+| --- | --- |
+| `med_ex_opus 0.1.x`, `med_ex_rtc 0.1.x` | `~> 0.2.0` |
+| `med_ex_opus 0.2.x`, `med_ex_rtc 0.2.x` | `~> 0.3.0` |

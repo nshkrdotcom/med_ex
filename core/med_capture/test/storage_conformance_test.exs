@@ -43,7 +43,7 @@ defmodule MedEx.StorageConformanceTest do
     }
   end
 
-  test "conformance: orphan chunk before journal append is ignored on recovery", %{tmp_dir: dir} do
+  test "unreferenced content-addressed chunk does not change sealed recovery", %{tmp_dir: dir} do
     on_exit(fn -> File.rm_rf!(dir) end)
     s = spec()
 
@@ -53,19 +53,20 @@ defmodule MedEx.StorageConformanceTest do
         fence: "f",
         stream: s,
         artifact_dir: dir,
-        checkpoint_ms: :manual
+        limits: %{checkpoint_ms: :manual}
       )
 
     assert {:ok, _} = StreamWriter.push(writer, "f", frame(s, 0))
     assert {:ok, _} = StreamWriter.checkpoint(writer)
     assert {:ok, _} = StreamWriter.finish(writer)
+    assert {:ok, expected} = Store.recover(dir, stream: s, fence: "f")
 
-    # Simulate a crash that left an unreferenced orphan chunk file on disk
-    File.write!(Path.join(dir, "orphan_crash_chunk.pcm"), :binary.copy(<<99>>, 64))
+    # A synced content-addressed object can precede its journal append.
+    orphan = :binary.copy(<<99>>, 64)
+    digest = MedEx.Serialization.sha256(orphan)
+    File.write!(Path.join(dir, digest <> ".pcm"), orphan)
 
-    assert {:ok, recovered} = Store.recover(dir, stream: s, fence: "f")
-    assert recovered.sealed
-    refute recovered.torn_tail
+    assert {:ok, ^expected} = Store.recover(dir, stream: s, fence: "f")
   end
 
   test "conformance: corrupt trailing journal bytes fail recovery instead of silent acceptance",
@@ -79,7 +80,7 @@ defmodule MedEx.StorageConformanceTest do
         fence: "f",
         stream: s,
         artifact_dir: dir,
-        checkpoint_ms: :manual
+        limits: %{checkpoint_ms: :manual}
       )
 
     assert {:ok, _} = StreamWriter.push(writer, "f", frame(s, 0))

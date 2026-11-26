@@ -13,7 +13,7 @@ defmodule MedEx.PreviewSession do
   end
 
   # Capture traps exits; this process intentionally does not. Its link to
-  # Membrane's supervisor is established inside start_link, before a PID is
+  # the provider's encoder is established inside start_link, before a PID is
   # returned. An exit signal can therefore cancel even an unfinished startup.
   def start_link(capture, start_encoder) do
     spawn_link(fn ->

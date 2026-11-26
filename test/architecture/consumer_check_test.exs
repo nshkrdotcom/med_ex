@@ -3,6 +3,84 @@ Code.require_file("../../build_support/check_consumers.exs", __DIR__)
 defmodule MedEx.ConsumerCheckTest do
   use ExUnit.Case, async: true
 
+  test "registry package selection accepts one source and requires a registry command" do
+    for selection <- [[], [projected_packages: true], [prepared_packages: true]] do
+      assert :ok =
+               MedEx.ConsumerCheck.validate_options!([registry: true] ++ selection, ["true"])
+    end
+
+    invoker = Path.expand("../..", __DIR__)
+
+    assert :ok =
+             MedEx.ConsumerCheck.validate_options!(
+               [registry: true, projected_packages: true, weld_invoker: invoker],
+               ["true"]
+             )
+
+    for {options, command} <- [
+          {[projected_packages: true], []},
+          {[projected_packages: true], ["true"]},
+          {[registry: true, projected_packages: true], []},
+          {[registry: true, projected_packages: true, prepared_packages: true], ["true"]},
+          {[registry: true, weld_invoker: invoker], ["true"]},
+          {[registry: true, projected_packages: true, weld_invoker: "relative"], ["true"]},
+          {[registry: true, projected_packages: true, weld_invoker: __DIR__], ["true"]}
+        ] do
+      assert_raise ArgumentError, fn ->
+        MedEx.ConsumerCheck.validate_options!(options, command)
+      end
+    end
+  end
+
+  @tag :tmp_dir
+  test "projected registry input must match its reported source revision and portable bytes", %{
+    tmp_dir: root
+  } do
+    on_exit(fn -> File.rm_rf!(root) end)
+    revision = String.duplicate("a", 40)
+    File.write!(Path.join(root, "mix.exs"), "project\n")
+    File.chmod!(Path.join(root, "mix.exs"), 0o644)
+    identity = digest(:erlang.term_to_binary({"mix.exs", 0, digest("project\n")}))
+
+    File.write!(
+      Path.join(root, "weld.provenance.json"),
+      JSON.encode!(%{
+        schema: "weld.projection/v1",
+        artifact: "med_ex",
+        kind: "full",
+        artifact_id: identity
+      })
+    )
+
+    File.write!(
+      Path.join(root, "projection.lock.json"),
+      JSON.encode!(%{artifact: %{id: "med_ex"}, projection: %{git_revision: revision}})
+    )
+
+    assert :ok = MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
+
+    assert_raise RuntimeError, ~r/source revision/, fn ->
+      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, String.duplicate("b", 40))
+    end
+
+    assert_raise RuntimeError, ~r/provenance/, fn ->
+      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex_opus, revision)
+    end
+
+    File.chmod!(Path.join(root, "mix.exs"), 0o744)
+
+    assert_raise RuntimeError, ~r/portable content/, fn ->
+      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
+    end
+
+    File.chmod!(Path.join(root, "mix.exs"), 0o644)
+    File.write!(Path.join(root, "mix.exs"), "changed project\n")
+
+    assert_raise RuntimeError, ~r/portable content/, fn ->
+      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
+    end
+  end
+
   test "normalizes Hex requirements without losing identity or constraints" do
     properties = [
       {"app", "med_ex"},
@@ -28,6 +106,43 @@ defmodule MedEx.ConsumerCheckTest do
 
     assert_raise RuntimeError, ~r/Hex requirement name mismatch/, fn ->
       MedEx.ConsumerCheck.normalize_requirements!([{"wrong", properties}])
+    end
+  end
+
+  test "Opus packages must contain every input needed for the native build" do
+    required = ~w(mix.exs lib/med_ex/opus/provider.ex lib/med_ex/opus/encoder.ex Makefile
+                  c_src/opus_encoder.c c_src/vendor/SHA256SUMS)
+    files = Enum.map(required, &{&1, "fixture bytes"})
+    assert :ok = MedEx.ConsumerCheck.verify_package_files!(:med_ex_opus, files)
+
+    for missing <- required -- ["mix.exs"] do
+      assert_raise RuntimeError, ~r/Opus build input missing/, fn ->
+        MedEx.ConsumerCheck.verify_package_files!(
+          :med_ex_opus,
+          List.keydelete(files, missing, 0)
+        )
+      end
+    end
+  end
+
+  @tag :tmp_dir
+  test "native source and build recipe changes invalidate path qualification", %{tmp_dir: root} do
+    on_exit(fn -> File.rm_rf!(root) end)
+    files = ~w(Makefile c_src/opus_encoder.c c_src/vendor/SHA256SUMS)
+
+    for relative <- files do
+      file = Path.join(root, relative)
+      File.mkdir_p!(Path.dirname(file))
+      File.write!(file, "original")
+    end
+
+    original = MedEx.ConsumerCheck.path_fingerprint(root)
+
+    for relative <- files do
+      file = Path.join(root, relative)
+      File.write!(file, "changed")
+      refute MedEx.ConsumerCheck.path_fingerprint(root) == original
+      File.write!(file, "original")
     end
   end
 

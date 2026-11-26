@@ -1,3 +1,7 @@
+ifeq ($(strip $(MIX_APP_PATH)),)
+$(error MIX_APP_PATH must name the Mix application build directory)
+endif
+
 OPUS       = opus-1.5.2
 VENDOR     = c_src/vendor
 CACHE_DIR  = $(if $(XDG_CACHE_HOME),$(XDG_CACHE_HOME),$(HOME)/.cache)/med_ex_opus
@@ -8,15 +12,25 @@ BUILD      = $(MIX_APP_PATH)/opus_build
 LIB        = $(BUILD)/install/lib/libopus.a
 BIN        = $(MIX_APP_PATH)/priv/opus_encoder
 
-$(BIN): c_src/opus_encoder.c $(LIB)
+$(BIN): c_src/opus_encoder.c $(LIB) Makefile
 	mkdir -p $(dir $@)
 	$(CC) -std=c11 -O2 -Wall -Wextra -Werror -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
 		-I$(BUILD)/install/include/opus -o $@ $< $(LIB) -lm
 
-$(LIB): $(VENDOR)/SHA256SUMS
+$(LIB): $(VENDOR)/SHA256SUMS Makefile
 	@set -eu; \
 	tarball="$(TARBALL)"; \
+	if [ -n "$(MED_EX_OPUS_TARBALL)" ]; then \
+		case "$$tarball" in \
+			/*) ;; \
+			*) echo "MED_EX_OPUS_TARBALL must be an absolute path" >&2; exit 1 ;; \
+		esac; \
+	fi; \
 	if [ ! -f "$$tarball" ]; then \
+		if [ -n "$(MED_EX_OPUS_TARBALL)" ]; then \
+			echo "MED_EX_OPUS_TARBALL is not a readable file: $$tarball" >&2; \
+			exit 1; \
+		fi; \
 		mkdir -p "$$(dirname "$$tarball")"; \
 		tmp="$$tarball.tmp.$$$$"; \
 		(curl -fsSL -o "$$tmp" "$(URL_XIPH)" || curl -fsSL -o "$$tmp" "$(URL_GH)") || { rm -f "$$tmp"; exit 1; }; \

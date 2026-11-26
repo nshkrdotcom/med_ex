@@ -9,7 +9,7 @@ defmodule MedEx.CorePropertiesTest do
 
     for i <- 1..50 do
       len = :rand.uniform(256)
-      payload = :crypto.strong_rand_bytes(len)
+      payload = for _ <- 1..len, into: <<>>, do: <<:rand.uniform(256) - 1>>
 
       frame = %FrameV1{
         stream_number: i,
@@ -27,10 +27,11 @@ defmodule MedEx.CorePropertiesTest do
     end
   end
 
-  test "CanonicalJSON encodes MEJ1 maps deterministically regardless of key insertion order" do
+  test "CanonicalJSON emits sorted keys at every nesting level" do
     a = %{"z" => "1", "a" => [true, false, nil, "hi"], "m" => %{"b" => "2", "a" => "1"}}
-    b = %{"m" => %{"a" => "1", "b" => "2"}, "a" => [true, false, nil, "hi"], "z" => "1"}
-    assert CanonicalJSON.encode(a) == CanonicalJSON.encode(b)
+    assert CanonicalJSON.encode(a) ==
+             ~s({"a":[true,false,null,"hi"],"m":{"a":"1","b":"2"},"z":"1"})
+
     assert_raise ArgumentError, fn -> CanonicalJSON.encode(%{"n" => 1}) end
   end
 end

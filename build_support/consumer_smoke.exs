@@ -130,9 +130,27 @@ defmodule ExternalDeviceDriverTest do
           File.regular?(file),
           do: {Path.relative_to(file, source), hash(File.read!(file))}
 
+    native =
+      if Map.has_key?(modules, :med_ex_opus) do
+        project = Map.fetch!(paths, :med_ex_opus)
+
+        sources =
+          for pattern <- ["Makefile", "c_src/**/*"],
+              file <- Path.wildcard(Path.join(project, pattern)),
+              File.regular?(file),
+              into: %{},
+              do: {Path.relative_to(file, project), hash(File.read!(file))}
+
+        encoder = Path.join(:code.priv_dir(:med_ex_opus), "opus_encoder")
+        Map.put(sources, "priv/opus_encoder", hash(File.read!(encoder)))
+      else
+        %{}
+      end
+
     %{
       sdk: sdk,
       assets: assets,
+      native: native,
       provider_tests: Enum.sort(test_inputs) |> Map.new(),
       dependency_lock:
         hash(:erlang.term_to_binary(Map.drop(lock, Map.keys(modules)), [:deterministic])),
@@ -147,6 +165,21 @@ defmodule ExternalDeviceDriverTest do
   end
 
   defp hash(bytes), do: :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)
+
+  @tag :tmp_dir
+  test "CLI reference host records against the selected external SDK", %{tmp_dir: dir} do
+    script = Path.join(System.fetch_env!("SDK_SOURCE_ROOT"), "tools/cli_recorder.exs")
+
+    {output, status} =
+      System.cmd("mix", ["run", "--no-compile", "--no-deps-check", script, dir, "4"],
+        env: [{"MIX_ENV", to_string(Mix.env())}],
+        stderr_to_stdout: true
+      )
+
+    assert status == 0, output
+    assert output =~ "cli_recorder ok frames=4"
+    assert output =~ "sealed=true"
+  end
 
   @tag :tmp_dir
   test "public root records both raw streams with the stream-v1 contract", %{tmp_dir: dir} do

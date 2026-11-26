@@ -3,9 +3,12 @@
 ## 0.3.0 — 2026-11-25
 
 - Add durability, ordering, and public-surface compatibility guides (`guides/durability_and_guarantees.md`, `guides/stability_and_compatibility.md`) and a standalone CLI reference host (`tools/cli_recorder.exs`).
-- Add storage crash-recovery, provider behaviour, host `DynamicSupervisor`, and wire/canonical-JSON conformance tests.
+- Add storage crash-recovery, real provider lifecycle, host `DynamicSupervisor`, and wire/canonical-JSON checks; remove fake-only provider assertions.
 - Share one ExDoc Mermaid hook (`build_support/docs_hook.html`) across root and projected builds, rendering diagrams on `exdoc:loaded` in-site navigation and matching light/dark themes.
 - Align optional providers (`med_ex_opus 0.2.0` Port-isolated C `libopus` encoder and `med_ex_rtc 0.2.0`) on `med_ex ~> 0.3.0` and Weld `0.19.0`.
+- Correct manual checkpoint configuration in the CLI and host/storage fixtures, reject invalid CLI frame counts before writing, and document synchronous commit boundaries and periodic owner-loss behavior accurately.
+- Qualify native source and executable bytes when reusing consumer evidence, require all Opus build inputs in Hex archives, and run the CLI host against each selected external SDK transport.
+- Refresh release-preparation projections through Weld's current-input cache checks, then seed their archives with source-revision and portable-content checks; an explicit Weld invoker supports prepublication bootstrap without stale same-version base archives.
 
 ## 0.2.1 — 2026-11-25
 

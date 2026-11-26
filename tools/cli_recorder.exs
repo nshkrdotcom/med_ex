@@ -11,7 +11,12 @@ alias MedEx.Storage.File, as: Store
 {dir, count} =
   case System.argv() do
     [d] -> {d, 5}
-    [d, n] -> {d, String.to_integer(n)}
+    [d, n] ->
+      case Integer.parse(n) do
+        {count, ""} when count > 0 -> {d, count}
+        _ -> raise ArgumentError, "frame_count must be a positive integer"
+      end
+
     _ -> raise "Usage: mix run tools/cli_recorder.exs <output_dir> [frame_count]"
   end
 
@@ -47,7 +52,7 @@ fence = "cli-fence-1"
     fence: fence,
     stream: spec,
     artifact_dir: dir,
-    checkpoint_ms: :manual
+    limits: %{checkpoint_ms: :manual}
   )
 
 for i <- 0..(count - 1) do

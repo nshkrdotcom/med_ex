@@ -29,7 +29,9 @@ int main(void) {
   for (;;) {
     uint8_t head[4], raw[PCM_BYTES], out[MAX_PACKET];
     opus_int16 pcm[FRAME];
-    if (!read_exact(head, 4)) return 0; // owner closed stdin
+    size_t header_bytes = fread(head, 1, sizeof head, stdin);
+    if (header_bytes == 0 && feof(stdin)) return 0; // owner closed stdin between frames
+    if (header_bytes != sizeof head) return 4;
     uint32_t len = (uint32_t)head[0] << 24 | (uint32_t)head[1] << 16 | (uint32_t)head[2] << 8 | head[3];
     if (len != PCM_BYTES || !read_exact(raw, PCM_BYTES)) return 4;
     for (int i = 0; i < FRAME; i++) pcm[i] = (opus_int16)(uint16_t)(raw[2 * i] | raw[2 * i + 1] << 8);
