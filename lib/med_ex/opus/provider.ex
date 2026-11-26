@@ -1,6 +1,6 @@
 defmodule MedEx.Opus.Provider do
   @moduledoc """
-  One in-flight 20 ms mono PCM16LE offer to the Membrane Opus encoder. Startup
+  One in-flight 20 ms mono PCM16LE offer to a libopus encoder OS process. Startup
   and stop wait at most five seconds. A pending encode has a one-second
   deadline; timeout reports failure and retires that provider, so uncertain late
   output cannot be assigned to a subsequent offer. Native failure isolation
@@ -11,7 +11,10 @@ defmodule MedEx.Opus.Provider do
   @start_timeout 5_000
   @encode_timeout 1_000
   @impl MedEx.PreviewProvider
-  def start_legacy(owner), do: Membrane.Pipeline.start_link(MedEx.Opus.Encoder, owner)
+  def start_legacy(owner) do
+    with {:ok, encoder} <- MedEx.Opus.Encoder.start_link(owner), do: {:ok, encoder, encoder}
+  end
+
   @impl MedEx.PreviewProvider
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, timeout: @start_timeout)
   @impl MedEx.PreviewProvider

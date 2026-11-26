@@ -9,12 +9,10 @@ defmodule MedExOpus.MixProject do
       app: :med_ex_opus,
       version: @version,
       elixir: "~> 1.20",
+      compilers: [:elixir_make | Mix.compilers()],
       deps: [
-        {:med_ex, "~> 0.2.0"},
-        {:membrane_core, "~> 1.0"},
-        {:membrane_raw_audio_format, "~> 0.12.0"},
-        {:membrane_opus_format, "~> 0.3.0"},
-        {:membrane_opus_plugin, "~> 0.21.0"},
+        {:med_ex, "~> 0.3.0"},
+        {:elixir_make, "~> 0.9", runtime: false},
         {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
         {:dialyxir, "~> 1.4", only: :dev, runtime: false},
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
@@ -32,7 +30,8 @@ defmodule MedExOpus.MixProject do
         groups_for_extras: [Release: ["CHANGELOG.md", "LICENSE"]]
       ],
       package: [
-        files: ~w(.formatter.exs mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
+        files:
+          ~w(.formatter.exs mix.exs Makefile VERSION LICENSE README.md CHANGELOG.md assets c_src lib),
         licenses: ["MIT"],
         links: %{"Source" => @source}
       ]

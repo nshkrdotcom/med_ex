@@ -4,14 +4,14 @@
     "package": {
       "name": "med_ex_opus",
       "otp_app": "med_ex_opus",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   },
   "graph": {
     "dependency_projects": [
       "extensions/med_ex_opus"
     ],
-    "digest": "d154f034d103b4ff7484f2c2cfb70011829111952a441ce4a1b914f964c254ab",
+    "digest": "f361919849062563453c358d20d0a77de798f27969e0897cd851b5ae827f0847",
     "edges": [
       {
         "app": "med_core",
@@ -26,7 +26,7 @@
         "externalized": true,
         "from": "extensions/med_ex_opus",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       },
       {
@@ -34,7 +34,7 @@
         "externalized": false,
         "from": "extensions/med_ex_rtc",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       }
     ],
@@ -57,68 +57,86 @@
     "violations": []
   },
   "manifest": {
-    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
+    "digest": "6f96dc50468bddcb0f5d46d50f8f98401497db2e15e98d2e656ae0019536bb60",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "a2b1c55ec0f361945205bab23c40525b56a85ece14acd49078af172209355f50",
+    "artifact_id": "2435c174494b671da0a12664f199f58a23670e34e48707d17def50c77fd6e27c",
     "build_path": ".weld/full/med_ex_opus/project",
     "copied_files": [
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
+      "Makefile",
       "README.md",
       "VERSION",
       "assets/med_ex_opus.svg",
+      "c_src/opus_encoder.c",
+      "c_src/vendor/README.md",
+      "c_src/vendor/SHA256SUMS",
       "lib/med_ex/opus/encoder.ex",
       "lib/med_ex/opus/provider.ex",
       "mix.exs",
       "mix.lock",
+      "test/build_test.py",
       "test/capture_preview_test.exs",
+      "test/encoder_test.exs",
+      "test/native_protocol_test.py",
       "test/preview_session_test.exs",
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
+    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
+      "Makefile",
       "README.md",
       "VERSION",
       "assets",
+      "c_src",
       "lib",
       "mix.exs"
     ],
     "package_patterns": [
       ".formatter.exs",
       "mix.exs",
+      "Makefile",
       "VERSION",
       "LICENSE",
       "README.md",
       "CHANGELOG.md",
       "assets",
+      "c_src",
       "lib"
     ],
-    "tree_digest": "ba5ca1bcd9e7a19427d2d45fa99b8ce81a4cb48136b5678b3c9d37b54c5dc361",
+    "tree_digest": "bfeec0258cf6fdf940978376f9e3d8afb6f93900152ab1eb83471e9ea0aa7508",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
+      "Makefile",
       "README.md",
       "VERSION",
       "assets/med_ex_opus.svg",
+      "c_src/opus_encoder.c",
+      "c_src/vendor/README.md",
+      "c_src/vendor/SHA256SUMS",
       "lib/med_ex/opus/encoder.ex",
       "lib/med_ex/opus/provider.ex",
       "mix.exs",
       "mix.lock",
+      "test/build_test.py",
       "test/capture_preview_test.exs",
+      "test/encoder_test.exs",
+      "test/native_protocol_test.py",
       "test/preview_session_test.exs",
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "65e58c44dbe4e50753747d9d746814d7a9fcec1428ea6597bb2bf5d20c607b7c"
+    "verification_input_identity": "c31bfcdd18dbbcf032fc4732f545875bbbab97f2eb1d99748a02ef9b153045b4"
   },
   "source": {
     "inventory": [
@@ -145,6 +163,13 @@
       },
       {
         "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/Makefile",
+        "target": "Makefile"
+      },
+      {
+        "directory": false,
         "kind": "docs",
         "owner": "extensions/med_ex_opus",
         "source": "extensions/med_ex_opus/README.md",
@@ -163,6 +188,27 @@
         "owner": "extensions/med_ex_opus",
         "source": "extensions/med_ex_opus/assets/med_ex_opus.svg",
         "target": "assets/med_ex_opus.svg"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/c_src/opus_encoder.c",
+        "target": "c_src/opus_encoder.c"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/c_src/vendor/README.md",
+        "target": "c_src/vendor/README.md"
+      },
+      {
+        "directory": false,
+        "kind": "runtime",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/c_src/vendor/SHA256SUMS",
+        "target": "c_src/vendor/SHA256SUMS"
       },
       {
         "directory": false,
@@ -196,8 +242,29 @@
         "directory": false,
         "kind": "test",
         "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/test/build_test.py",
+        "target": "test/build_test.py"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_opus",
         "source": "extensions/med_ex_opus/test/capture_preview_test.exs",
         "target": "test/capture_preview_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/test/encoder_test.exs",
+        "target": "test/encoder_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/test/native_protocol_test.py",
+        "target": "test/native_protocol_test.py"
       },
       {
         "directory": false,
@@ -223,7 +290,10 @@
     ],
     "output_inventory": [],
     "structural_inputs": [
+      "extensions/med_ex_opus/Makefile",
       "extensions/med_ex_opus/VERSION",
+      "extensions/med_ex_opus/c_src/opus_encoder.c",
+      "extensions/med_ex_opus/c_src/vendor/SHA256SUMS",
       "extensions/med_ex_opus/mix.exs",
       "extensions/med_ex_opus/mix.lock",
       "mix.exs",
@@ -257,12 +327,12 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 14
+      "test_count": 21
     },
     {
       "env": "dev",
       "status": "ok",
-      "task": "docs --warnings-as-errors"
+      "task": "docs --warnings-as-errors --output doc"
     },
     {
       "env": "dev",

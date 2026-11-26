@@ -213,7 +213,7 @@ defmodule MedEx.PreviewSessionTest do
     assert_receive {:starting, first, _, pipeline}, 5_000
     send(first, :release_start)
     assert_receive {:subscribed, ^peer, :ok}, 5_000
-    assert :ok = Membrane.Pipeline.terminate(pipeline)
+    assert :ok = GenServer.stop(pipeline)
     assert_receive {:peer_message, ^peer, {:med_ex_preview_failed, ^capture, _}}, 5_000
 
     send(peer, :subscribe_again)
