@@ -60,35 +60,38 @@ defmodule MedEx.Storage.Journal do
 
         with true <- Base.encode16(previous, case: :lower) == prev,
              true <- :crypto.hash(:sha256, ["medex.header.v1", 0, fields]) == check do
-          case :file.read(fd, length + 32) do
-            :eof ->
-              {:ok, acc, pos, true}
-
-            {:ok, tail} when byte_size(tail) < length + 32 ->
-              {:ok, acc, pos, true}
-
-            {:ok, <<payload::binary-size(^length), digest::binary-size(32)>>} ->
-              hex = Base.encode16(digest, case: :lower)
-
-              with true <-
-                     :crypto.hash(:sha256, ["medex.journal.v1", 0, header, payload]) == digest,
-                   {:ok, record} <- CanonicalJSON.decode(payload),
-                   {:ok, next} <- apply_record.(record, gen, hex, acc) do
-                scan(fd, gen + 1, hex, pos + 112 + length, next, apply_record)
-              else
-                false -> {:error, :journal_digest}
-                error -> error
-              end
-
-            error ->
-              error
-          end
+          scan_payload(fd, gen, pos, acc, apply_record, header, length)
         else
           false -> {:error, :journal_chain}
         end
 
       {:ok, _} ->
         {:error, :journal_header}
+
+      error ->
+        error
+    end
+  end
+
+  defp scan_payload(fd, gen, pos, acc, apply_record, header, length) do
+    case :file.read(fd, length + 32) do
+      :eof ->
+        {:ok, acc, pos, true}
+
+      {:ok, tail} when byte_size(tail) < length + 32 ->
+        {:ok, acc, pos, true}
+
+      {:ok, <<payload::binary-size(^length), digest::binary-size(32)>>} ->
+        hex = Base.encode16(digest, case: :lower)
+
+        with true <- :crypto.hash(:sha256, ["medex.journal.v1", 0, header, payload]) == digest,
+             {:ok, record} <- CanonicalJSON.decode(payload),
+             {:ok, next} <- apply_record.(record, gen, hex, acc) do
+          scan(fd, gen + 1, hex, pos + 112 + length, next, apply_record)
+        else
+          false -> {:error, :journal_digest}
+          error -> error
+        end
 
       error ->
         error

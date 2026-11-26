@@ -165,13 +165,17 @@ defmodule MedEx.ClockAlign do
          valid_device_us: {low, high},
          holdover_rate: wander
        }) do
-    not is_nil(generation) and is_integer(now) and is_integer(age) and age >= 0 and
-      is_integer(low) and is_integer(high) and low <= high and
+    not is_nil(generation) and valid_host_time?(now, age) and
+      valid_device_range?(low, high) and
       Enum.all?([amin, amax, eps, wander], &rational?/1) and
       positive?(amin) and le?(q(amin), q(amax)) and nonnegative?(eps) and nonnegative?(wander)
   end
 
   defp valid_policy?(_policy), do: false
+
+  defp valid_host_time?(now, age), do: is_integer(now) and is_integer(age) and age >= 0
+
+  defp valid_device_range?(low, high), do: is_integer(low) and is_integer(high) and low <= high
 
   defp check_probes(probes, policy) do
     {low, high} = policy.valid_device_us

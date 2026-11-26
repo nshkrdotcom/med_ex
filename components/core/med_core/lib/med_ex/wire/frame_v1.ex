@@ -69,8 +69,12 @@ defmodule MedEx.Wire.FrameV1 do
     R.uint?(f.stream_number, @unknown) and R.uint?(f.source_epoch, @unknown) and
       R.config?(f.config_epoch) and
       R.uint?(f.sequence, @u64) and R.uint?(f.first_sample, @u64) and
-      R.uint?(f.sample_count, @unknown) and f.sample_count > 0 and
-      f.first_sample + f.sample_count <= @u64 and
+      valid_sample_range?(f) and
       is_binary(f.payload) and byte_size(f.payload) in 1..@max_payload
+  end
+
+  defp valid_sample_range?(f) do
+    R.uint?(f.sample_count, @unknown) and f.sample_count > 0 and
+      f.first_sample + f.sample_count <= @u64
   end
 end

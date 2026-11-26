@@ -4,7 +4,7 @@ defmodule MedEx.MixProject do
   def project do
     [
       app: :med_ex,
-      version: "0.2.1",
+      version: "0.3.0",
       build_path: "_build",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
@@ -50,6 +50,8 @@ defmodule MedEx.MixProject do
 
   defp deps do
     [
+      {:credo, "~> 1.7", [only: [:dev, :test], runtime: false]},
+      {:dialyxir, "~> 1.4", [only: :dev, runtime: false]},
       {:ex_doc, "~> 0.40.5", [only: :dev, runtime: false]}
     ]
   end
@@ -60,6 +62,7 @@ defmodule MedEx.MixProject do
       maintainers: [],
       links: %{"Source" => "https://github.com/nshkrdotcom/med_ex"},
       files: [
+        ".credo.exs",
         ".formatter.exs",
         "CHANGELOG.md",
         "LICENSE",
@@ -69,10 +72,12 @@ defmodule MedEx.MixProject do
         "components/core/med_core/lib",
         "config",
         "guides/architecture_and_roadmap.md",
+        "guides/durability_and_guarantees.md",
         "guides/history/med_rtc_changelog.md",
         "guides/host_integration.md",
         "guides/product_horizon.md",
         "guides/source_development.md",
+        "guides/stability_and_compatibility.md",
         "guides/stream_recording.md",
         "mix.exs",
         "priv"
@@ -88,6 +93,8 @@ defmodule MedEx.MixProject do
           {"Integration Guides",
            [
              "guides/stream_recording.md",
+             "guides/durability_and_guarantees.md",
+             "guides/stability_and_compatibility.md",
              "guides/host_integration.md",
              "guides/source_development.md"
            ]},
@@ -95,7 +102,7 @@ defmodule MedEx.MixProject do
           {"Release", ["CHANGELOG.md", "guides/history/med_rtc_changelog.md", "LICENSE"]}
         ],
         assets: %{"assets" => "assets"},
-        source_ref: "med_ex-v0.2.1",
+        source_ref: "med_ex-v0.3.0",
         source_url: "https://github.com/nshkrdotcom/med_ex",
         logo: "assets/med_ex.svg",
         main: "readme",
@@ -104,17 +111,20 @@ defmodule MedEx.MixProject do
           {"LICENSE", [title: "License"]},
           {"README.md", [title: "Overview"]},
           {"guides/architecture_and_roadmap.md", [title: "Architecture and Composition"]},
+          {"guides/durability_and_guarantees.md", [title: "Durability and Ordering Guarantees"]},
           {"guides/history/med_rtc_changelog.md", [title: "Historical MedRTC Changelog"]},
           {"guides/host_integration.md", [title: "Host Integration and Browser Compatibility"]},
           {"guides/product_horizon.md", [title: "Medical-Device Product Horizon"]},
           {"guides/source_development.md", [title: "Consumption, Extensions, and Verification"]},
+          {"guides/stability_and_compatibility.md",
+           [title: "Public Surface and 0.x Compatibility"]},
           {"guides/stream_recording.md", [title: "Streams, Storage, Clock, and Control"]}
         ]
       ],
       :before_closing_body_tag,
       fn
         :html ->
-          "<script src=\"https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js\"></script>\n<script>\ndocument.addEventListener(\"DOMContentLoaded\", () => {\n  const diagrams = document.querySelectorAll(\"pre code.mermaid\");\n  if (!diagrams.length || !window.mermaid) return;\n  mermaid.initialize({startOnLoad: false, securityLevel: \"strict\"});\n  for (const code of diagrams) {\n    const diagram = document.createElement(\"div\");\n    diagram.className = \"mermaid\";\n    diagram.textContent = code.textContent;\n    code.parentElement.replaceWith(diagram);\n  }\n  mermaid.run();\n});\n</script>\n"
+          "<script src=\"https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js\"></script>\n<script>\nwindow.addEventListener(\"exdoc:loaded\", () => {\nconst codeBlocks = document.querySelectorAll(\"pre code.mermaid\");\nif (!codeBlocks.length || !window.mermaid) return;\nmermaid.initialize({\nstartOnLoad: false,\nsecurityLevel: \"strict\",\ntheme: document.body.classList.contains(\"dark\") ? \"dark\" : \"default\"\n});\nconst nodes = Array.from(codeBlocks, code => {\nconst diagram = document.createElement(\"div\");\ndiagram.className = \"mermaid\";\ndiagram.textContent = code.textContent;\ncode.parentElement.replaceWith(diagram);\nreturn diagram;\n});\nmermaid.run({nodes});\n});\n</script>\n"
 
         _ ->
           ""

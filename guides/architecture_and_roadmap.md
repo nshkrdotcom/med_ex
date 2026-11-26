@@ -8,7 +8,7 @@
 flowchart TD
   Host["Host Application (Gateway / Clinical Server / Handheld)"]
   Host --> MedEx[":med_ex (Canonical OTP App)"]
-  Host -. "optional" .-> Opus[":med_ex_opus (Membrane Opus)"]
+  Host -. "optional" .-> Opus[":med_ex_opus (libopus Port)"]
   Host -. "optional" .-> RTC[":med_ex_rtc (ExWebRTC / ExRTP)"]
   Opus -. "implements MedEx.PreviewProvider" .-> Capture
   RTC -. "implements MedEx.RTCProvider" .-> Capture
@@ -66,7 +66,7 @@ flowchart TD
 project has its own portable Weld artifact and declares a versioned dependency
 on the same base package:
 
-- **Compile-time optionality:** Omitting `:med_ex_opus` and `:med_ex_rtc` avoids compiling Membrane, `libopus`, `ex_webrtc`, `ex_dtls`, or `ex_libsrtp`.
+- **Compile-time optionality:** Omitting `:med_ex_opus` and `:med_ex_rtc` avoids compiling `libopus`, `ex_webrtc`, `ex_dtls`, or `ex_libsrtp`.
 - **Runtime optionality:** Without providers configured, `MedEx.Capture.subscribe/1` returns `{:error, :preview_unavailable}` and `MedEx.Preview.answer/2` returns `{:error, :rtc_unavailable}` while authoritative recording continues normally. Note that `MedEx.Preview` caches the first loaded `:rtc_provider` module in `:persistent_term` for the VM lifetime, so configure `:med_ex, :rtc_provider` before opening a peer (or invoke `MedEx.PreviewProvider` / `MedEx.RTCProvider` modules directly in new gateway code).
 - **Process versus OS failure domains:** Even when supervised in disposable Elixir processes (`MedEx.Opus.Provider`), native NIFs and C libraries share the OS address space of the BEAM node that loads them. Deployments with strict reliability boundaries run authoritative `:med_ex` ingestion in a headless BEAM and isolate `:med_ex_opus` + `:med_ex_rtc` inside a separate sidecar OS process fed over a drop-tolerant loopback channel.
 

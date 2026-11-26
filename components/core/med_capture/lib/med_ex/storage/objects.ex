@@ -65,17 +65,21 @@ defmodule MedEx.Storage.Objects do
   end
 
   def verify(path, size, digest) do
-    with {:ok, %{type: :regular, size: ^size}} <- File.lstat(path) do
-      actual =
-        File.stream!(path, @block)
-        |> Enum.reduce(:crypto.hash_init(:sha256), &:crypto.hash_update(&2, &1))
-        |> :crypto.hash_final()
-        |> Base.encode16(case: :lower)
+    case File.lstat(path) do
+      {:ok, %{type: :regular, size: ^size}} ->
+        actual =
+          File.stream!(path, @block)
+          |> Enum.reduce(:crypto.hash_init(:sha256), &:crypto.hash_update(&2, &1))
+          |> :crypto.hash_final()
+          |> Base.encode16(case: :lower)
 
-      if actual == digest, do: :ok, else: {:error, :object_digest}
-    else
-      {:error, reason} -> {:error, reason}
-      _ -> {:error, :invalid_object}
+        if actual == digest, do: :ok, else: {:error, :object_digest}
+
+      {:error, reason} ->
+        {:error, reason}
+
+      _ ->
+        {:error, :invalid_object}
     end
   rescue
     e in File.Error -> {:error, e.reason}

@@ -41,26 +41,25 @@ declaration. Consumers choose `:med_ex` and add the independently installable
 
 ## Installation And Dependency Consumption
 
-The `0.2.x` SDK implements contract revision 1 and uses separate media
-providers. Use `0.2.1` for manual writer checkpoints. The `0.1.0` package has the original
+The `0.3.x` SDK implements contract revision 1 with host-fenced manual checkpoints, durability/compatibility guides, and separate media providers (`med_ex_opus ~> 0.2.0`, `med_ex_rtc ~> 0.2.0`). The `0.1.0` package has the original
 browser WAV capture and preview API. [Hex package history](https://hex.pm/packages/med_ex)
 
 Consumers use standard Mix dependencies and never need `Weld` installed:
 
 ```elixir
 # Hex (headless base SDK)
-{:med_ex, "~> 0.2.1"}
+{:med_ex, "~> 0.3.0"}
 
 # Local source checkout (headless base SDK)
-{:med_ex, "~> 0.2.1", path: "../med_ex"}
+{:med_ex, "~> 0.3.0", path: "../med_ex"}
 
 # Pinned Git commit on main (headless base SDK)
-{:med_ex, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
+{:med_ex, "~> 0.3.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
 
 # Optional live media extensions (from checkout or Git subdir; use override: true on :med_ex so extensions converge on your chosen base)
-{:med_ex, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
-{:med_ex_opus, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
-{:med_ex_rtc, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
+{:med_ex, "~> 0.3.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
+{:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
+{:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
 
 # Previously published 0.1.0 legacy browser WAV/preview package on Hex
 {:med_ex, "~> 0.1.0"}
@@ -135,7 +134,7 @@ Only `durable_receipt.durable_sequence` / `durable_sample` authorize upstream sp
 
 ## Optional Opus And WebRTC Providers
 
-`:med_ex_opus` (`MedEx.Opus.Provider`, backed by Membrane Opus) and `:med_ex_rtc` (`MedEx.RTC.Provider`, backed by ExWebRTC / ExRTP) are independent OTP applications:
+`:med_ex_opus` (`MedEx.Opus.Provider`, backed by a libopus encoder process) and `:med_ex_rtc` (`MedEx.RTC.Provider`, backed by ExWebRTC / ExRTP) are independent OTP applications:
 
 - Use `:med_ex_opus` alone to encode 20 ms 48 kHz mono PCM16LE frames under single-frame backpressure (`MedEx.PreviewProvider`).
 - Use `:med_ex_rtc` alone to negotiate send-only WebRTC peers and transmit pre-encoded Opus RTP packets (`MedEx.RTCProvider`).
@@ -147,7 +146,7 @@ config :med_ex,
   rtc_provider: MedEx.RTC.Provider
 ```
 
-Because native C/NIF codecs share the OS process failure domain of the VM that loads them, strict deployments can keep the authoritative `:med_ex` recording host headless and run `:med_ex_opus` + `:med_ex_rtc` inside a separate sidecar OS process.
+`:med_ex_opus` isolates its C11 `libopus` encoder in a separate OS process over a `Port` (no NIF), while `:med_ex_rtc` loads native DTLS/SRTP NIFs via ExWebRTC. Strict deployments can keep the authoritative `:med_ex` recording host headless and run `:med_ex_opus` + `:med_ex_rtc` inside a separate sidecar OS process.
 
 ## Local Verification
 

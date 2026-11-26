@@ -4,7 +4,7 @@
     "package": {
       "name": "med_ex",
       "otp_app": "med_ex",
-      "version": "0.2.1"
+      "version": "0.3.0"
     }
   },
   "graph": {
@@ -12,7 +12,7 @@
       "core/med_capture",
       "core/med_core"
     ],
-    "digest": "27e1a2d79112a095613ad10657ff6ae44d72eb5dc23c27d90f662a56bab01abc",
+    "digest": "74cd9da69aae9b7f30fdbc286fbbabd19782502bc1488baf2a22ad7f3777fe21",
     "edges": [
       {
         "app": "med_core",
@@ -27,7 +27,7 @@
         "externalized": false,
         "from": "extensions/med_ex_opus",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       },
       {
@@ -35,7 +35,7 @@
         "externalized": false,
         "from": "extensions/med_ex_rtc",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       }
     ],
@@ -60,13 +60,14 @@
     "violations": []
   },
   "manifest": {
-    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
+    "digest": "6f96dc50468bddcb0f5d46d50f8f98401497db2e15e98d2e656ae0019536bb60",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "79ace77ec4194860a0ca604f1ee3086c97e58523f7a7eee00f60a758869166d7",
+    "artifact_id": "46426f3b5f72223da8c3f1a1dca05c83b28b806052bb092ded4d696ef45f3c76",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
+      ".credo.exs",
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
@@ -87,6 +88,8 @@
       "components/core/med_capture/lib/med_ex/web.ex",
       "components/core/med_capture/test/base_only_test.exs",
       "components/core/med_capture/test/capture_test.exs",
+      "components/core/med_capture/test/host_integration_test.exs",
+      "components/core/med_capture/test/storage_conformance_test.exs",
       "components/core/med_capture/test/storage_contract_test.exs",
       "components/core/med_capture/test/stream_writer_test.exs",
       "components/core/med_capture/test/test_helper.exs",
@@ -118,6 +121,7 @@
       "components/core/med_core/test/contracts_test.exs",
       "components/core/med_core/test/control_interlock_test.exs",
       "components/core/med_core/test/control_wire_test.exs",
+      "components/core/med_core/test/core_properties_test.exs",
       "components/core/med_core/test/fixtures/wire/metadata.mej1",
       "components/core/med_core/test/fixtures/wire/mex1_waveform.bin",
       "components/core/med_core/test/fixtures/wire/reference_vectors.json",
@@ -133,10 +137,12 @@
       "config/prod.exs",
       "config/test.exs",
       "guides/architecture_and_roadmap.md",
+      "guides/durability_and_guarantees.md",
       "guides/history/med_rtc_changelog.md",
       "guides/host_integration.md",
       "guides/product_horizon.md",
       "guides/source_development.md",
+      "guides/stability_and_compatibility.md",
       "guides/stream_recording.md",
       "mix.exs",
       "priv/static/med_web/pcm_capture.js",
@@ -145,9 +151,10 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
+    "git_revision": "3ea29253829d99b7a35f69d47d8fb91b680f0895",
     "linked_files": [],
     "package_files": [
+      ".credo.exs",
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
@@ -157,16 +164,19 @@
       "components/core/med_core/lib",
       "config",
       "guides/architecture_and_roadmap.md",
+      "guides/durability_and_guarantees.md",
       "guides/history/med_rtc_changelog.md",
       "guides/host_integration.md",
       "guides/product_horizon.md",
       "guides/source_development.md",
+      "guides/stability_and_compatibility.md",
       "guides/stream_recording.md",
       "mix.exs",
       "priv"
     ],
-    "tree_digest": "41939a8623558b5623eb98859397a58d0ea09912e22da5cd99a7f890c5f7d367",
+    "tree_digest": "19acc18577c80b7aee89f7b6d32362de9e1e01a1f7c9f846203a537b13e926fb",
     "verification_files": [
+      ".credo.exs",
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
@@ -187,6 +197,8 @@
       "components/core/med_capture/lib/med_ex/web.ex",
       "components/core/med_capture/test/base_only_test.exs",
       "components/core/med_capture/test/capture_test.exs",
+      "components/core/med_capture/test/host_integration_test.exs",
+      "components/core/med_capture/test/storage_conformance_test.exs",
       "components/core/med_capture/test/storage_contract_test.exs",
       "components/core/med_capture/test/stream_writer_test.exs",
       "components/core/med_capture/test/test_helper.exs",
@@ -218,6 +230,7 @@
       "components/core/med_core/test/contracts_test.exs",
       "components/core/med_core/test/control_interlock_test.exs",
       "components/core/med_core/test/control_wire_test.exs",
+      "components/core/med_core/test/core_properties_test.exs",
       "components/core/med_core/test/fixtures/wire/metadata.mej1",
       "components/core/med_core/test/fixtures/wire/mex1_waveform.bin",
       "components/core/med_core/test/fixtures/wire/reference_vectors.json",
@@ -233,10 +246,12 @@
       "config/prod.exs",
       "config/test.exs",
       "guides/architecture_and_roadmap.md",
+      "guides/durability_and_guarantees.md",
       "guides/history/med_rtc_changelog.md",
       "guides/host_integration.md",
       "guides/product_horizon.md",
       "guides/source_development.md",
+      "guides/stability_and_compatibility.md",
       "guides/stream_recording.md",
       "mix.exs",
       "priv/static/med_web/pcm_capture.js",
@@ -245,10 +260,17 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "verification_input_identity": "9b6dc9f304b4369ca7ceacb82418307b9067bcd8088f8c16f1f21b6c76aeafff"
+    "verification_input_identity": "7771474028b7ea59c33bd75deb4d2bb7362274b21cfff3748ced4b26ff909389"
   },
   "source": {
     "inventory": [
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": ".",
+        "source": ".credo.exs",
+        "target": ".credo.exs"
+      },
       {
         "directory": false,
         "kind": "metadata",
@@ -388,6 +410,20 @@
         "owner": "core/med_capture",
         "source": "core/med_capture/test/capture_test.exs",
         "target": "components/core/med_capture/test/capture_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/host_integration_test.exs",
+        "target": "components/core/med_capture/test/host_integration_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_capture",
+        "source": "core/med_capture/test/storage_conformance_test.exs",
+        "target": "components/core/med_capture/test/storage_conformance_test.exs"
       },
       {
         "directory": false,
@@ -610,6 +646,13 @@
         "directory": false,
         "kind": "test",
         "owner": "core/med_core",
+        "source": "core/med_core/test/core_properties_test.exs",
+        "target": "components/core/med_core/test/core_properties_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
         "source": "core/med_core/test/fixtures/wire/metadata.mej1",
         "target": "components/core/med_core/test/fixtures/wire/metadata.mej1"
       },
@@ -687,6 +730,13 @@
         "directory": false,
         "kind": "docs",
         "owner": ".",
+        "source": "guides/durability_and_guarantees.md",
+        "target": "guides/durability_and_guarantees.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
         "source": "guides/history/med_rtc_changelog.md",
         "target": "guides/history/med_rtc_changelog.md"
       },
@@ -710,6 +760,13 @@
         "owner": ".",
         "source": "guides/source_development.md",
         "target": "guides/source_development.md"
+      },
+      {
+        "directory": false,
+        "kind": "docs",
+        "owner": ".",
+        "source": "guides/stability_and_compatibility.md",
+        "target": "guides/stability_and_compatibility.md"
       },
       {
         "directory": false,
@@ -758,6 +815,7 @@
     "structural_inputs": [
       "VERSION",
       "build_support/composition.exs",
+      "build_support/docs_hook.html",
       "core/med_capture/mix.exs",
       "core/med_capture/mix.lock",
       "core/med_core/mix.exs",
@@ -774,17 +832,17 @@
         {
           "app": "med_capture",
           "project_id": "core/med_capture",
-          "test_count": 24
+          "test_count": 27
         },
         {
           "app": "med_core",
           "project_id": "core/med_core",
-          "test_count": 33
+          "test_count": 35
         }
       ],
       "status": "ok",
       "task": "selected_tests_baseline",
-      "test_count": 57
+      "test_count": 62
     },
     {
       "env": "dev",
@@ -811,12 +869,12 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 58
+      "test_count": 63
     },
     {
       "env": "dev",
       "status": "ok",
-      "task": "docs --warnings-as-errors"
+      "task": "docs --warnings-as-errors --output doc"
     },
     {
       "env": "dev",

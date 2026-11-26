@@ -43,20 +43,27 @@ defmodule MedEx.MeasurementEvent do
           provenance: [map()]
         }
   def validate(%__MODULE__{} = e) do
-    valid =
-      e.schema_version == 1 and
-        Enum.all?([e.event_id, e.acquisition_id, e.source_ref, e.boot_id, e.stream_id], &R.id?/1) and
-        R.uint?(e.source_epoch, 0xFFFFFFFF) and R.uint?(e.gateway_sequence, 0xFFFFFFFFFFFFFFFF) and
-        R.digest?(e.descriptor_ref) and (e.source_record_id == nil or R.id?(e.source_record_id)) and
-        is_map(e.metrics) and map_size(e.metrics) in 1..32 and Enum.all?(e.metrics, &metric?/1) and
-        raw?(e.raw) and
-        status?(e.device_status) and time?(e.device_time) and time?(e.receipt_time) and
-        R.list?(e.provenance, 32, &R.fact?/1)
+    valid = valid_identity?(e) and valid_observation?(e)
 
     if valid, do: :ok, else: {:error, :invalid_measurement}
   end
 
   def validate(_), do: {:error, :invalid_measurement}
+
+  defp valid_identity?(e) do
+    e.schema_version == 1 and
+      Enum.all?([e.event_id, e.acquisition_id, e.source_ref, e.boot_id, e.stream_id], &R.id?/1) and
+      R.uint?(e.source_epoch, 0xFFFFFFFF) and R.uint?(e.gateway_sequence, 0xFFFFFFFFFFFFFFFF) and
+      R.digest?(e.descriptor_ref) and (e.source_record_id == nil or R.id?(e.source_record_id))
+  end
+
+  defp valid_observation?(e) do
+    is_map(e.metrics) and map_size(e.metrics) in 1..32 and Enum.all?(e.metrics, &metric?/1) and
+      raw?(e.raw) and
+      status?(e.device_status) and time?(e.device_time) and time?(e.receipt_time) and
+      R.list?(e.provenance, 32, &R.fact?/1)
+  end
+
   defp metric?({code, {:missing, reason}}), do: R.key?(code) and R.id?(reason)
 
   defp metric?({code, {:value, mantissa, exponent, unit}}) do

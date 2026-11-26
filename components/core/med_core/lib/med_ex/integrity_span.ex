@@ -17,23 +17,29 @@ defmodule MedEx.IntegritySpan do
           context: map()
         }
   def validate(%__MODULE__{} = s) do
-    valid =
-      R.id?(s.stream_id) and R.uint?(s.source_epoch, 0xFFFFFFFF) and R.id?(s.source) and
-        s.code in [
-          :source_gap,
-          :clock_unavailable,
-          :configuration_unknown,
-          :device_status_invalid,
-          :source_processing_unverified,
-          :duplicate_conflict
-        ] and range?(s) and
-        R.list?(s.record_refs, 64, &R.id?/1) and is_map(s.context) and map_size(s.context) <= 32 and
-        Enum.all?(s.context, fn {k, v} -> R.key?(k) and R.scalar?(v) end)
+    valid = valid_subject?(s) and valid_metadata?(s)
 
     if valid, do: :ok, else: {:error, :invalid_integrity_span}
   end
 
   def validate(_), do: {:error, :invalid_integrity_span}
+
+  defp valid_subject?(s) do
+    R.id?(s.stream_id) and R.uint?(s.source_epoch, 0xFFFFFFFF) and R.id?(s.source) and
+      s.code in [
+        :source_gap,
+        :clock_unavailable,
+        :configuration_unknown,
+        :device_status_invalid,
+        :source_processing_unverified,
+        :duplicate_conflict
+      ] and range?(s)
+  end
+
+  defp valid_metadata?(s) do
+    R.list?(s.record_refs, 64, &R.id?/1) and is_map(s.context) and map_size(s.context) <= 32 and
+      Enum.all?(s.context, fn {k, v} -> R.key?(k) and R.scalar?(v) end)
+  end
 
   defp range?(%{first_sample: nil, end_sample: nil, event_ids: ids}),
     do: ids != [] and R.list?(ids, 256, &R.id?/1)
