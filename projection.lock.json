@@ -4,14 +4,14 @@
     "package": {
       "name": "med_ex_rtc",
       "otp_app": "med_ex_rtc",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   },
   "graph": {
     "dependency_projects": [
       "extensions/med_ex_rtc"
     ],
-    "digest": "0296ff8c19eb82dacbbd6ffa87a5b21125dbadceddc5b2696e697087571c06f8",
+    "digest": "20551a56ffb39eab300df6d158529d73c28c307b55008926e5cc9fecc89f0674",
     "edges": [
       {
         "app": "med_core",
@@ -26,7 +26,7 @@
         "externalized": false,
         "from": "extensions/med_ex_opus",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       },
       {
@@ -34,7 +34,7 @@
         "externalized": true,
         "from": "extensions/med_ex_rtc",
         "kind": "runtime",
-        "requirement": "~> 0.2.0",
+        "requirement": "~> 0.3.0",
         "to": "."
       }
     ],
@@ -57,11 +57,11 @@
     "violations": []
   },
   "manifest": {
-    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
+    "digest": "6f96dc50468bddcb0f5d46d50f8f98401497db2e15e98d2e656ae0019536bb60",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "96c07781eec7a072bb817d5f2db521fd4b35d899f120a56168b819fc332bdbde",
+    "artifact_id": "fa6b47414201e646f02d56affc5c1cd2023812fd261842bcb5a0448e48a87c55",
     "build_path": ".weld/full/med_ex_rtc/project",
     "copied_files": [
       ".formatter.exs",
@@ -76,7 +76,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
+    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -98,7 +98,7 @@
       "assets",
       "lib"
     ],
-    "tree_digest": "4dad34a1872eb461c2c89868b4342d0bfd590b5b1dfc6d22c645f157ae9100d7",
+    "tree_digest": "bd24f44ec4c5905d727973c80c6ff95323b2ce6b4042b9c1fe3be8651ec73c10",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -112,7 +112,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "5fe6b3306f6889032767079ecef64d60dee762b3b6e219e2bcfcb7a925144f28"
+    "verification_input_identity": "62c06e7404e32fe8f7cccbdb1737bfae8ceeabfd8f5cc882129acc5ab0638f4b"
   },
   "source": {
     "inventory": [
@@ -235,7 +235,7 @@
     {
       "env": "dev",
       "status": "ok",
-      "task": "docs --warnings-as-errors"
+      "task": "docs --warnings-as-errors --output doc"
     },
     {
       "env": "dev",
