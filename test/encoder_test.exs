@@ -55,6 +55,33 @@ defmodule MedEx.Opus.EncoderTest do
     assert Port.info(port) == nil
   end
 
+  test "a real tone decodes to one non-silent 20 ms frame", %{tmp_dir: dir} do
+    decoder = Path.join(dir, "decode")
+    project = Mix.Project.deps_paths()[:med_ex_opus] || File.cwd!()
+    app_path = to_string(:code.lib_dir(:med_ex_opus))
+
+    args = [
+      "-C",
+      project,
+      "test-decoder",
+      "MIX_APP_PATH=#{app_path}",
+      "DECODER=#{decoder}",
+      "DECODER_SRC=#{Path.join(__DIR__, "decode.c")}"
+    ]
+
+    {log, status} = System.cmd("make", args, stderr_to_stdout: true)
+    assert status == 0, log
+
+    {:ok, encoder} = Encoder.start_link(self())
+    pcm = for i <- 0..959, into: <<>>, do: <<round(12_000 * :math.sin(i / 20))::little-signed-16>>
+    send(encoder, {:pcm, 0, pcm})
+    assert_receive {:preview_encoded, ^encoder, 0, packet}, 2_000
+    path = Path.join(dir, "packet")
+    File.write!(path, packet)
+    assert {"", 0} = System.cmd(decoder, [path])
+    GenServer.stop(encoder)
+  end
+
   defp executable(dir, body) do
     path = Path.join(dir, "encoder")
     File.write!(path, "#!/bin/sh\n#{body}\n")

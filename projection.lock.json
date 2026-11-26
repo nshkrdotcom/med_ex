@@ -4,14 +4,14 @@
     "package": {
       "name": "med_ex_opus",
       "otp_app": "med_ex_opus",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   },
   "graph": {
     "dependency_projects": [
       "extensions/med_ex_opus"
     ],
-    "digest": "f361919849062563453c358d20d0a77de798f27969e0897cd851b5ae827f0847",
+    "digest": "4546efb85051429a4e43d5974bf02aa5eabea35cd5c503a93353f28fd4d0ef97",
     "edges": [
       {
         "app": "med_core",
@@ -61,7 +61,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "2435c174494b671da0a12664f199f58a23670e34e48707d17def50c77fd6e27c",
+    "artifact_id": "b9e97796c513422d05576eb7be5724a40a2c6a88c8394d6d0057b02348bcbca2",
     "build_path": ".weld/full/med_ex_opus/project",
     "copied_files": [
       ".formatter.exs",
@@ -80,13 +80,14 @@
       "mix.lock",
       "test/build_test.py",
       "test/capture_preview_test.exs",
+      "test/decode.c",
       "test/encoder_test.exs",
       "test/native_protocol_test.py",
       "test/preview_session_test.exs",
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
+    "git_revision": "5283dfe60731484b202e03085eb4d80cc04fb0bd",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -112,7 +113,7 @@
       "c_src",
       "lib"
     ],
-    "tree_digest": "bfeec0258cf6fdf940978376f9e3d8afb6f93900152ab1eb83471e9ea0aa7508",
+    "tree_digest": "d78ab3598c3e1776cac2afa72948780675ef25b23c4692e773a9b17043bbbbc6",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -130,13 +131,14 @@
       "mix.lock",
       "test/build_test.py",
       "test/capture_preview_test.exs",
+      "test/decode.c",
       "test/encoder_test.exs",
       "test/native_protocol_test.py",
       "test/preview_session_test.exs",
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "c31bfcdd18dbbcf032fc4732f545875bbbab97f2eb1d99748a02ef9b153045b4"
+    "verification_input_identity": "39c84dedd5c0eea2951bbfa1411198b5a54ded8fead27d49695acc76989b7f31"
   },
   "source": {
     "inventory": [
@@ -256,6 +258,13 @@
         "directory": false,
         "kind": "test",
         "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/test/decode.c",
+        "target": "test/decode.c"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "extensions/med_ex_opus",
         "source": "extensions/med_ex_opus/test/encoder_test.exs",
         "target": "test/encoder_test.exs"
       },
@@ -327,7 +336,7 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 21
+      "test_count": 22
     },
     {
       "env": "dev",
