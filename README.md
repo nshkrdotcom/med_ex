@@ -41,25 +41,25 @@ declaration. Consumers choose `:med_ex` and add the independently installable
 
 ## Installation And Dependency Consumption
 
-The `0.3.x` SDK implements contract revision 1 with host-fenced manual checkpoints, durability/compatibility guides, and separate media providers (`med_ex_opus ~> 0.2.0`, `med_ex_rtc ~> 0.2.0`). The `0.1.0` package has the original
+The `0.3.x` SDK implements contract revision 1 with host-fenced manual checkpoints, durability/compatibility guides, and separate media providers (`med_ex_opus ~> 0.2.1`, `med_ex_rtc ~> 0.2.1`). The `0.1.0` package has the original
 browser WAV capture and preview API. [Hex package history](https://hex.pm/packages/med_ex)
 
 Consumers use standard Mix dependencies and never need `Weld` installed:
 
 ```elixir
 # Hex (headless base SDK)
-{:med_ex, "~> 0.3.0"}
+{:med_ex, "~> 0.3.1"}
 
 # Local source checkout (headless base SDK)
-{:med_ex, "~> 0.3.0", path: "../med_ex"}
+{:med_ex, "~> 0.3.1", path: "../med_ex"}
 
 # Pinned Git commit on main (headless base SDK)
-{:med_ex, "~> 0.3.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
+{:med_ex, "~> 0.3.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
 
 # Optional live media extensions (from checkout or Git subdir; use override: true on :med_ex so extensions converge on your chosen base)
-{:med_ex, "~> 0.3.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
-{:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
-{:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
+{:med_ex, "~> 0.3.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
+{:med_ex_opus, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
+{:med_ex_rtc, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
 
 # Previously published 0.1.0 legacy browser WAV/preview package on Hex
 {:med_ex, "~> 0.1.0"}

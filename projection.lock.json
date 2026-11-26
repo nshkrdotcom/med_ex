@@ -4,7 +4,7 @@
     "package": {
       "name": "med_ex",
       "otp_app": "med_ex",
-      "version": "0.3.0"
+      "version": "0.3.1"
     }
   },
   "graph": {
@@ -12,7 +12,7 @@
       "core/med_capture",
       "core/med_core"
     ],
-    "digest": "74cd9da69aae9b7f30fdbc286fbbabd19782502bc1488baf2a22ad7f3777fe21",
+    "digest": "1986b8f1e9b7f3691b3bbdd6c92b90c00c10d7178fbe0c49a8b6f820da20bac6",
     "edges": [
       {
         "app": "med_core",
@@ -64,7 +64,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "46426f3b5f72223da8c3f1a1dca05c83b28b806052bb092ded4d696ef45f3c76",
+    "artifact_id": "5840e8d1e7c1fb8b710b24c3c0a10f43ff4d494d413c3bdadd58bf96bc2b819f",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
       ".credo.exs",
@@ -128,6 +128,7 @@
       "components/core/med_core/test/frame_properties_test.exs",
       "components/core/med_core/test/frame_rules_test.exs",
       "components/core/med_core/test/preview_clock_test.exs",
+      "components/core/med_core/test/receipt_progress_test.exs",
       "components/core/med_core/test/semantic_vectors_test.exs",
       "components/core/med_core/test/stream_cursor_test.exs",
       "components/core/med_core/test/test_helper.exs",
@@ -151,7 +152,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
+    "git_revision": "5283dfe60731484b202e03085eb4d80cc04fb0bd",
     "linked_files": [],
     "package_files": [
       ".credo.exs",
@@ -174,7 +175,7 @@
       "mix.exs",
       "priv"
     ],
-    "tree_digest": "19acc18577c80b7aee89f7b6d32362de9e1e01a1f7c9f846203a537b13e926fb",
+    "tree_digest": "832d68502d19041f8af2bda1d4c182ed4996ffcb554e0f93e3e7c94c31727677",
     "verification_files": [
       ".credo.exs",
       ".formatter.exs",
@@ -237,6 +238,7 @@
       "components/core/med_core/test/frame_properties_test.exs",
       "components/core/med_core/test/frame_rules_test.exs",
       "components/core/med_core/test/preview_clock_test.exs",
+      "components/core/med_core/test/receipt_progress_test.exs",
       "components/core/med_core/test/semantic_vectors_test.exs",
       "components/core/med_core/test/stream_cursor_test.exs",
       "components/core/med_core/test/test_helper.exs",
@@ -260,7 +262,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "verification_input_identity": "7771474028b7ea59c33bd75deb4d2bb7362274b21cfff3748ced4b26ff909389"
+    "verification_input_identity": "2965238331e98fe4cc89fc9d5069656db7c89718f1eda9e72f843215b9cc181d"
   },
   "source": {
     "inventory": [
@@ -695,6 +697,13 @@
         "directory": false,
         "kind": "test",
         "owner": "core/med_core",
+        "source": "core/med_core/test/receipt_progress_test.exs",
+        "target": "components/core/med_core/test/receipt_progress_test.exs"
+      },
+      {
+        "directory": false,
+        "kind": "test",
+        "owner": "core/med_core",
         "source": "core/med_core/test/semantic_vectors_test.exs",
         "target": "components/core/med_core/test/semantic_vectors_test.exs"
       },
@@ -832,17 +841,17 @@
         {
           "app": "med_capture",
           "project_id": "core/med_capture",
-          "test_count": 27
+          "test_count": 29
         },
         {
           "app": "med_core",
           "project_id": "core/med_core",
-          "test_count": 35
+          "test_count": 36
         }
       ],
       "status": "ok",
       "task": "selected_tests_baseline",
-      "test_count": 62
+      "test_count": 65
     },
     {
       "env": "dev",
@@ -869,7 +878,7 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 63
+      "test_count": 66
     },
     {
       "env": "dev",

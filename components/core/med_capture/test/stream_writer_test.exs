@@ -92,11 +92,39 @@ defmodule MedEx.StreamWriterTest do
     assert {:error, :unverified_receipt} = recover(dir, known_receipt: %{d | durable_sample: 100})
   end
 
+  test "a source gap can advance samples without consuming a sequence", %{tmp_dir: dir} do
+    {:ok, writer} = start(dir)
+    {:ok, initial} = StreamWriter.receipt(writer)
+
+    gap = %{
+      id: "missing-time",
+      first_sequence: 0,
+      next_sequence: 0,
+      irreversible: true,
+      span: %IntegritySpan{
+        stream_id: "ecg",
+        source_epoch: 0,
+        first_sample: 0,
+        end_sample: 12,
+        code: :source_gap,
+        source: "gateway",
+        context: %{}
+      }
+    }
+
+    assert {:ok, receipt} = StreamWriter.record_gap(writer, gap)
+    assert {receipt.durable_sequence, receipt.durable_sample} == {0, 12}
+    assert :ok = Serialization.receipt_progress(initial, receipt)
+    assert {:ok, _} = StreamWriter.push(writer, frame(0, 12))
+    assert {:ok, index} = StreamWriter.finish(writer)
+    assert {:ok, %{sealed: true, index: ^index}} = recover(dir, known_receipt: receipt)
+  end
+
   test "idle timer grants durable progress; explicit gap and configuration boundaries do not add bytes",
        %{tmp_dir: dir} do
     {:ok, w} = start(dir, limits: %{checkpoint_ms: 25})
     {:ok, _} = StreamWriter.push(w, frame(0, 0))
-    assert_receive {:med_ex_durable, ^w, %{durable_sequence: 1}}
+    assert_receive {:med_ex_durable, ^w, %{durable_sequence: 1}}, 2_000
 
     gap = %{
       id: "gap1",

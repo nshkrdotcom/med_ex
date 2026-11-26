@@ -12,7 +12,7 @@ for maintainers and stays outside all three package dependencies.
 The 0.3.x family implements contract revision 1
 (`MedEx.Contract.api_revision() == 1`). The published 0.1.0 package provides
 the original browser WAV and preview contract. The base examples below
-select 0.3.0, with `med_ex_opus ~> 0.2.0` and `med_ex_rtc ~> 0.2.0`.
+select 0.3.1, with `med_ex_opus ~> 0.2.1` and `med_ex_rtc ~> 0.2.1`.
 [Hex package history](https://hex.pm/packages/med_ex)
 
 | Transport | Base project | Optional extension project |
@@ -23,17 +23,17 @@ select 0.3.0, with `med_ex_opus ~> 0.2.0` and `med_ex_rtc ~> 0.2.0`.
 | Weld full path | `../med_ex/.weld/full/med_ex/project` | `../med_ex/.weld/full/<artifact>/project` |
 | Weld prepared path | `../med_ex/.weld/releases/med_ex/<identity>/project` | `../med_ex/.weld/releases/<artifact>/<identity>/project` |
 | Tracked projection snapshot | Exact revision on `projection/med_ex` | Exact revision on `projection/<artifact>` |
-| Hex | `{:med_ex, "~> 0.3.0"}` | `{:med_ex_opus, "~> 0.2.0"}` or `{:med_ex_rtc, "~> 0.2.0"}` |
+| Hex | `{:med_ex, "~> 0.3.1"}` | `{:med_ex_opus, "~> 0.2.1"}` or `{:med_ex_rtc, "~> 0.2.1"}` |
 
 Use ordinary Mix dependency declarations. A headless host needs only
-`{:med_ex, "~> 0.3.0", path: "../med_ex"}`. When a host uses extensions with a
+`{:med_ex, "~> 0.3.1", path: "../med_ex"}`. When a host uses extensions with a
 checkout or Git base, override their Hex dependency with that base source:
 
 ```elixir
 [
-  {:med_ex, "~> 0.3.0", path: "../med_ex", override: true},
-  {:med_ex_opus, "~> 0.2.0", path: "../med_ex/extensions/med_ex_opus"},
-  {:med_ex_rtc, "~> 0.2.0", path: "../med_ex/extensions/med_ex_rtc"}
+  {:med_ex, "~> 0.3.1", path: "../med_ex", override: true},
+  {:med_ex_opus, "~> 0.2.1", path: "../med_ex/extensions/med_ex_opus"},
+  {:med_ex_rtc, "~> 0.2.1", path: "../med_ex/extensions/med_ex_rtc"}
 ]
 ```
 
@@ -42,10 +42,10 @@ For Git, use the same exact reachable commit for the base and any extensions:
 
 ```elixir
 [
-  {:med_ex, "~> 0.3.0", github: "nshkrdotcom/med_ex", ref: commit, override: true},
-  {:med_ex_opus, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+  {:med_ex, "~> 0.3.1", github: "nshkrdotcom/med_ex", ref: commit, override: true},
+  {:med_ex_opus, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: commit,
    subdir: "extensions/med_ex_opus"},
-  {:med_ex_rtc, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit,
+  {:med_ex_rtc, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: commit,
    subdir: "extensions/med_ex_rtc"}
 ]
 ```
@@ -57,9 +57,9 @@ Opus and `:rtc_provider` for WebRTC.
 
 ## Work on an extension
 
-Each 0.2.0 extension declares the normal Hex dependency `{:med_ex, "~> 0.3.0"}`
+Each 0.2.1 extension declares the normal Hex dependency `{:med_ex, "~> 0.3.0"}`
 and keeps its own `VERSION`. The earlier 0.1.0 provider packages require the
-MedEx 0.2.x family; they cannot resolve MedEx 0.3.0 under that requirement.
+MedEx 0.2.x family; they cannot resolve MedEx 0.3.1 under that requirement.
 
 For a local edit, run the real provider suites from fresh outer Mix consumers
 with the explicit path dependencies above:
@@ -69,7 +69,10 @@ with the explicit path dependencies above:
 ```
 
 Use `--quick --profile opus` or `--quick --profile rtc` for a single
-provider. The `base` and `both` profiles are also available.
+provider. Opus builds require a Mix application build path without whitespace.
+The Opus provider tests compile a decoder against the pinned static archive to
+check frame length and signal energy.
+The `base` and `both` profiles are also available.
 
 For standalone extension tests before publication, use a signed private Hex
 registry containing the actual three candidate tarballs and their third-party

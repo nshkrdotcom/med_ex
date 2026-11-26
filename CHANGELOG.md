@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — 2026-11-26
+
+- Classify foreign receipt identities before counter rollback and validate handoff context.
+- Share durable-prefix and receipt progression checks across the writer and host consumers without changing the wire format.
+- Retry the alternate Opus mirror after checksum failure, terminate the Linux codec on supervisor death, and run provider decode tests against the pinned static library.
+- Retire a stalled browser preview after one second, notify the subscriber, and allow reconnection while PCM recording continues. The Opus port supervisor reaps stalled codec children on shutdown.
+- Harden optional Opus builds against whitespace in build paths and invalid cached downloads. Consumer qualification now decodes a tone from the built encoder and checks its sample count and energy.
+
 ## 0.3.0 — 2026-11-25
 
 - Add durability, ordering, and public-surface compatibility guides (`guides/durability_and_guarantees.md`, `guides/stability_and_compatibility.md`) and a standalone CLI reference host (`tools/cli_recorder.exs`).

@@ -23,14 +23,15 @@ defmodule MedEx.Capture do
     * `{:med_ex_preview_replaced, capture_pid}` — sent to the displaced listener
       when a different process subscribes.
     * `{:med_ex_preview_failed, capture_pid, reason}` — sent if the internal
-      Opus encoder exits. Capture itself continues uninterrupted and a new
-      subscriber can re-subscribe.
+      Opus encoder exits or the one-second encode deadline expires (`:timeout`).
+      Recording continues and the subscriber can subscribe again.
   """
   use GenServer, restart: :temporary
 
   alias MedEx.Capture.FrameRules
   alias MedEx.{Evidence, PreviewSession, Wav}
 
+  @preview_encode_timeout 1_000
   @preview_start_timeout 5_000
   @subscribe_timeout @preview_start_timeout + 1_000
 
@@ -232,10 +233,20 @@ defmodule MedEx.Capture do
 
   def handle_info(
         {:preview_encoded, session, index, payload},
-        %{preview: %{session: session, phase: {:encoding, index}}} = state
+        %{preview: %{session: session, phase: {:encoding, index, timer}}} = state
       ) do
+    Process.cancel_timer(timer)
     send(state.preview.subscriber, {:med_ex_preview, self(), index, payload})
     {:noreply, put_in(state.preview.phase, :awaiting_demand)}
+  end
+
+  def handle_info(
+        {:preview_encode_timeout, session, index},
+        %{preview: %{session: session, phase: {:encoding, index, _}} = preview} = state
+      ) do
+    stop_preview(preview)
+    send(preview.subscriber, {:med_ex_preview_failed, self(), :timeout})
+    {:noreply, %{state | preview: nil}}
   end
 
   def handle_info({:EXIT, session, reason}, %{preview: %{session: session} = preview} = state) do
@@ -244,6 +255,10 @@ defmodule MedEx.Capture do
     case preview.phase do
       {:starting, waiting, timer} ->
         reply_subscribers(waiting, timer, {:error, :preview_unavailable})
+
+      {:encoding, _, timer} ->
+        Process.cancel_timer(timer)
+        send(preview.subscriber, {:med_ex_preview_failed, self(), reason})
 
       _active ->
         send(preview.subscriber, {:med_ex_preview_failed, self(), reason})
@@ -285,7 +300,15 @@ defmodule MedEx.Capture do
 
   defp offer_preview(%{preview: %{phase: :ready, session: session}} = state, index, pcm) do
     send(session, {:pcm, index, pcm})
-    put_in(state.preview.phase, {:encoding, index})
+
+    timer =
+      Process.send_after(
+        self(),
+        {:preview_encode_timeout, session, index},
+        @preview_encode_timeout
+      )
+
+    put_in(state.preview.phase, {:encoding, index, timer})
   end
 
   defp offer_preview(state, _index, _pcm), do: state
@@ -305,6 +328,9 @@ defmodule MedEx.Capture do
     case preview.phase do
       {:starting, waiting, timer} ->
         reply_subscribers(waiting, timer, {:error, :preview_unavailable})
+
+      {:encoding, _, timer} ->
+        Process.cancel_timer(timer)
 
       _active ->
         :ok
