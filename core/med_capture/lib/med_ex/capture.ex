@@ -256,6 +256,10 @@ defmodule MedEx.Capture do
       {:starting, waiting, timer} ->
         reply_subscribers(waiting, timer, {:error, :preview_unavailable})
 
+      {:encoding, _, timer} ->
+        Process.cancel_timer(timer)
+        send(preview.subscriber, {:med_ex_preview_failed, self(), reason})
+
       _active ->
         send(preview.subscriber, {:med_ex_preview_failed, self(), reason})
     end

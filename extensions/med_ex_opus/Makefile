@@ -36,7 +36,7 @@ $(LIB): $(VENDOR)/SHA256SUMS Makefile
 	expected="$$(awk '{print $$1}' $(VENDOR)/SHA256SUMS)"; \
 	verify() { \
 		actual="$$( (sha256sum "$$1" 2>/dev/null || shasum -a 256 "$$1") | awk '{print $$1}' )"; \
-		if [ "$$actual" != "$$expected" ]; then \
+		if [ -z "$$expected" ] || [ "$$actual" != "$$expected" ]; then \
 			echo "SHA-256 mismatch for $$1: expected $$expected, got $$actual" >&2; \
 			return 1; \
 		fi; \
@@ -48,11 +48,11 @@ $(LIB): $(VENDOR)/SHA256SUMS Makefile
 		fi; \
 		mkdir -p "$$(dirname "$$tarball")"; \
 		tmp="$$tarball.tmp.$$$$"; \
-		(curl -fsSL -o "$$tmp" "$(URL_XIPH)" || curl -fsSL -o "$$tmp" "$(URL_GH)") || { rm -f "$$tmp"; exit 1; }; \
-		verify "$$tmp" || { rm -f "$$tmp"; exit 1; }; \
+		(curl -fsSL -o "$$tmp" "$(URL_XIPH)" && verify "$$tmp") || \
+		(curl -fsSL -o "$$tmp" "$(URL_GH)" && verify "$$tmp") || { rm -f "$$tmp"; exit 1; }; \
 		mv "$$tmp" "$$tarball"; \
 	else \
-		verify "$$tarball"; \
+		verify "$$tarball" || exit 1; \
 	fi; \
 	rm -rf $(BUILD) && mkdir -p $(BUILD)/src; \
 	tar -xzf "$$tarball" -C $(BUILD)/src; \

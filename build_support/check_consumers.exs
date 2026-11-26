@@ -251,7 +251,7 @@ defmodule MedEx.ConsumerCheck do
 
   defp canonical!(ctx, profiles, architecture?) do
     if architecture? do
-      command!(ctx, "architecture", "./build_support/check_architecture.sh", [], @repo)
+      command!(ctx, "architecture", Path.join(__DIR__, "check_architecture.sh"), [], @repo)
 
       command!(
         ctx,

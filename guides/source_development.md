@@ -70,8 +70,8 @@ with the explicit path dependencies above:
 
 Use `--quick --profile opus` or `--quick --profile rtc` for a single
 provider. Opus builds require a Mix application build path without whitespace.
-The Opus provider tests use Python 3 and a system libopus shared library to
-decode output from the built encoder and check frame length and signal energy.
+The Opus provider tests compile a decoder against the pinned static archive to
+check frame length and signal energy.
 The `base` and `both` profiles are also available.
 
 For standalone extension tests before publication, use a signed private Hex

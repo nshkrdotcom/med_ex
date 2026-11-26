@@ -36,13 +36,14 @@ builds), verifies its SHA-256 before extraction, and compiles a static
   `pkg-config` is needed.
 - **Platform qualification:** Natively tested on Ubuntu Linux (`x86_64`, `ext4`).
   macOS and other POSIX hosts use the same standard autotools + C11 build flow
-  but have not yet been natively qualified; Windows is unsupported.
+  but still need native qualification, including pipe-reader closure during a codec stall.
+  Linux also terminates the codec on abrupt supervisor death through a parent-death signal. Windows is unsupported.
 
 An explicitly supplied `MED_EX_OPUS_TARBALL` must be an absolute path to an
 existing file, so its meaning is the same from every consumer and provider
 working directory. An unset or empty value uses the normal download cache. A missing file
 fails without downloading or creating that path. Downloads enter the cache only after
-checksum verification, so a later build can retry a failed download. Cached and supplied tarballs
+checksum verification. A failed primary download or digest check tries the GitHub mirror. Cached and supplied tarballs
 are checked before extraction; a checksum mismatch stops the build. `MIX_APP_PATH`
 is supplied by `elixir_make` and must be set for direct `make` or `make clean` calls.
 Choose a Mix build directory whose absolute path contains no whitespace.
@@ -62,10 +63,10 @@ means the frame was accepted. The owner receives
 
 ## Native regression checks
 
-The provider suite (`mix test`) runs the native protocol checks, including a
-20 ms tone decoded with the system libopus shared library. Provider tests and
-consumer qualification require Python 3 and that library. Run the protocol
-and Makefile cache checks directly with the following commands.
+The provider and consumer suites decode a 20 ms tone using a test executable
+linked against the pinned static library. Additional Python checks exercise
+framing, Linux process lifetime, an independent system-libopus decoder and
+the build cache. Run them with Python 3 and a discoverable libopus shared library.
 
 ```sh
 python3 test/native_protocol_test.py _build/dev/lib/med_ex_opus/priv/opus_encoder

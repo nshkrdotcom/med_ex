@@ -94,11 +94,13 @@ defmodule MedEx.CaptureTest do
 
     assert :ok = MedEx.Capture.subscribe(capture)
     assert_receive {:encoder, stalled, old_session}
+    ref = Process.monitor(stalled)
     :erlang.suspend_process(stalled)
     pcm = :binary.copy(<<1, 0>>, 960)
     assert :ok = MedEx.Capture.push(capture, 0, pcm)
     assert :ok = MedEx.Capture.push(capture, 960, pcm)
     assert_receive {:med_ex_preview_failed, ^capture, :timeout}, 2_000
+    assert_receive {:DOWN, ^ref, :process, ^stalled, :shutdown}, 2_000
     assert :ok = MedEx.Capture.subscribe(capture)
     send(capture, {:preview_encode_timeout, old_session, 0})
     send(capture, {:preview_encoded, old_session, 0, "late"})

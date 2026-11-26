@@ -55,11 +55,31 @@ defmodule MedEx.Opus.EncoderTest do
     assert Port.info(port) == nil
   end
 
-  test "built encoder passes the native protocol and libopus decode checks" do
-    executable = Path.join(:code.priv_dir(:med_ex_opus), "opus_encoder")
-    script = Path.join(__DIR__, "native_protocol_test.py")
-    {output, status} = System.cmd("python3", [script, executable], stderr_to_stdout: true)
-    assert status == 0, output
+  test "a real tone decodes to one non-silent 20 ms frame", %{tmp_dir: dir} do
+    install = Path.expand("../opus_build/install", :code.priv_dir(:med_ex_opus))
+    decoder = Path.join(dir, "decode")
+
+    args = [
+      "-std=c11",
+      "-I#{install}/include/opus",
+      Path.join(__DIR__, "decode.c"),
+      "#{install}/lib/libopus.a",
+      "-lm",
+      "-o",
+      decoder
+    ]
+
+    {log, status} = System.cmd(System.get_env("CC", "cc"), args, stderr_to_stdout: true)
+    assert status == 0, log
+
+    {:ok, encoder} = Encoder.start_link(self())
+    pcm = for i <- 0..959, into: <<>>, do: <<round(12_000 * :math.sin(i / 20))::little-signed-16>>
+    send(encoder, {:pcm, 0, pcm})
+    assert_receive {:preview_encoded, ^encoder, 0, packet}, 2_000
+    path = Path.join(dir, "packet")
+    File.write!(path, packet)
+    assert {"", 0} = System.cmd(decoder, [path])
+    GenServer.stop(encoder)
   end
 
   defp executable(dir, body) do

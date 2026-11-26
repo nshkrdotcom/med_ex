@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 enum { RATE = 48000, FRAME = 960, PCM_BYTES = FRAME * 2, MAX_PACKET = 1275 };
 
@@ -54,9 +57,16 @@ int main(void) {
   int life[2];
   // Keep the PID reserved until we reap it, even if the caller ignored SIGCHLD.
   if (signal(SIGCHLD, SIG_DFL) == SIG_ERR || pipe(life) < 0) return 6;
+#ifdef __linux__
+  pid_t supervisor = getpid();
+#endif
   pid_t child = fork();
   if (child < 0) return 6;
   if (child == 0) {
+#ifdef __linux__
+    // The parent can die before or during setup. Arm first, then check identity.
+    if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0 || getppid() != supervisor) _exit(6);
+#endif
     close(life[0]);
     return encode();
   }

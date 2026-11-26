@@ -26,6 +26,7 @@ class BuildTest(unittest.TestCase):
         # A download attempt must be observable without touching the network.
         curl = self.bin / "curl"
         curl.write_text('#!/bin/sh\nprintf called >> "$CURL_LOG"\n'
+                        'case "$4" in *xiph.org*) if [ -n "$BAD_PRIMARY" ]; then echo bad > "$3"; exit 0; fi;; esac\n'
                         'if [ -n "$CURL_FIXTURE" ]; then cp "$CURL_FIXTURE" "$3"; else exit 79; fi\n')
         curl.chmod(0o755)
         self.log = self.root / "curl.log"
@@ -114,6 +115,25 @@ printf 'install:\\n\\tmkdir -p "%s/lib"\\n\\ttouch "%s/lib/libopus.a"\\n' "$pref
         self.assertIn("SHA-256 mismatch", result.stderr)
         self.assertFalse((self.root / "third/opus_build").exists())
         self.assertEqual(self.log.read_text(), "called")
+
+    def test_bad_primary_uses_verified_mirror(self):
+        archive = self.fixture_tarball()
+        cache = self.root / "cache"
+        self.env.update(CURL_FIXTURE=str(archive), BAD_PRIMARY="1", XDG_CACHE_HOME=str(cache))
+        self.build_library(self.root / "app")
+        self.assertEqual(self.log.read_text(), "calledcalled")
+        self.assertEqual((cache / "med_ex_opus/opus-1.5.2.tar.gz").read_bytes(), archive.read_bytes())
+
+    def test_empty_pin_and_unavailable_hash_commands_fail_closed(self):
+        archive = self.fixture_tarball()
+        (self.root / "c_src/vendor/SHA256SUMS").write_text("")
+        for command in ("sha256sum", "shasum"):
+            path = self.bin / command
+            path.write_text("#!/bin/sh\nexit 1\n")
+            path.chmod(0o755)
+        result = self.make(f"MIX_APP_PATH={self.root / 'app'}", f"MED_EX_OPUS_TARBALL={archive}")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / "configure.log").exists())
 
     def test_failed_download_leaves_cache_ready_for_retry(self):
         archive = self.fixture_tarball()

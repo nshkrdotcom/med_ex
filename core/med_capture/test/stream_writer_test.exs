@@ -96,7 +96,7 @@ defmodule MedEx.StreamWriterTest do
        %{tmp_dir: dir} do
     {:ok, w} = start(dir, limits: %{checkpoint_ms: 25})
     {:ok, _} = StreamWriter.push(w, frame(0, 0))
-    assert_receive {:med_ex_durable, ^w, %{durable_sequence: 1}}
+    assert_receive {:med_ex_durable, ^w, %{durable_sequence: 1}}, 2_000
 
     gap = %{
       id: "gap1",

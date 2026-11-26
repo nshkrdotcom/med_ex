@@ -4,6 +4,7 @@ import ctypes
 import ctypes.util
 import math
 import os
+import select
 import signal
 import struct
 import subprocess
@@ -65,6 +66,30 @@ class NativeProtocolTest(unittest.TestCase):
                         except ProcessLookupError:
                             pass
                     port.wait(timeout=2)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux parent-death signal")
+    def test_supervisor_kill_terminates_stopped_codec(self):
+        # Adopt and reap the orphan ourselves so this also works in containers
+        # whose PID 1 does not reap adopted children.
+        libc = ctypes.CDLL(None)
+        self.assertEqual(libc.prctl(36, 1, 0, 0, 0), 0)  # PR_SET_CHILD_SUBREAPER
+        self.addCleanup(libc.prctl, 36, 0, 0, 0, 0)
+        with subprocess.Popen([ENCODER], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as port:
+            size = struct.unpack(">I", port.stdout.read(4))[0]
+            self.assertTrue(port.stdout.read(size).startswith(b"med_ex_opus/1 "))
+            children = Path(f"/proc/{port.pid}/task/{port.pid}/children")
+            child, = map(int, children.read_text().split())
+            os.kill(child, signal.SIGSTOP)
+            fd = os.pidfd_open(child)
+            try:
+                port.kill()
+                port.wait(timeout=2)
+                self.assertTrue(select.select([fd], [], [], 2)[0], "codec survived supervisor")
+            finally:
+                signal.pidfd_send_signal(fd, signal.SIGKILL)
+                os.close(fd)
+                _, status = os.waitpid(child, 0)
+            self.assertEqual(os.waitstatus_to_exitcode(status), -signal.SIGKILL)
 
     def test_partial_header_is_a_protocol_failure(self):
         for length in (1, 2, 3):

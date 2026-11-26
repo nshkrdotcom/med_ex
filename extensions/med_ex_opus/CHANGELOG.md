@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Retry the alternate Opus mirror after checksum failure, terminate the Linux codec on supervisor death, and run provider decode tests against the pinned static library.
 - Supervise the native codec child through port closure so a stopped or hung codec is killed and reaped. Track a single linked encoder in the standalone provider.
 - Reject whitespace in the Mix application build path before build or clean recipes run. Verify downloaded archives before publishing them to the cache so failed downloads can be retried.
 - Exercise the built encoder with a real tone and check decoded sample count and energy in provider tests and consumer qualification.

@@ -8,3 +8,5 @@ deps/
 /extensions/*/tmp/
 
 doc/
+
+erl_crash.dump
