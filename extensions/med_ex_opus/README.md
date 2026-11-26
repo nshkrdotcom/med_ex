@@ -20,12 +20,21 @@ config :med_ex, :preview_provider, MedEx.Opus.Provider
 
 Use `{:med_ex_opus, "~> 0.2.0"}`.
 
-The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.2.0`.
-The package pins the Xiph libopus 1.5.2 release tarball (`c_src/vendor/SHA256SUMS`),
-fetches and caches it on first build (or reads `MED_EX_OPUS_TARBALL` for offline
-builds), verifies its SHA-256, and compiles a static `libopus.a` with
-`elixir_make`. You need `cc`, `make`, `tar`, `sh`, and `curl` (unless using
-`MED_EX_OPUS_TARBALL`). No system libopus is needed.
+The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.3.0`.
+### Build toolchain and platform support
+
+The package pins the Xiph `libopus` 1.5.2 release tarball (`c_src/vendor/SHA256SUMS`),
+fetches and caches it under `${XDG_CACHE_HOME:-~/.cache}/med_ex_opus/` on first
+build (or reads `MED_EX_OPUS_TARBALL=/path/to/opus-1.5.2.tar.gz` for offline
+builds), verifies its SHA-256 before extraction, and compiles a static
+`libopus.a` linked into `priv/opus_encoder` via `elixir_make`.
+
+- **Assumed toolchain:** POSIX `cc` (C11), GNU `make`, `tar`, `sh`, and `curl`
+  (when not using `MED_EX_OPUS_TARBALL`). No system `libopus-dev` or
+  `pkg-config` is needed.
+- **Platform qualification:** Natively tested on Ubuntu Linux (`x86_64`, `ext4`).
+  macOS and other POSIX hosts use the same standard autotools + C11 build flow
+  but have not yet been natively qualified; Windows is unsupported.
 
 ## Encoding lifecycle
 

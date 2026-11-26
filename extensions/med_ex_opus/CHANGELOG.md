@@ -1,11 +1,10 @@
 # Changelog
 
-## 0.2.0 — 2026-11-26
+## 0.2.0 — 2026-11-25
 
-- Replace the Membrane pipeline with a small C encoder run as an OS process over
-  a Port, linked against a vendored, checksum-verified libopus 1.5.2. Drop all
-  `membrane_*` dependencies; add `elixir_make`.
-- Behaviour and timeouts of `MedEx.Opus.Provider` are unchanged.
+- Consolidate live Opus encoding by removing the Membrane framework dependencies and running a small C11 `libopus` 1.5.2 encoder in its own OS process over an Erlang `Port` (`elixir_make`), preserving the `MedEx.Opus.Provider` behaviour and timeouts.
+- Verify the pinned Xiph `opus-1.5.2.tar.gz` SHA-256 on every build, caching downloads outside `_build` and supporting offline builds via `MED_EX_OPUS_TARBALL`.
+- Require `med_ex ~> 0.3.0`.
 
 ## 0.1.0 — 2026-11-24
 

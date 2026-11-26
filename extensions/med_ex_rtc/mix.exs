@@ -10,7 +10,7 @@ defmodule MedExRTC.MixProject do
       version: @version,
       elixir: "~> 1.20",
       deps: [
-        {:med_ex, "~> 0.2.0"},
+        {:med_ex, "~> 0.3.0"},
         {:ex_webrtc, "~> 0.18.0"},
         {:ex_rtp, "~> 0.4"},
         {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

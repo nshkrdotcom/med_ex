@@ -119,7 +119,12 @@ defmodule MedEx.ArchitectureTest do
       cfg[:elixirc_paths] ++
         composition.documents ++
         composition.assets ++
-        ["mix.exs", composition.version_file, "build_support/composition.exs"]
+        [
+          "mix.exs",
+          composition.version_file,
+          "build_support/composition.exs",
+          composition.package[:docs][:hook_file]
+        ]
 
     assert Enum.sort(cfg[:package][:files]) == Enum.sort(expected_files)
 
@@ -135,7 +140,7 @@ defmodule MedEx.ArchitectureTest do
         config = Mix.Project.config()
         assert config[:app] == app
         assert config[:version] == version
-        assert {:med_ex, "~> 0.2.0"} in config[:deps]
+        assert {:med_ex, "~> 0.3.0"} in config[:deps]
 
         native = if app == :med_ex_opus, do: ~w(Makefile c_src), else: []
 

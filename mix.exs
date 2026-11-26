@@ -7,7 +7,12 @@ defmodule MedEx.MixProject do
   @files @sources ++
            @composition.documents ++
            @composition.assets ++
-           [@composition.version_file, "mix.exs", "build_support/composition.exs"]
+           [
+             @composition.version_file,
+             "mix.exs",
+             "build_support/composition.exs",
+             @package[:docs][:hook_file]
+           ]
 
   def project do
     [

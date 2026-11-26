@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-11-25
+
+- Add durability, ordering, and public-surface compatibility guides (`guides/durability_and_guarantees.md`, `guides/stability_and_compatibility.md`) and a standalone CLI reference host (`tools/cli_recorder.exs`).
+- Add storage crash-recovery, provider behaviour, host `DynamicSupervisor`, and wire/canonical-JSON conformance tests.
+- Share one ExDoc Mermaid hook (`build_support/docs_hook.html`) across root and projected builds, rendering diagrams on `exdoc:loaded` in-site navigation and matching light/dark themes.
+- Align optional providers (`med_ex_opus 0.2.0` Port-isolated C `libopus` encoder and `med_ex_rtc 0.2.0`) on `med_ex ~> 0.3.0` and Weld `0.19.0`.
+
 ## 0.2.1 — 2026-11-25
 
 - Verify descriptor identity before opening a stream writer.

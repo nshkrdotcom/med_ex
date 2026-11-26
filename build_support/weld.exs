@@ -13,7 +13,14 @@ extension_artifacts =
     root = Path.join(__DIR__, "../" <> project)
     version = File.read!(Path.join(root, "VERSION")) |> String.trim()
 
-    optional = Enum.filter(~w(mix.lock .formatter.exs), &File.regular?(Path.join(root, &1)))
+    optional =
+      Enum.filter(~w(mix.lock .formatter.exs Makefile c_src), &File.exists?(Path.join(root, &1)))
+
+    c_inputs =
+      Enum.filter(
+        ~w(Makefile c_src/opus_encoder.c c_src/vendor/SHA256SUMS),
+        &File.regular?(Path.join(root, &1))
+      )
 
     {app,
      [
@@ -22,7 +29,7 @@ extension_artifacts =
        external_projects: ["."],
        source_project: [
          files: ~w(mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib test) ++ optional,
-         structural_inputs: ["VERSION"]
+         structural_inputs: ["VERSION" | c_inputs]
        ],
        package: [
          name: Atom.to_string(app),
@@ -49,7 +56,12 @@ extension_artifacts =
       med_ex: [
         mode: :package_projection,
         roots: composition.components,
-        structural_inputs: [composition.version_file, "mix.exs", "build_support/composition.exs"],
+        structural_inputs: [
+          composition.version_file,
+          "mix.exs",
+          "build_support/composition.exs",
+          "build_support/docs_hook.html"
+        ],
         package: Keyword.put(base, :docs, base_docs),
         output: [docs: composition.documents, assets: composition.assets],
         verify: [

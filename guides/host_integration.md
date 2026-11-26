@@ -67,7 +67,7 @@ a checkout or Git revision. [Consumption, Extensions, and Verification](source_d
 
 - Elixir `~> 1.20`.
 - For `:med_ex_rtc`, C build tools and OpenSSL headers (`build-essential`, `pkg-config`, and `libssl-dev` on Debian/Ubuntu) for `ex_dtls` and `ex_libsrtp`.
-- For `:med_ex_opus`, the package fetches (and caches) a pinned Xiph libopus 1.5.2 tarball verified against `c_src/vendor/SHA256SUMS` (or uses `MED_EX_OPUS_TARBALL` offline) and compiles a static encoder executable with `elixir_make`. No system libopus is needed.
+- For `:med_ex_opus`, assumed POSIX build tools (`cc` with C11, GNU `make`, `tar`, `sh`, plus `curl` unless `MED_EX_OPUS_TARBALL` points to a local `opus-1.5.2.tar.gz`). `elixir_make` verifies `c_src/vendor/SHA256SUMS` and builds a static `priv/opus_encoder` with no system `libopus-dev`. Natively tested on Ubuntu Linux (`x86_64`, `ext4`); other POSIX hosts are not yet natively qualified and Windows is unsupported.
 - Browser microphone capture (`getUserMedia` + `AudioWorklet`) requires a secure context (`https://`, or `http://localhost` / `http://127.0.0.1` for local development).
 
 ## 1. Serve the packaged browser assets
