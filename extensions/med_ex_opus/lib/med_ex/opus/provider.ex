@@ -35,16 +35,13 @@ defmodule MedEx.Opus.Provider do
 
     case Keyword.get(opts, :format, {48_000, 1, :s16le}) do
       {48_000, 1, :s16le} ->
-        case start_legacy(self()) do
-          {:ok, supervisor, pipeline} ->
+        case MedEx.Opus.Encoder.start_link(self()) do
+          {:ok, encoder} ->
             {:ok,
              %{
                owner: owner,
                monitor: Process.monitor(owner),
-               supervisor: supervisor,
-               supervisor_ref: Process.monitor(supervisor),
-               pipeline: pipeline,
-               ready: false,
+               encoder: encoder,
                pending: nil
              }}
 
@@ -61,9 +58,9 @@ defmodule MedEx.Opus.Provider do
   def handle_call({:offer, _, _, _}, {caller, _}, %{owner: owner} = s) when caller != owner,
     do: {:reply, {:error, :not_owner}, s}
 
-  def handle_call({:offer, id, index, pcm}, _, %{ready: true, pending: nil} = s)
+  def handle_call({:offer, id, index, pcm}, _, %{pending: nil} = s)
       when is_integer(index) and index >= 0 and is_binary(pcm) and byte_size(pcm) == 1_920 do
-    send(s.pipeline, {:pcm, index, pcm})
+    send(s.encoder, {:pcm, index, pcm})
     token = make_ref()
     timer = Process.send_after(self(), {:encode_timeout, token}, @encode_timeout)
     {:reply, :ok, %{s | pending: {id, index, token, timer}}}
@@ -76,11 +73,9 @@ defmodule MedEx.Opus.Provider do
   def handle_call({:offer, _, _, _}, _, s), do: {:reply, {:error, :busy}, s}
 
   @impl GenServer
-  def handle_info({:preview_ready, pid}, %{pipeline: pid} = s), do: {:noreply, %{s | ready: true}}
-
   def handle_info(
         {:preview_encoded, pid, index, data},
-        %{pipeline: pid, pending: {op, index, _, timer}} = s
+        %{encoder: pid, pending: {op, index, _, timer}} = s
       ) do
     Process.cancel_timer(timer)
     send(s.owner, {:med_ex_encoded, op, index, data})
@@ -95,10 +90,7 @@ defmodule MedEx.Opus.Provider do
   end
 
   def handle_info({:encode_timeout, _}, s), do: {:noreply, s}
-  def handle_info({:EXIT, sup, reason}, %{supervisor: sup} = s), do: encoder_down(s, reason)
-
-  def handle_info({:DOWN, ref, :process, _, reason}, %{supervisor_ref: ref} = s),
-    do: encoder_down(s, reason)
+  def handle_info({:EXIT, pid, reason}, %{encoder: pid} = s), do: encoder_down(s, reason)
 
   def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s), do: {:stop, :normal, s}
   def handle_info(_, s), do: {:noreply, s}
@@ -119,7 +111,7 @@ defmodule MedEx.Opus.Provider do
       send(s.owner, {:med_ex_encode_failed, id, :encoder_stopped})
     end
 
-    Process.exit(s.supervisor, :shutdown)
+    Process.exit(s.encoder, :shutdown)
     :ok
   end
 end

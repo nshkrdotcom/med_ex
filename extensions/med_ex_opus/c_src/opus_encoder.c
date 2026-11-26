@@ -1,10 +1,16 @@
 // Reads {:packet, 4} frames of one 20 ms mono 48 kHz PCM16LE frame each and
 // writes one Opus packet per frame in the same framing. The first frame written
 // is a hello: "med_ex_opus/1 <libopus version>". Any protocol violation exits.
+#define _POSIX_C_SOURCE 200809L
+#include <errno.h>
 #include <opus.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 enum { RATE = 48000, FRAME = 960, PCM_BYTES = FRAME * 2, MAX_PACKET = 1275 };
 
@@ -16,7 +22,7 @@ static void write_frame(const uint8_t *p, uint32_t n) {
     exit(2);
 }
 
-int main(void) {
+static int encode(void) {
   int err;
   OpusEncoder *enc = opus_encoder_create(RATE, 1, OPUS_APPLICATION_AUDIO, &err);
   if (err != OPUS_OK) return 3;
@@ -39,4 +45,34 @@ int main(void) {
     if (r < 1) return 5;
     write_frame(out, (uint32_t)r);
   }
+}
+
+// The port process owns the codec child until waitpid reaps it. Watching the
+// output pipe catches BEAM shutdown even if libopus hangs or the child stops.
+// A separate pipe signals child exit without racing SIGCHLD against poll.
+int main(void) {
+  int life[2];
+  // Keep the PID reserved until we reap it, even if the caller ignored SIGCHLD.
+  if (signal(SIGCHLD, SIG_DFL) == SIG_ERR || pipe(life) < 0) return 6;
+  pid_t child = fork();
+  if (child < 0) return 6;
+  if (child == 0) {
+    close(life[0]);
+    return encode();
+  }
+
+  close(life[1]);
+  close(STDIN_FILENO);
+  struct pollfd watched[] = {{STDOUT_FILENO, 0, 0}, {life[0], 0, 0}};
+  int ready;
+  do {
+    ready = poll(watched, 2, -1);
+  } while (ready < 0 && errno == EINTR);
+  if (ready < 0 || watched[0].revents) kill(child, SIGKILL);
+
+  int status;
+  while (waitpid(child, &status, 0) < 0) {
+    if (errno != EINTR) return 6;
+  }
+  return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }

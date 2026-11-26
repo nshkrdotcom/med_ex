@@ -55,6 +55,13 @@ defmodule MedEx.Opus.EncoderTest do
     assert Port.info(port) == nil
   end
 
+  test "built encoder passes the native protocol and libopus decode checks" do
+    executable = Path.join(:code.priv_dir(:med_ex_opus), "opus_encoder")
+    script = Path.join(__DIR__, "native_protocol_test.py")
+    {output, status} = System.cmd("python3", [script, executable], stderr_to_stdout: true)
+    assert status == 0, output
+  end
+
   defp executable(dir, body) do
     path = Path.join(dir, "encoder")
     File.write!(path, "#!/bin/sh\n#{body}\n")

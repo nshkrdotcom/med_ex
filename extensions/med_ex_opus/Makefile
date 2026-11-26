@@ -2,6 +2,13 @@ ifeq ($(strip $(MIX_APP_PATH)),)
 $(error MIX_APP_PATH must name the Mix application build directory)
 endif
 
+ifneq ($(words $(MIX_APP_PATH)),1)
+$(error MIX_APP_PATH cannot contain whitespace)
+endif
+ifneq ($(MIX_APP_PATH),$(strip $(MIX_APP_PATH)))
+$(error MIX_APP_PATH cannot contain whitespace)
+endif
+
 OPUS       = opus-1.5.2
 VENDOR     = c_src/vendor
 CACHE_DIR  = $(if $(XDG_CACHE_HOME),$(XDG_CACHE_HOME),$(HOME)/.cache)/med_ex_opus
@@ -26,6 +33,14 @@ $(LIB): $(VENDOR)/SHA256SUMS Makefile
 			*) echo "MED_EX_OPUS_TARBALL must be an absolute path" >&2; exit 1 ;; \
 		esac; \
 	fi; \
+	expected="$$(awk '{print $$1}' $(VENDOR)/SHA256SUMS)"; \
+	verify() { \
+		actual="$$( (sha256sum "$$1" 2>/dev/null || shasum -a 256 "$$1") | awk '{print $$1}' )"; \
+		if [ "$$actual" != "$$expected" ]; then \
+			echo "SHA-256 mismatch for $$1: expected $$expected, got $$actual" >&2; \
+			return 1; \
+		fi; \
+	}; \
 	if [ ! -f "$$tarball" ]; then \
 		if [ -n "$(MED_EX_OPUS_TARBALL)" ]; then \
 			echo "MED_EX_OPUS_TARBALL is not a readable file: $$tarball" >&2; \
@@ -34,13 +49,10 @@ $(LIB): $(VENDOR)/SHA256SUMS Makefile
 		mkdir -p "$$(dirname "$$tarball")"; \
 		tmp="$$tarball.tmp.$$$$"; \
 		(curl -fsSL -o "$$tmp" "$(URL_XIPH)" || curl -fsSL -o "$$tmp" "$(URL_GH)") || { rm -f "$$tmp"; exit 1; }; \
+		verify "$$tmp" || { rm -f "$$tmp"; exit 1; }; \
 		mv "$$tmp" "$$tarball"; \
-	fi; \
-	expected="$$(awk '{print $$1}' $(VENDOR)/SHA256SUMS)"; \
-	actual="$$( (sha256sum "$$tarball" 2>/dev/null || shasum -a 256 "$$tarball") | awk '{print $$1}' )"; \
-	if [ "$$actual" != "$$expected" ]; then \
-		echo "SHA-256 mismatch for $$tarball: expected $$expected, got $$actual" >&2; \
-		exit 1; \
+	else \
+		verify "$$tarball"; \
 	fi; \
 	rm -rf $(BUILD) && mkdir -p $(BUILD)/src; \
 	tar -xzf "$$tarball" -C $(BUILD)/src; \

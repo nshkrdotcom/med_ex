@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Supervise the native codec child through port closure so a stopped or hung codec is killed and reaped. Track a single linked encoder in the standalone provider.
+- Reject whitespace in the Mix application build path before build or clean recipes run. Verify downloaded archives before publishing them to the cache so failed downloads can be retried.
+- Exercise the built encoder with a real tone and check decoded sample count and energy in provider tests and consumer qualification.
+
 ## 0.2.0 — 2026-11-25
 
 - Consolidate live Opus encoding by removing the Membrane framework dependencies and running a small C11 `libopus` 1.5.2 encoder in its own OS process over an Erlang `Port` (`elixir_make`), preserving the `MedEx.Opus.Provider` behaviour and timeouts.

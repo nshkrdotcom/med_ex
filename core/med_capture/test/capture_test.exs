@@ -62,6 +62,53 @@ defmodule MedEx.CaptureTest do
   end
 
   @tag :tmp_dir
+  test "a stalled preview expires, recording continues and the subscriber can reconnect", %{
+    tmp_dir: dir
+  } do
+    test = self()
+
+    start = fn ->
+      session = self()
+
+      encoder =
+        spawn_link(fn ->
+          receive do
+            {:pcm, index, _} -> send(session, {:preview_encoded, self(), index, "encoded"})
+          end
+
+          Process.sleep(:infinity)
+        end)
+
+      send(test, {:encoder, encoder, session})
+      send(session, {:preview_ready, encoder})
+      {:ok, encoder, encoder}
+    end
+
+    {:ok, capture} =
+      MedEx.Capture.start_link(
+        owner: test,
+        acquisition_id: "a",
+        artifact_dir: dir,
+        start_preview_encoder: start
+      )
+
+    assert :ok = MedEx.Capture.subscribe(capture)
+    assert_receive {:encoder, stalled, old_session}
+    :erlang.suspend_process(stalled)
+    pcm = :binary.copy(<<1, 0>>, 960)
+    assert :ok = MedEx.Capture.push(capture, 0, pcm)
+    assert :ok = MedEx.Capture.push(capture, 960, pcm)
+    assert_receive {:med_ex_preview_failed, ^capture, :timeout}, 2_000
+    assert :ok = MedEx.Capture.subscribe(capture)
+    send(capture, {:preview_encode_timeout, old_session, 0})
+    send(capture, {:preview_encoded, old_session, 0, "late"})
+    assert :ok = MedEx.Capture.push(capture, 1920, pcm)
+    assert_receive {:med_ex_preview, ^capture, 1920, "encoded"}
+    refute_received {:med_ex_preview, ^capture, 0, _}
+    assert {:ok, %{sample_count: 2880}} = MedEx.Capture.finish(capture)
+  end
+
+  @tag :tmp_dir
   test "a source gap ends the attempt without a recording", %{tmp_dir: dir} do
     {:ok, capture} =
       MedEx.Capture.start_link(owner: self(), acquisition_id: "a", artifact_dir: dir)

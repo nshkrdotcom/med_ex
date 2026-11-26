@@ -13,7 +13,7 @@ defmodule MedEx.Opus.ProviderTest do
              Task.async(fn -> Provider.offer(pid, "foreign", 0, pcm) end) |> Task.await()
 
     assert {:error, :invalid_frame} = Provider.offer(pid, "bad", 0, <<1>>)
-    assert :ok = offer(pid, pcm, System.monotonic_time(:millisecond) + 5_000)
+    assert :ok = Provider.offer(pid, "op", 42, pcm)
     assert_receive {:med_ex_encoded, "op", 42, packet}, 5_000
     assert byte_size(packet) > 0
     assert :ok = Provider.stop(pid)
@@ -21,9 +21,8 @@ defmodule MedEx.Opus.ProviderTest do
 
   test "an unresponsive encoder fails its outstanding offer and retires the provider" do
     assert {:ok, pid} = Provider.start_link(owner: self())
-    ready = ready(pid, System.monotonic_time(:millisecond) + 5_000)
-    assert ready.ready
-    :ok = :sys.suspend(ready.pipeline)
+    %{encoder: encoder} = :sys.get_state(pid)
+    :ok = :sys.suspend(encoder)
     ref = Process.monitor(pid)
     assert :ok = Provider.offer(pid, "stalled", 0, :binary.copy(<<1, 0>>, 960))
     assert_receive {:med_ex_encode_failed, "stalled", :timeout}, 2_000
@@ -45,7 +44,7 @@ defmodule MedEx.Opus.ProviderTest do
       end)
 
     assert_receive {:provider, provider}, 6_000
-    %{pipeline: encoder} = :sys.get_state(provider)
+    %{encoder: encoder} = :sys.get_state(provider)
     %{port: port} = :sys.get_state(encoder)
     provider_ref = Process.monitor(provider)
     encoder_ref = Process.monitor(encoder)
@@ -57,7 +56,7 @@ defmodule MedEx.Opus.ProviderTest do
 
   test "stopping with a pending offer sends one failure and closes the encoder" do
     assert {:ok, provider} = Provider.start_link(owner: self())
-    %{pipeline: encoder} = ready(provider, System.monotonic_time(:millisecond) + 5_000)
+    %{encoder: encoder} = :sys.get_state(provider)
     %{port: port} = :sys.get_state(encoder)
     ref = Process.monitor(encoder)
     :ok = :sys.suspend(encoder)
@@ -68,31 +67,5 @@ defmodule MedEx.Opus.ProviderTest do
     assert Port.info(port) == nil
     refute_receive {:med_ex_encode_failed, :pending, _}
     refute_receive {:med_ex_encoded, :pending, _, _}
-  end
-
-  defp ready(pid, deadline) do
-    state = :sys.get_state(pid)
-
-    if state.ready or System.monotonic_time(:millisecond) >= deadline do
-      state
-    else
-      Process.sleep(10)
-      ready(pid, deadline)
-    end
-  end
-
-  defp offer(pid, bytes, deadline) do
-    case Provider.offer(pid, "op", 42, bytes) do
-      {:error, :busy} = busy ->
-        if System.monotonic_time(:millisecond) >= deadline do
-          busy
-        else
-          Process.sleep(10)
-          offer(pid, bytes, deadline)
-        end
-
-      other ->
-        other
-    end
   end
 end

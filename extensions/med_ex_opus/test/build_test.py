@@ -115,6 +115,27 @@ printf 'install:\\n\\tmkdir -p "%s/lib"\\n\\ttouch "%s/lib/libopus.a"\\n' "$pref
         self.assertFalse((self.root / "third/opus_build").exists())
         self.assertEqual(self.log.read_text(), "called")
 
+    def test_failed_download_leaves_cache_ready_for_retry(self):
+        archive = self.fixture_tarball()
+        bad = self.root / "bad.tar.gz"
+        bad.write_bytes(b"incomplete")
+        cache = self.root / "cache"
+        self.env.update(XDG_CACHE_HOME=str(cache), CURL_FIXTURE=str(bad))
+        app = self.root / "app"
+        result = self.make(f"MIX_APP_PATH={app}")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("SHA-256 mismatch", result.stderr)
+        self.assertEqual(list((cache / "med_ex_opus").iterdir()), [])
+        self.env["CURL_FIXTURE"] = str(archive)
+        self.build_library(app)
+
+    def test_build_and_clean_reject_spaced_paths_before_running_recipes(self):
+        for target in ([], ["clean"]):
+            result = self.make("--dry-run", f"MIX_APP_PATH={self.root}/My Project/app", *target)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("MIX_APP_PATH cannot contain whitespace", result.stderr)
+            self.assertEqual(result.stdout, "")
+
     def test_changed_makefile_rebuilds_the_native_library(self):
         self.env["MED_EX_OPUS_TARBALL"] = str(self.fixture_tarball())
         self.build_library(self.root / "app")

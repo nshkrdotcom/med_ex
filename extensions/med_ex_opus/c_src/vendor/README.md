@@ -11,9 +11,9 @@ On build, `Makefile` checks the absolute path in `MED_EX_OPUS_TARBALL`
 (for offline/airgapped builds; relative overrides are rejected)
 or `${XDG_CACHE_HOME:-$HOME/.cache}/med_ex_opus/opus-1.5.2.tar.gz`, fetches a
 missing cache entry only when no explicit tarball was supplied, verifies its
-SHA-256 against `SHA256SUMS` before extracting,
-builds a static `libopus.a`, and links it into `priv/opus_encoder`. No system
-libopus is used.
+SHA-256 against `SHA256SUMS` before caching a download or extracting an archive,
+builds a static `libopus.a`, and links it into `priv/opus_encoder`. The encoder links the pinned library. Its round-trip test uses the system
+libopus shared library as the decoder.
 
 To upgrade: update `OPUS` and `URL_GH` in `Makefile`, and update `SHA256SUMS`
 with Xiph's published checksum.
