@@ -11,7 +11,7 @@
     "dependency_projects": [
       "extensions/med_ex_rtc"
     ],
-    "digest": "13184d51d25b83673cc599bb16547b279ab89070ecc195719c834c3eec0922f2",
+    "digest": "0296ff8c19eb82dacbbd6ffa87a5b21125dbadceddc5b2696e697087571c06f8",
     "edges": [
       {
         "app": "med_core",
@@ -61,9 +61,10 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "de0e424f059a8d058be678641491b90c99214ced40bd3c7833a49a20237e3118",
+    "artifact_id": "96c07781eec7a072bb817d5f2db521fd4b35d899f120a56168b819fc332bdbde",
     "build_path": ".weld/full/med_ex_rtc/project",
     "copied_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -75,9 +76,10 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "b6249b424340f8da3d47ba99b41798b0ec9cb802",
+    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
     "linked_files": [],
     "package_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -87,6 +89,7 @@
       "mix.exs"
     ],
     "package_patterns": [
+      ".formatter.exs",
       "mix.exs",
       "VERSION",
       "LICENSE",
@@ -95,8 +98,9 @@
       "assets",
       "lib"
     ],
-    "tree_digest": "3cf74e10ba1fbcdb37621c8398fbe58b16b2d5f4bb98126b46fa6126d038998f",
+    "tree_digest": "4dad34a1872eb461c2c89868b4342d0bfd590b5b1dfc6d22c645f157ae9100d7",
     "verification_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -108,10 +112,17 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "d51aa39a79afb139b55bc7487bb9dda098f2381ec17630184ba92a0ebb7c939f"
+    "verification_input_identity": "5fe6b3306f6889032767079ecef64d60dee762b3b6e219e2bcfcb7a925144f28"
   },
   "source": {
     "inventory": [
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_rtc",
+        "source": "extensions/med_ex_rtc/.formatter.exs",
+        "target": ".formatter.exs"
+      },
       {
         "directory": false,
         "kind": "docs",

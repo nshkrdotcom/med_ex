@@ -23,6 +23,21 @@ The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.2.0`.
 Install C build tools, pkg-config and OpenSSL development headers for the
 ExWebRTC DTLS and SRTP dependencies.
 
+## Peer lifecycle
+
+Pass the browser's receive-only audio SDP offer with gathered ICE candidates to
+`MedEx.RTC.Provider.answer(offer_sdp, opts)`. On success, send the returned
+answer SDP back to the browser. The calling process owns the peer connection
+and receives its state-change messages. The host provides signaling and can
+pass `:ice_servers` and `:ice_transport_policy` in `opts`. For relay-only
+operation, configure TURN and select relay on both peers.
+
+Call `send_opus(peer, payload, sequence, sample_index)` with an encoded Opus
+payload, a per-peer packet sequence number, and a sample index on the 48 kHz
+media clock. The provider wraps the sequence and RTP timestamp to 16 and
+32 bits respectively. Call `close(peer)` when the viewer disconnects. Use an
+encoder such as `med_ex_opus` when the input is raw PCM.
+
 When using a checkout, choose compatible base and provider sources in the
 host's Mix dependencies. Use the [source development guide][sources] for
 the exact declarations and [host integration guide][integration] for
