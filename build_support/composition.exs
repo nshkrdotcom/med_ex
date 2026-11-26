@@ -53,7 +53,8 @@ extras = Enum.flat_map(groups, &elem(&1, 1))
       extra_titles: Map.new(extras),
       groups_for_extras:
         Enum.map(groups, fn {title, entries} -> {title, Enum.map(entries, &elem(&1, 0))} end),
-      mermaid: true
+      mermaid: true,
+      hook_file: "build_support/docs_hook.html"
     ]
   ]
 }

@@ -73,30 +73,8 @@ defmodule MedEx.MixProject do
       ]
   end
 
-  defp docs_diagrams(:html) do
-    """
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
-    <script>
-    window.addEventListener("exdoc:loaded", () => {
-      const codeBlocks = document.querySelectorAll("pre code.mermaid");
-      if (!codeBlocks.length || !window.mermaid) return;
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: "strict",
-        theme: document.body.classList.contains("dark") ? "dark" : "default"
-      });
-      const nodes = Array.from(codeBlocks, code => {
-        const diagram = document.createElement("div");
-        diagram.className = "mermaid";
-        diagram.textContent = code.textContent;
-        code.parentElement.replaceWith(diagram);
-        return diagram;
-      });
-      mermaid.run({nodes});
-    });
-    </script>
-    """
-  end
+  # One checked-in file owns the hook; Weld embeds the same file in projections.
+  defp docs_diagrams(:html), do: File.read!(Path.join(__DIR__, @package[:docs][:hook_file]))
 
   defp docs_diagrams(_format), do: ""
 end
