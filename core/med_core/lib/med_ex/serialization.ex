@@ -234,6 +234,60 @@ defmodule MedEx.Serialization do
     _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError] -> {:error, :invalid_receipt}
   end
 
+  @doc "Projects a parsed receipt to the prefix proven durable by its journal."
+  def durable_prefix(receipt) do
+    %{
+      receipt
+      | accepted_sequence: receipt.durable_sequence,
+        accepted_sample: receipt.durable_sample
+    }
+  end
+
+  @doc """
+  Checks progression between parsed receipts. The new receipt must name a durable prefix.
+  Pass `:verified_handoff` only after the host has authenticated the successor
+  fence and verified its predecessor. The host still owns local coverage and reclamation.
+  """
+  def receipt_progress(last, next, context \\ :same_attempt) do
+    cond do
+      durable_prefix(next) != next ->
+        {:error, :not_durable_receipt}
+
+      next.durable_sequence < last.durable_sequence or next.durable_sample < last.durable_sample ->
+        {:error, :receipt_rollback}
+
+      {last.stream_id, last.source_epoch, last.descriptor_ref} !=
+          {next.stream_id, next.source_epoch, next.descriptor_ref} ->
+        {:error, :receipt_identity}
+
+      last.fence == next.fence ->
+        journal_progress(last, next)
+
+      context == :verified_handoff ->
+        :ok
+
+      true ->
+        {:error, :receipt_identity}
+    end
+  end
+
+  defp journal_progress(last, next) do
+    cond do
+      last.journal_id != next.journal_id or next.journal_generation < last.journal_generation ->
+        {:error, :receipt_rollback}
+
+      next.journal_generation == last.journal_generation and durable_prefix(last) != next ->
+        {:error, :receipt_conflict}
+
+      next.journal_generation > last.journal_generation and
+          next.journal_digest == last.journal_digest ->
+        {:error, :receipt_conflict}
+
+      true ->
+        :ok
+    end
+  end
+
   defp valid_receipt_counters?(r) do
     r.journal_generation > 0 and r.source_epoch <= 0xFFFFFFFF and
       r.accepted_sample >= r.durable_sample and r.accepted_sequence >= r.durable_sequence

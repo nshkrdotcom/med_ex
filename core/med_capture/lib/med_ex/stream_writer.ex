@@ -346,11 +346,10 @@ defmodule MedEx.StreamWriter do
   end
 
   defp committed_receipt?(r, s, cursor) do
-    valid_receipt?(r, cursor.stream, s.fence) and r.journal_id == s.durable.journal_id and
+    valid_receipt?(r, cursor.stream, s.fence) and
+      Serialization.receipt_progress(s.durable, r) == :ok and
       r.journal_generation == s.durable.journal_generation + 1 and
-      r.journal_digest != s.durable.journal_digest and
-      {r.durable_sequence, r.durable_sample} == {cursor.next_sequence, cursor.next_sample} and
-      {r.accepted_sequence, r.accepted_sample} == {r.durable_sequence, r.durable_sample}
+      {r.durable_sequence, r.durable_sample} == {cursor.next_sequence, cursor.next_sample}
   end
 
   defp valid_receipt?(r, spec, fence) when is_map(r) do

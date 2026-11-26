@@ -19,7 +19,7 @@ configure it for the base SDK's browser capture facade.
 config :med_ex, :preview_provider, MedEx.Opus.Provider
 ```
 
-Use `{:med_ex_opus, "~> 0.2.0"}`.
+Use `{:med_ex_opus, "~> 0.2.1"}`.
 
 The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.3.0`.
 ### Build toolchain and platform support

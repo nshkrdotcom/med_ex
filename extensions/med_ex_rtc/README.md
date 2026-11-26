@@ -17,7 +17,7 @@ it for the base SDK's preview facade before opening a peer.
 config :med_ex, :rtc_provider, MedEx.RTC.Provider
 ```
 
-Use `{:med_ex_rtc, "~> 0.2.0"}`.
+Use `{:med_ex_rtc, "~> 0.2.1"}`.
 
 The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.3.0`.
 Install C build tools, pkg-config and OpenSSL development headers for the

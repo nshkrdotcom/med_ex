@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-11-26
+
+- Share durable-prefix and receipt progression checks across the writer and host consumers without changing the wire format.
 
 - Retry the alternate Opus mirror after checksum failure, terminate the Linux codec on supervisor death, and run provider decode tests against the pinned static library.
 - Retire a stalled browser preview after one second, notify the subscriber, and allow reconnection while PCM recording continues. The Opus port supervisor reaps stalled codec children on shutdown.

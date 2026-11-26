@@ -1304,7 +1304,7 @@ defmodule MedEx.ConsumerCheck do
     public = Path.join(ctx.stage, "registry")
     tarballs = Path.join(public, "tarballs")
     File.mkdir_p!(tarballs)
-    fetch_third_party!(ctx, bootstrap, tarballs, extra_lock)
+    fetch_third_party!(ctx, bootstrap, tarballs, extra_lock, archives)
 
     for {_app, archive} <- archives do
       File.cp!(archive.archive, Path.join(tarballs, Path.basename(archive.archive)))
@@ -1396,7 +1396,7 @@ defmodule MedEx.ConsumerCheck do
     end
   end
 
-  defp fetch_third_party!(ctx, bootstrap, tarballs, extra_lock) do
+  defp fetch_third_party!(ctx, bootstrap, tarballs, extra_lock, archives) do
     locks = [
       Path.join(bootstrap, "mix.lock")
       | Enum.map(direct(), fn {_app, opts} -> Path.join(opts[:path], "mix.lock") end)
@@ -1408,9 +1408,12 @@ defmodule MedEx.ConsumerCheck do
           app not in @apps,
           do: {to_string(package), version, repo, checksum}
 
+    candidates = MapSet.new(archives, fn {app, _} -> {to_string(app), ctx.versions[app]} end)
+
     legacy =
       for path <- List.wrap(extra_lock),
           {_, {:hex, package, version, _, _, _, repo, checksum}} <- read_lock(path),
+          not MapSet.member?(candidates, {to_string(package), version}),
           do: {to_string(package), version, repo, checksum}
 
     for {package, version, repo, checksum} <- Enum.uniq(packages ++ legacy) do
