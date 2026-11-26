@@ -14,6 +14,8 @@ groups = [
   {"Integration Guides",
    [
      {"guides/stream_recording.md", "Streams, Storage, Clock, and Control"},
+     {"guides/durability_and_guarantees.md", "Durability and Ordering Guarantees"},
+     {"guides/stability_and_compatibility.md", "Public Surface and 0.x Compatibility"},
      {"guides/host_integration.md", "Host Integration and Browser Compatibility"},
      {"guides/source_development.md", "Consumption, Extensions, and Verification"}
    ]},
