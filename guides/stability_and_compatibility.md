@@ -18,7 +18,7 @@ This classification is a proposal made on 2026-11-26 from module docs and usage;
 
 | Module | Stability | Notes |
 | --- | --- | --- |
-| `MedEx.Contract`, `MedEx.ContractRules` | Stable | Revision-1 contract definitions and validation |
+| `MedEx.Contract` | Stable | Revision-1 contract definitions |
 | `MedEx.StreamSpec`, `MedEx.SampleFrame`, `MedEx.FrameFingerprint` | Stable | Core waveform and identity structs |
 | `MedEx.MeasurementEvent`, `MedEx.StatusEvent`, `MedEx.IntegritySpan`, `MedEx.SegmentRef` | Stable | Event and integrity contracts |
 | `MedEx.StreamCursor`, `MedEx.StreamIndex` | Stable | Pure cursor transitions and index |
@@ -29,7 +29,7 @@ This classification is a proposal made on 2026-11-26 from module docs and usage;
 | `MedEx.Storage`, `MedEx.Storage.File` | Stable | Storage behaviour and POSIX file backend |
 | `MedEx.PreviewProvider`, `MedEx.RTCProvider` | Provisional | Optional media provider behaviours |
 | `MedEx.Capture`, `MedEx.Evidence`, `MedEx.Wav`, `MedEx.Format.Wav`, `MedEx.Web`, `MedEx.Preview`, `MedEx.Preview.Clock` | Legacy | Browser 48 kHz mono PCM16LE WAV facade |
-| `MedEx.PreviewSession` | Internal | Private helper for legacy `MedEx.Capture` |
+| Internal helpers (`@moduledoc false`, e.g. `ContractRules`, `PreviewSession`) | Internal | Private implementation details; may change in any patch |
 
 ## 0.x Compatibility Rules
 
