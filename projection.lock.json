@@ -11,7 +11,7 @@
     "dependency_projects": [
       "extensions/med_ex_opus"
     ],
-    "digest": "72c38379c84fa0cf200bd74662dcf247b94ddb31005803e7ff83b1a8c8b8c240",
+    "digest": "d154f034d103b4ff7484f2c2cfb70011829111952a441ce4a1b914f964c254ab",
     "edges": [
       {
         "app": "med_core",
@@ -61,9 +61,10 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "5e3666c73723fd63f9bb46a76607da0001bbfca91c36e6e4f0d179852d2b3fff",
+    "artifact_id": "a2b1c55ec0f361945205bab23c40525b56a85ece14acd49078af172209355f50",
     "build_path": ".weld/full/med_ex_opus/project",
     "copied_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -78,9 +79,10 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "b6249b424340f8da3d47ba99b41798b0ec9cb802",
+    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
     "linked_files": [],
     "package_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -90,6 +92,7 @@
       "mix.exs"
     ],
     "package_patterns": [
+      ".formatter.exs",
       "mix.exs",
       "VERSION",
       "LICENSE",
@@ -98,8 +101,9 @@
       "assets",
       "lib"
     ],
-    "tree_digest": "03155b5353c89ba0ae16c391bde14fae24615392c5dd8602efe7e6025a9fa5f9",
+    "tree_digest": "ba5ca1bcd9e7a19427d2d45fa99b8ce81a4cb48136b5678b3c9d37b54c5dc361",
     "verification_files": [
+      ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
@@ -114,10 +118,17 @@
       "test/provider_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "c313d0508cdda3fd4997c474afe277fddf12debff39d6888ac515eda79924cbd"
+    "verification_input_identity": "65e58c44dbe4e50753747d9d746814d7a9fcec1428ea6597bb2bf5d20c607b7c"
   },
   "source": {
     "inventory": [
+      {
+        "directory": false,
+        "kind": "metadata",
+        "owner": "extensions/med_ex_opus",
+        "source": "extensions/med_ex_opus/.formatter.exs",
+        "target": ".formatter.exs"
+      },
       {
         "directory": false,
         "kind": "docs",

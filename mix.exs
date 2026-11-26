@@ -15,6 +15,8 @@ defmodule MedExOpus.MixProject do
         {:membrane_raw_audio_format, "~> 0.12.0"},
         {:membrane_opus_format, "~> 0.3.0"},
         {:membrane_opus_plugin, "~> 0.21.0"},
+        {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+        {:dialyxir, "~> 1.4", only: :dev, runtime: false},
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
       ],
       description: "Optional Opus encoding provider for MedEx",
@@ -30,7 +32,7 @@ defmodule MedExOpus.MixProject do
         groups_for_extras: [Release: ["CHANGELOG.md", "LICENSE"]]
       ],
       package: [
-        files: ~w(mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
+        files: ~w(.formatter.exs mix.exs VERSION LICENSE README.md CHANGELOG.md assets lib),
         licenses: ["MIT"],
         links: %{"Source" => @source}
       ]
