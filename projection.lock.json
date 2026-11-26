@@ -151,7 +151,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "3ea29253829d99b7a35f69d47d8fb91b680f0895",
+    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
     "linked_files": [],
     "package_files": [
       ".credo.exs",
