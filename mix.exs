@@ -77,19 +77,23 @@ defmodule MedEx.MixProject do
     """
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const codeBlocks = document.querySelectorAll("pre code.mermaid");
-        if (!codeBlocks.length || !window.mermaid) return;
-        mermaid.initialize({startOnLoad: false, securityLevel: "strict"});
-        const nodes = Array.from(codeBlocks, code => {
-          const diagram = document.createElement("div");
-          diagram.className = "mermaid";
-          diagram.textContent = code.textContent;
-          code.parentElement.replaceWith(diagram);
-          return diagram;
-        });
-        mermaid.run({nodes});
+    window.addEventListener("exdoc:loaded", () => {
+      const codeBlocks = document.querySelectorAll("pre code.mermaid");
+      if (!codeBlocks.length || !window.mermaid) return;
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: document.body.classList.contains("dark") ? "dark" : "default"
       });
+      const nodes = Array.from(codeBlocks, code => {
+        const diagram = document.createElement("div");
+        diagram.className = "mermaid";
+        diagram.textContent = code.textContent;
+        code.parentElement.replaceWith(diagram);
+        return diagram;
+      });
+      mermaid.run({nodes});
+    });
     </script>
     """
   end
