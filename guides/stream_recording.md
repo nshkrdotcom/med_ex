@@ -52,7 +52,18 @@ index_digest = MedEx.Serialization.digest(index)
 
 - **Caller and fence enforcement:** Every `StreamWriter` call requires the bound `:owner` PID (`{:error, :not_owner}` otherwise). `push/3` and `push/4` also verify the active `fence` token (`{:error, :stale_fence}` on mismatch).
 - **Volatile versus durable positions:** Push replies return a receipt containing `stream_id`, `source_epoch`, `descriptor_ref`, `fence`, `journal_id`, `journal_generation`, `journal_digest`, volatile `accepted_sequence` / `accepted_sample`, and journal-synced `durable_sequence` / `durable_sample` (all exclusive next cursors).
-- **Batching and async durability notifications:** Frames accumulate in memory up to `pending_frames` (default `16`), `pending_bytes` (default `262_144`), a `config_epoch` change, or `checkpoint_ms` (default `250` ms). When an idle timer flushes a chunk, the owner receives `{:med_ex_durable, writer, receipt}` (or `{:med_ex_storage_failed, writer, reason}` if disk sync fails). **Upstream device spools must delete retained frames only up to `durable_sequence` / `durable_sample` of the active authenticated attempt.**
+- **Batching and async durability notifications:** Frames accumulate in memory up to `pending_frames` (default `16`), `pending_bytes` (default `262_144`), a `config_epoch` change, or `checkpoint_ms` (default `250` ms). When the checkpoint timer flushes a chunk, the owner receives `{:med_ex_durable, writer, receipt}` (or `{:med_ex_storage_failed, writer, reason}` if disk sync fails). **Upstream device spools must delete retained frames only up to `durable_sequence` / `durable_sample` of the active authenticated attempt.**
+
+- **Host-managed checkpoints:** Set `limits: %{checkpoint_ms: :manual}` to
+  disable the background timer. The owner must call `checkpoint/1` on its own
+  bounded schedule. Calls such as `push/3` can still flush synchronously at a
+  frame or byte limit or a configuration change. Gap, finish, and interruption
+  calls can also write. A host with an external fence must hold it across each
+  operation that can commit.
+- **Owner loss in manual mode:** The writer closes storage without flushing the
+  volatile tail or adding a terminal record. Recover the journal-backed prefix
+  after the writer is quiescent and replay retained source records from that
+  boundary.
 
 ### Replay, Duplicate Conflicts, Explicit Gaps, And Termination
 
@@ -136,3 +147,6 @@ When a host adjusts a technical device or monitor setting (such as gain or filte
 2. Only after the host commits that intent durably does `ControlInterlock.step(state, {:intent_committed, id})` emit `[{:dispatch, command}]`.
 3. On `{:applied, id, fingerprint, boot_id, next_epoch, boundary}`, the interlock advances `current_epoch`. On `{:timeout, id}` or `{:boot_changed, new_boot, epoch}`, it transitions the command to `:outcome_unknown`, records the ambiguous watermark span in `historical_unknown`, and emits `{:query_actual_state, target}`. A later `{:actual_state, target, boot, epoch, observed}` reconciles the *current* epoch while preserving `:historical_boundary_unknown`—because reading current state cannot establish when an unobserved transition occurred on the waveform timeline.
 4. On the device side, `ControlInterlock.device_decide(ledger, command, actual_epoch)` checks the durable command ledger by `command.id` **before** checking `expected_epoch`, ensuring retried commands after a lost acknowledgement return `{:cached, result}` instead of a spurious `:stale_configuration` error.
+
+The default 1,800-second writer cap is a resource limit. End-to-end duration
+qualification is specific to the host, storage and review path.

@@ -44,6 +44,12 @@ defmodule MyGateway.StreamIngress do
 end
 ```
 
+If an external fence must cover each commit, use
+`limits: %{checkpoint_ms: :manual}` and schedule explicit checkpoints under
+that fence. Synchronous writer calls can still commit under this setting.
+See [Ownership, Receipts, and Upstream Spool Truncation](stream_recording.md#ownership-receipts-and-upstream-spool-truncation)
+for the write boundaries and owner-loss behavior.
+
 When live audio monitoring is needed alongside `StreamWriter`, feed disposable 20 ms 48 kHz mono PCM16LE frames to `MedEx.Opus.Provider` (`start_link/1`, `offer/4`, `stop/1`) and transmit encoded packets with `MedEx.RTC.Provider` (`answer/2`, `send_opus/4`, `close/1`)—either in-VM or across a loopback HTTP/WebSocket boundary to a dedicated preview sidecar VM that holds zero database or artifact-storage credentials. See [Streams, Storage, Clock, and Control](stream_recording.md) for recovery, predecessor import, `ClockAlign`, and `ControlInterlock`.
 
 ---

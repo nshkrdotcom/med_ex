@@ -6,6 +6,9 @@ defmodule MedEx.StreamWriter do
   accepted (volatile) from journal-backed durable boundaries. A timer checkpoint
   sends the owner `{:med_ex_durable, writer, receipt}`. A call timeout or process
   exit is an unknown outcome. Reconcile storage before granting a replacement.
+
+  With `checkpoint_ms: :manual`, owner loss closes storage without committing
+  pending frames or writing a terminal record. The host controls explicit writes.
   """
   use GenServer, restart: :temporary
   alias MedEx.{ContractRules, FrameFingerprint, Serialization, StreamCursor, StreamIndex}
@@ -54,6 +57,7 @@ defmodule MedEx.StreamWriter do
     with true <- is_pid(owner) and ContractRules.id?(fence),
          {:ok, limits} <- limits(opts[:limits] || %{}),
          {:ok, cursor} <- StreamCursor.new(stream),
+         :ok <- verify_descriptor(stream),
          {:ok, adapter, receipt} <- storage.open(opts) do
       if valid_receipt?(receipt, stream, fence) and
            receipt.accepted_sequence == receipt.durable_sequence and
@@ -89,12 +93,22 @@ defmodule MedEx.StreamWriter do
     end
   end
 
+  defp verify_descriptor(stream) do
+    if stream.descriptor_ref == Serialization.descriptor_ref(stream),
+      do: :ok,
+      else: {:error, :invalid_descriptor}
+  end
+
   defp limits(list) when is_list(list), do: limits(Map.new(list))
 
   defp limits(map) when is_map(map) do
-    if Enum.all?(map, fn {key, value} ->
-         Map.has_key?(@defaults, key) and is_integer(value) and
-           value in 1..Map.fetch!(@defaults, key)
+    if Enum.all?(map, fn
+         {:checkpoint_ms, :manual} ->
+           true
+
+         {key, value} ->
+           Map.has_key?(@defaults, key) and is_integer(value) and
+             value in 1..Map.fetch!(@defaults, key)
        end) do
       {:ok, Map.merge(@defaults, map)}
     else
@@ -255,6 +269,8 @@ defmodule MedEx.StreamWriter do
     end
   end
 
+  defp arm_timer(%{limits: %{checkpoint_ms: :manual}} = s), do: s
+
   defp arm_timer(%{timer: nil} = s) do
     token = make_ref()
     timer = Process.send_after(self(), {:checkpoint, token}, s.limits.checkpoint_ms)
@@ -399,6 +415,12 @@ defmodule MedEx.StreamWriter do
   end
 
   def handle_info({:checkpoint, _}, s), do: {:noreply, s}
+
+  def handle_info(
+        {:DOWN, ref, :process, _, _},
+        %{monitor: ref, limits: %{checkpoint_ms: :manual}} = s
+      ),
+      do: {:stop, :normal, s}
 
   def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s) do
     # If flushing fails, the host must recover the verified prefix.

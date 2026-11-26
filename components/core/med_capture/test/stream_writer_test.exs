@@ -11,7 +11,7 @@ defmodule MedEx.StreamWriterTest do
   @moduletag :tmp_dir
 
   defp spec do
-    %StreamSpec{
+    spec = %StreamSpec{
       acquisition_id: "recording",
       source_ref: "credential:1",
       boot_id: "boot",
@@ -30,6 +30,8 @@ defmodule MedEx.StreamWriterTest do
         replay: :durable_spool
       }
     }
+
+    %{spec | descriptor_ref: Serialization.descriptor_ref(spec)}
   end
 
   defp frame(seq, sample, epoch \\ 0),
@@ -289,5 +291,56 @@ defmodule MedEx.StreamWriterTest do
     send(slow_writer, :release)
     assert_receive {:slow_result, {:ok, %{durable_sample: 2}}}
     assert {:ok, _} = StreamWriter.interrupt(other, :disconnected)
+  end
+
+  test "manual checkpoint mode disables timer flushes and commits only on explicit owner calls",
+       %{
+         tmp_dir: dir
+       } do
+    {:ok, w} = start(dir, limits: %{checkpoint_ms: :manual})
+    assert {:ok, accepted} = StreamWriter.push(w, frame(0, 0))
+    assert accepted.accepted_sequence == 1
+    assert accepted.durable_sequence == 0
+    refute_receive {:med_ex_durable, ^w, _}, 350
+
+    assert {:ok, current} = StreamWriter.receipt(w)
+    assert current.durable_sequence == 0
+
+    assert {:ok, durable} = StreamWriter.checkpoint(w)
+    assert durable.durable_sequence == 1
+    assert durable.durable_sample == 2
+
+    assert {:ok, index} = StreamWriter.finish(w)
+    assert index.next_sequence == 1
+  end
+
+  test "manual writer owner exit leaves the durable prefix unchanged", %{tmp_dir: dir} do
+    parent = self()
+
+    owner =
+      spawn(fn ->
+        {:ok, writer} = start(dir, limits: %{checkpoint_ms: :manual})
+
+        assert {:ok, %{durable_sequence: 1}} =
+                 with(
+                   {:ok, _} <- StreamWriter.push(writer, frame(0, 0)),
+                   do: StreamWriter.checkpoint(writer)
+                 )
+
+        assert {:ok, %{accepted_sequence: 2, durable_sequence: 1}} =
+                 StreamWriter.push(writer, frame(1, 2))
+
+        send(parent, {:pending, writer})
+
+        receive do
+          :exit -> :ok
+        end
+      end)
+
+    assert_receive {:pending, writer}, 2_000
+    ref = Process.monitor(writer)
+    send(owner, :exit)
+    assert_receive {:DOWN, ^ref, :process, ^writer, :normal}, 2_000
+    assert {:ok, %{terminal_recorded: false, receipt: %{durable_sequence: 1}}} = recover(dir)
   end
 end

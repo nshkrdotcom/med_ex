@@ -29,8 +29,8 @@ defmodule MedEx.StatusEvent do
   def validate(_), do: {:error, :invalid_status}
   defp interval?(:unknown), do: true
 
-  defp interval?(%{clock_id: id, earliest: a, latest: b}),
-    do: R.id?(id) and is_integer(a) and is_integer(b) and a <= b
+  defp interval?(%{clock_id: id, earliest: a, latest: b} = interval),
+    do: map_size(interval) == 3 and R.id?(id) and R.signed?(a) and R.signed?(b) and a <= b
 
   defp interval?(_), do: false
 end

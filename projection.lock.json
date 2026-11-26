@@ -4,7 +4,7 @@
     "package": {
       "name": "med_ex",
       "otp_app": "med_ex",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   },
   "graph": {
@@ -60,11 +60,11 @@
     "violations": []
   },
   "manifest": {
-    "digest": "a444a797a10ea75c1b1cb8152c346abf9d11f5a3476470d12954485381194045",
+    "digest": "d5868ad888dea4cbb3847866c203f58e2567ff3564859a700e584dc85cc2cc2e",
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "2704a35f11c6fa90b0918a9e746612940b6d0e3335d3bc28c07661ce6e4964e2",
+    "artifact_id": "79ace77ec4194860a0ca604f1ee3086c97e58523f7a7eee00f60a758869166d7",
     "build_path": ".weld/full/med_ex/project",
     "copied_files": [
       ".formatter.exs",
@@ -145,7 +145,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "git_revision": "e3daef9a2e72558119c3307d75605062b297a76a",
+    "git_revision": "99b7e4922b9637d27a88c82b03f8ff137721b265",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -165,7 +165,7 @@
       "mix.exs",
       "priv"
     ],
-    "tree_digest": "4fb6730725ea5dc525c2c90f78863a4c3ad5c42ddb238d810e2f1ff64f6f256e",
+    "tree_digest": "41939a8623558b5623eb98859397a58d0ea09912e22da5cd99a7f890c5f7d367",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -245,7 +245,7 @@
       "test/artifact_1/sdk_test.exs",
       "test/artifact_1/test_helper.exs"
     ],
-    "verification_input_identity": "37387eca2bbe79e9ca0c44cd997d038dc91e359cb0432d215f7f643403589dab"
+    "verification_input_identity": "9b6dc9f304b4369ca7ceacb82418307b9067bcd8088f8c16f1f21b6c76aeafff"
   },
   "source": {
     "inventory": [
@@ -774,17 +774,17 @@
         {
           "app": "med_capture",
           "project_id": "core/med_capture",
-          "test_count": 22
+          "test_count": 24
         },
         {
           "app": "med_core",
           "project_id": "core/med_core",
-          "test_count": 32
+          "test_count": 33
         }
       ],
       "status": "ok",
       "task": "selected_tests_baseline",
-      "test_count": 54
+      "test_count": 57
     },
     {
       "env": "dev",
@@ -811,7 +811,7 @@
       "failure_count": 0,
       "status": "ok",
       "task": "test",
-      "test_count": 55
+      "test_count": 58
     },
     {
       "env": "dev",

@@ -4,7 +4,7 @@ defmodule MedEx.MixProject do
   def project do
     [
       app: :med_ex,
-      version: "0.2.0",
+      version: "0.2.1",
       build_path: "_build",
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
@@ -95,7 +95,7 @@ defmodule MedEx.MixProject do
           {"Release", ["CHANGELOG.md", "guides/history/med_rtc_changelog.md", "LICENSE"]}
         ],
         assets: %{"assets" => "assets"},
-        source_ref: "med_ex-v0.2.0",
+        source_ref: "med_ex-v0.2.1",
         source_url: "https://github.com/nshkrdotcom/med_ex",
         logo: "assets/med_ex.svg",
         main: "readme",

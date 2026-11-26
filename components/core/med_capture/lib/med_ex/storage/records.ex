@@ -118,22 +118,8 @@ defmodule MedEx.Storage.Records do
 
   def apply_record(s, %{"type" => "chunk", "segment" => raw, "frames" => frames}, read)
       when is_list(frames) and length(frames) in 1..16 do
-    seg =
-      struct!(SegmentRef,
-        key: raw["key"],
-        sha256: raw["sha256"],
-        descriptor_ref: raw["descriptor_ref"],
-        byte_size: n(raw["byte_size"]),
-        first_sample: n(raw["first_sample"]),
-        end_sample: n(raw["end_sample"]),
-        first_sequence: n(raw["first_sequence"]),
-        next_sequence: n(raw["next_sequence"]),
-        config_epoch:
-          if(raw["config_epoch"] == "unknown", do: :unknown, else: n(raw["config_epoch"]))
-      )
-
-    with :ok <- SegmentRef.validate(seg),
-         true <- seg.key == seg.sha256 <> ".pcm" and raw == Serialization.to_map(seg),
+    with {:ok, seg} <- Serialization.segment_ref(raw),
+         true <- seg.key == seg.sha256 <> ".pcm",
          true <-
            seg.descriptor_ref == s.cursor.stream.descriptor_ref and
              seg.first_sample == s.cursor.next_sample and

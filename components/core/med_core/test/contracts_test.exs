@@ -154,4 +154,38 @@ defmodule MedEx.ContractsTest do
     assert {:error, :invalid_stream_index} = MedEx.StreamIndex.validate(index)
     assert :ok = MedEx.StreamIndex.validate(%{index | segments: [%{segment | next_sequence: 2}]})
   end
+
+  test "status values round-trip without collapsing strings or interval bounds" do
+    event = %MedEx.StatusEvent{
+      event_id: "status",
+      acquisition_id: "acquisition",
+      source_ref: "device",
+      boot_id: "boot",
+      stream_id: "stream",
+      source_epoch: 0,
+      descriptor_ref: String.duplicate("a", 64),
+      sequence: 0,
+      code: "status",
+      observed_interval: %{
+        clock_id: "clock",
+        earliest: -0xFFFFFFFFFFFFFFFF,
+        latest: 0xFFFFFFFFFFFFFFFF
+      }
+    }
+
+    for state <- [:unknown, "unknown", 7, "7", true, "true"] do
+      event = %{event | state: state, acknowledgement: state}
+      assert {:ok, ^event} = MedEx.Serialization.status_event(MedEx.Serialization.to_map(event))
+    end
+
+    interval = Map.put(event.observed_interval, :latest, 0x10000000000000000)
+
+    assert {:error, :invalid_status} =
+             MedEx.StatusEvent.validate(%{event | observed_interval: interval})
+
+    map = MedEx.Serialization.to_map(event)
+
+    assert {:error, :invalid_status} =
+             MedEx.Serialization.status_event(put_in(map, ["observed_interval", "extra"], true))
+  end
 end

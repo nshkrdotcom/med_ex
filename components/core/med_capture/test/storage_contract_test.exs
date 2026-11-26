@@ -44,6 +44,8 @@ defmodule MedEx.StorageContractTest do
       }
     }
 
+    spec = %{spec | descriptor_ref: MedEx.Serialization.descriptor_ref(spec)}
+
     frame = %SampleFrame{
       stream_id: "s",
       source_epoch: 3,
