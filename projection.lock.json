@@ -4,7 +4,7 @@
     "package": {
       "name": "med_ex_rtc",
       "otp_app": "med_ex_rtc",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   },
   "graph": {
@@ -61,7 +61,7 @@
     "path": "build_support/weld.exs"
   },
   "projection": {
-    "artifact_id": "fa6b47414201e646f02d56affc5c1cd2023812fd261842bcb5a0448e48a87c55",
+    "artifact_id": "478a099e0c1a1814bc4891216a5f4a1e5f6afa4f679b4ee31c5a3447a74744e6",
     "build_path": ".weld/full/med_ex_rtc/project",
     "copied_files": [
       ".formatter.exs",
@@ -76,7 +76,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "git_revision": "93d8a69d96165fcdb2b9a189fd0e7eb24cdecaa1",
+    "git_revision": "5283dfe60731484b202e03085eb4d80cc04fb0bd",
     "linked_files": [],
     "package_files": [
       ".formatter.exs",
@@ -98,7 +98,7 @@
       "assets",
       "lib"
     ],
-    "tree_digest": "bd24f44ec4c5905d727973c80c6ff95323b2ce6b4042b9c1fe3be8651ec73c10",
+    "tree_digest": "d956ff1af9d8651cf4b713cb5fe458c7e3cee930681e76730f5e6e532af87743",
     "verification_files": [
       ".formatter.exs",
       "CHANGELOG.md",
@@ -112,7 +112,7 @@
       "test/preview_test.exs",
       "test/test_helper.exs"
     ],
-    "verification_input_identity": "62c06e7404e32fe8f7cccbdb1737bfae8ceeabfd8f5cc882129acc5ab0638f4b"
+    "verification_input_identity": "ef4de82c3f9119047354bd6b6f8622fd7002a094cc65c987cc540e41397d7ee8"
   },
   "source": {
     "inventory": [
