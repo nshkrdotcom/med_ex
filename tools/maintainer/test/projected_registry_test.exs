@@ -3,10 +3,10 @@ Code.require_file("../../../build_support/check_consumers.exs", __DIR__)
 defmodule MedEx.ProjectedRegistryTest do
   use ExUnit.Case, async: false
 
-  @tag :tmp_dir
-  test "registry refresh replaces a dirty-source projection after reverting to the same HEAD", %{
-    tmp_dir: root
-  } do
+  test "registry refresh replaces a dirty-source projection after reverting to the same HEAD" do
+    suffix = Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+    root = Path.join(System.tmp_dir!(), "medex-registry-freshness-#{suffix}")
+    File.mkdir!(root)
     on_exit(fn -> File.rm_rf!(root) end)
     File.mkdir_p!(Path.join(root, "build_support"))
     File.mkdir_p!(Path.join(root, "lib"))
