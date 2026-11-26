@@ -56,20 +56,20 @@ defmodule MedEx.Opus.EncoderTest do
   end
 
   test "a real tone decodes to one non-silent 20 ms frame", %{tmp_dir: dir} do
-    install = Path.expand("../opus_build/install", :code.priv_dir(:med_ex_opus))
     decoder = Path.join(dir, "decode")
+    project = Mix.Project.deps_paths()[:med_ex_opus] || File.cwd!()
+    app_path = to_string(:code.lib_dir(:med_ex_opus))
 
     args = [
-      "-std=c11",
-      "-I#{install}/include/opus",
-      Path.join(__DIR__, "decode.c"),
-      "#{install}/lib/libopus.a",
-      "-lm",
-      "-o",
-      decoder
+      "-C",
+      project,
+      "test-decoder",
+      "MIX_APP_PATH=#{app_path}",
+      "DECODER=#{decoder}",
+      "DECODER_SRC=#{Path.join(__DIR__, "decode.c")}"
     ]
 
-    {log, status} = System.cmd(System.get_env("CC", "cc"), args, stderr_to_stdout: true)
+    {log, status} = System.cmd("make", args, stderr_to_stdout: true)
     assert status == 0, log
 
     {:ok, encoder} = Encoder.start_link(self())

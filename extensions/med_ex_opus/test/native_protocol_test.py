@@ -86,9 +86,14 @@ class NativeProtocolTest(unittest.TestCase):
                 port.wait(timeout=2)
                 self.assertTrue(select.select([fd], [], [], 2)[0], "codec survived supervisor")
             finally:
-                signal.pidfd_send_signal(fd, signal.SIGKILL)
-                os.close(fd)
-                _, status = os.waitpid(child, 0)
+                try:
+                    if not select.select([fd], [], [], 0)[0]:
+                        signal.pidfd_send_signal(fd, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                finally:
+                    os.close(fd)
+                    _, status = os.waitpid(child, 0)
             self.assertEqual(os.waitstatus_to_exitcode(status), -signal.SIGKILL)
 
     def test_partial_header_is_a_protocol_failure(self):

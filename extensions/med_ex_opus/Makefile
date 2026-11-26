@@ -24,6 +24,10 @@ $(BIN): c_src/opus_encoder.c $(LIB) Makefile
 	$(CC) -std=c11 -O2 -Wall -Wextra -Werror -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
 		-I$(BUILD)/install/include/opus -o $@ $< $(LIB) -lm
 
+.PHONY: test-decoder
+test-decoder: $(LIB)
+	$(CC) -std=c11 -I"$(BUILD)/install/include/opus" "$(DECODER_SRC)" "$(LIB)" -lm -o "$(DECODER)"
+
 $(LIB): $(VENDOR)/SHA256SUMS Makefile
 	@set -eu; \
 	tarball="$(TARBALL)"; \

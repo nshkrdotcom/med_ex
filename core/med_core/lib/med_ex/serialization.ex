@@ -248,17 +248,18 @@ defmodule MedEx.Serialization do
   Pass `:verified_handoff` only after the host has authenticated the successor
   fence and verified its predecessor. The host still owns local coverage and reclamation.
   """
-  def receipt_progress(last, next, context \\ :same_attempt) do
+  def receipt_progress(last, next, context \\ :same_attempt)
+      when context in [:same_attempt, :verified_handoff] do
     cond do
       durable_prefix(next) != next ->
         {:error, :not_durable_receipt}
 
-      next.durable_sequence < last.durable_sequence or next.durable_sample < last.durable_sample ->
-        {:error, :receipt_rollback}
-
       {last.stream_id, last.source_epoch, last.descriptor_ref} !=
           {next.stream_id, next.source_epoch, next.descriptor_ref} ->
         {:error, :receipt_identity}
+
+      next.durable_sequence < last.durable_sequence or next.durable_sample < last.durable_sample ->
+        {:error, :receipt_rollback}
 
       last.fence == next.fence ->
         journal_progress(last, next)
