@@ -13,46 +13,54 @@ test that exercises it.
 - **Host-fenced manual checkpoints (`checkpoint_ms: :manual`):** The writer never
   flushes on a timer and never flushes volatile frames on owner loss. The host
   owns every durable boundary via explicit `checkpoint/1` and `finish/1` calls.
-  *(Proved by `core/med_capture/test/stream_writer_test.exs` and
-  `core/med_capture/test/host_integration_test.exs`.)*
+  *(Proved by `stream_writer_test.exs`: "manual checkpoint mode disables timer
+  flushes and commits only on explicit owner calls" and "manual writer owner exit
+  leaves the durable prefix unchanged"; `host_integration_test.exs` exercises the
+  same calls under a host `DynamicSupervisor`.)*
 
 ## 2. Fencing and Single-Owner Mutation
 
 - `StreamWriter` registers no global name, monitors its `:owner` PID, and rejects
   mutating calls from any other PID (`{:error, :not_owner}`).
-- Fenced `push/3` calls must carry the writer's active `:fence` token; mismatched
-  fences are rejected without mutating state.
+- Fenced `push/3` calls must carry the writer's active `:fence` token; a
+  mismatched fence returns an error.
 - On owner exit, the writer terminates cleanly (`restart: :temporary`), leaving
   only previously committed batches in the durable prefix.
-  *(Proved by `core/med_capture/test/host_integration_test.exs`.)*
+  *(Proved by `stream_writer_test.exs`: "owner, fence, accepted versus durable,
+  exact replay and immutable final bytes" and the owner-exit test above;
+  `host_integration_test.exs` checks `:not_owner` and wrong-fence rejection.)*
 
 ## 3. Crash-Point Recovery (`MedEx.Storage.File.recover/2`)
 
 `Storage.File` persists content-addressed `.pcm` chunks and a hash-chained
 `stream.mejournal` with an index:
 
-- **Orphan chunk before journal append:** A `.pcm` chunk written without a
-  corresponding journal entry is ignored on recovery; the durable prefix ends at
-  the last committed journal entry.
-- **Truncated or corrupt journal tail:** Recovery detects corrupt/incomplete
-  trailing bytes and refuses silent acceptance.
-- **Sealed stream immutability:** Once `finish/2` seals a stream, further writes
-  are rejected and recovery reports the sealed status and final receipt.
-- **Descriptor identity verification:** Opening a writer against an existing
-  stream verifies descriptor identity before accepting writes.
-  *(Proved by `core/med_capture/test/storage_contract_test.exs` and
-  `core/med_capture/test/storage_conformance_test.exs`.)*
+- **Crash cuts:** a crash at any storage cut preserves the acknowledged prefix or
+  recovers the complete uncertain append. *(`stream_writer_test.exs`: "storage
+  crash cuts preserve the acknowledged prefix or recover the complete uncertain
+  append".)*
+- **Unknown tail:** incomplete bytes without a durable receipt remain unknown
+  after a hard kill. *(`stream_writer_test.exs`: "incomplete bytes without any
+  durable receipt remain unknown after hard kill".)*
+- **Corruption:** a corrupt journal interior, a missing chunk or an overwritten
+  chunk is rejected. *(`stream_writer_test.exs`: "rejects corrupt journal
+  interior, missing and overwritten chunk".)* Trailing garbage after a sealed
+  journal is also rejected. *(`storage_conformance_test.exs`.)*
+- **Unreferenced chunk files:** an extra `.pcm` file with no journal entry does
+  not change a sealed recovery. *(`storage_conformance_test.exs`.)*
+- **Not covered by a dedicated test in this guide's pass:** writes after seal.
+  Treat that behaviour as unspecified until a test is added.
 
 ## 4. Ordering and Wire Invariants (`core/med_core`)
 
-- `StreamCursor.plan/2` enforces strictly increasing sequence numbers and
-  contiguous sample coordinates, emitting explicit `{:gap, _}`, `{:reconcile, _}`,
-  or `{:replay, _}` intents rather than silently dropping or reordering frames.
-- `Wire.FrameV1` (`MEX1`) and `CanonicalJSON` (`MEJ1`) round-trip losslessly;
-  `Wire.Control` rejects duplicate JSON keys.
-- `ClockAlign` preserves exact rational affine bounds without floating-point drift.
-  *(Proved by `core/med_core/test/frame_properties_test.exs` and
-  `core/med_core/test/core_properties_test.exs`.)*
+- `StreamCursor.plan/2` returns explicit append, reconcile, gap and replay intents
+  and is pure. *(`stream_cursor_test.exs`.)*
+- `Wire.FrameV1` (`MEX1`) round-trips random payloads and coordinates;
+  `CanonicalJSON` (`MEJ1`) is independent of map key order and rejects numbers.
+  *(`core_properties_test.exs`; fixed-seed random cases, not a property-testing
+  library.)*
+- `Wire.Control` rejects nested duplicate keys. *(`control_wire_test.exs`.)*
+- `ClockAlign` bounds, holdover and generation checks. *(`clock_align_test.exs`.)*
 
 ## 5. Filesystem Assumptions
 

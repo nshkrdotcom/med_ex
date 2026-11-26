@@ -14,6 +14,8 @@
 
 ## Module Classification
 
+This classification is a proposal made on 2026-11-26 from module docs and usage; it is not yet enforced by tooling.
+
 | Module | Stability | Notes |
 | --- | --- | --- |
 | `MedEx.Contract`, `MedEx.ContractRules` | Stable | Revision-1 contract definitions and validation |

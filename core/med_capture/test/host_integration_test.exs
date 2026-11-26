@@ -43,7 +43,7 @@ defmodule MedEx.HostIntegrationTest do
     }
   end
 
-  test "host-owned DynamicSupervisor enforces owner, fence, manual checkpoint, and owner-loss boundary",
+  test "a DynamicSupervisor-hosted writer enforces owner and fence, checkpoints manually, and seals",
        %{tmp_dir: dir} do
     on_exit(fn -> File.rm_rf!(dir) end)
     {:ok, sup} = DynamicSupervisor.start_link(strategy: :one_for_one)
@@ -63,7 +63,6 @@ defmodule MedEx.HostIntegrationTest do
     # Stale fence is rejected
     assert {:error, _} = StreamWriter.push(writer, "wrong-fence", frame(s, 0))
 
-    # Committed frame survives; uncommitted frame after checkpoint does not
     assert {:ok, _} = StreamWriter.push(writer, "f1", frame(s, 0))
     assert {:ok, cp} = StreamWriter.checkpoint(writer)
     assert cp.journal_generation >= 1
@@ -79,16 +78,15 @@ defmodule MedEx.HostIntegrationTest do
   } do
     on_exit(fn -> File.rm_rf!(dir) end)
     script = Path.expand("../../../tools/cli_recorder.exs", __DIR__)
+    assert File.regular?(script)
 
-    if File.exists?(script) do
-      {out, 0} =
-        System.cmd("mix", ["run", script, dir, "4"],
-          cd: Path.expand("../../..", __DIR__),
-          stderr_to_stdout: true
-        )
+    {out, 0} =
+      System.cmd("mix", ["run", script, dir, "4"],
+        cd: Path.expand("../../..", __DIR__),
+        stderr_to_stdout: true
+      )
 
-      assert out =~ "cli_recorder ok frames=4"
-      assert out =~ "sealed=true"
-    end
+    assert out =~ "cli_recorder ok frames=4"
+    assert out =~ "sealed=true"
   end
 end
