@@ -9,10 +9,10 @@ for maintainers and stays outside all three package dependencies.
 
 ## Choose a transport
 
-The 0.2.0 family implements contract revision 1
+The 0.2.x family implements contract revision 1
 (`MedEx.Contract.api_revision() == 1`). The published 0.1.0 package provides
-the original browser WAV and preview contract. Use a 0.2.0 source for hosts
-that depend on streams, journal receipts or the separate providers.
+the original browser WAV and preview contract. The base examples below
+select 0.2.1, which adds manual writer checkpoints.
 [Hex package history](https://hex.pm/packages/med_ex)
 
 | Transport | Base project | Optional extension project |
@@ -23,16 +23,15 @@ that depend on streams, journal receipts or the separate providers.
 | Weld full path | `../med_ex/.weld/full/med_ex/project` | `../med_ex/.weld/full/<artifact>/project` |
 | Weld prepared path | `../med_ex/.weld/releases/med_ex/<identity>/project` | `../med_ex/.weld/releases/<artifact>/<identity>/project` |
 | Tracked projection snapshot | Exact revision on `projection/med_ex` | Exact revision on `projection/<artifact>` |
-| Hex, after the family is released | `{:med_ex, "~> 0.2.0"}` | `{:med_ex_opus, "~> 0.1.0"}` or `{:med_ex_rtc, "~> 0.1.0"}` |
+| Hex | `{:med_ex, "~> 0.2.1"}` | `{:med_ex_opus, "~> 0.1.0"}` or `{:med_ex_rtc, "~> 0.1.0"}` |
 
 Use ordinary Mix dependency declarations. A headless host needs only
-`{:med_ex, "~> 0.2.0", path: "../med_ex"}`. Before the 0.2.0 Hex release,
-a host using extensions overrides their versioned base requirement with its
-chosen source:
+`{:med_ex, "~> 0.2.1", path: "../med_ex"}`. When a host uses extensions with a
+checkout or Git base, override their Hex dependency with that base source:
 
 ```elixir
 [
-  {:med_ex, "~> 0.2.0", path: "../med_ex", override: true},
+  {:med_ex, "~> 0.2.1", path: "../med_ex", override: true},
   {:med_ex_opus, "~> 0.1.0", path: "../med_ex/extensions/med_ex_opus"},
   {:med_ex_rtc, "~> 0.1.0", path: "../med_ex/extensions/med_ex_rtc"}
 ]
@@ -43,7 +42,7 @@ For Git, use the same exact reachable commit for the base and any extensions:
 
 ```elixir
 [
-  {:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: commit, override: true},
+  {:med_ex, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: commit, override: true},
   {:med_ex_opus, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: commit,
    subdir: "extensions/med_ex_opus"},
   {:med_ex_rtc, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: commit,
@@ -59,8 +58,8 @@ Opus and `:rtc_provider` for WebRTC.
 ## Work on an extension
 
 Each extension declares the normal Hex dependency `{:med_ex, "~> 0.2.0"}`
-and keeps its own `VERSION`. The first provider releases are 0.1.0 and
-require the published 0.2.0 base.
+and keeps its own `VERSION`. The published 0.1.0 provider packages can
+resolve MedEx 0.2.1 within that requirement.
 
 For a local edit, run the real provider suites from fresh outer Mix consumers
 with the explicit path dependencies above:

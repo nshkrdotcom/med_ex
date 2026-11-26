@@ -41,24 +41,24 @@ declaration. Consumers choose `:med_ex` and add the independently installable
 
 ## Installation And Dependency Consumption
 
-The `0.2.0` SDK implements contract revision 1 and uses separate media
-providers. The `0.1.0` package has the original
+The `0.2.x` SDK implements contract revision 1 and uses separate media
+providers. Use `0.2.1` for manual writer checkpoints. The `0.1.0` package has the original
 browser WAV capture and preview API. [Hex package history](https://hex.pm/packages/med_ex)
 
 Consumers use standard Mix dependencies and never need `Weld` installed:
 
 ```elixir
-# Hex, once 0.2.0 is available (headless base SDK)
-{:med_ex, "~> 0.2.0"}
+# Hex (headless base SDK)
+{:med_ex, "~> 0.2.1"}
 
 # Local source checkout (headless base SDK)
-{:med_ex, "~> 0.2.0", path: "../med_ex"}
+{:med_ex, "~> 0.2.1", path: "../med_ex"}
 
 # Pinned Git commit on main (headless base SDK)
-{:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
+{:med_ex, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>"}
 
 # Optional live media extensions (from checkout or Git subdir; use override: true on :med_ex so extensions converge on your chosen base)
-{:med_ex, "~> 0.2.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
+{:med_ex, "~> 0.2.1", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", override: true},
 {:med_ex_opus, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_opus"},
 {:med_ex_rtc, "~> 0.1.0", github: "nshkrdotcom/med_ex", ref: "<commit_sha>", subdir: "extensions/med_ex_rtc"}
 
