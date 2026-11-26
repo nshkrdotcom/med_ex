@@ -137,8 +137,13 @@ defmodule MedEx.ArchitectureTest do
         assert config[:version] == version
         assert {:med_ex, "~> 0.2.0"} in config[:deps]
 
+        native = if app == :med_ex_opus, do: ~w(Makefile c_src), else: []
+
         assert Enum.sort(config[:package][:files]) ==
-                 ~w(.formatter.exs CHANGELOG.md LICENSE README.md VERSION assets lib mix.exs)
+                 Enum.sort(
+                   ~w(.formatter.exs CHANGELOG.md LICENSE README.md VERSION assets lib mix.exs) ++
+                     native
+                 )
 
         assert :ok == Boundaries.dependencies!(app, config[:deps])
       end)

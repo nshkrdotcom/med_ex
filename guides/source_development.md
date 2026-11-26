@@ -79,7 +79,7 @@ helpers configure the provider being exercised. Fetch the base through normal
 Hex SCM for this lane. The outer path consumer checks source builds, and the
 registry lane checks the package requirements.
 
-The Opus package uses the Membrane Opus plugin. RTC uses ExWebRTC and ExRTP.
+The Opus package runs a vendored-libopus encoder as an OS process over a Port. RTC uses ExWebRTC and ExRTP.
 Install a C toolchain and the platform prerequisites for the profile you use.
 [Native build prerequisites](host_integration.md#prerequisites)
 

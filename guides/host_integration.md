@@ -67,7 +67,7 @@ a checkout or Git revision. [Consumption, Extensions, and Verification](source_d
 
 - Elixir `~> 1.20`.
 - For `:med_ex_rtc`, C build tools and OpenSSL headers (`build-essential`, `pkg-config`, and `libssl-dev` on Debian/Ubuntu) for `ex_dtls` and `ex_libsrtp`.
-- For `:med_ex_opus`, `membrane_opus_plugin` uses precompiled `libopus` binaries on supported Linux/macOS targets (install `libopus-dev` if compiling `libopus` from source).
+- For `:med_ex_opus`, the package fetches (and caches) a pinned Xiph libopus 1.5.2 tarball verified against `c_src/vendor/SHA256SUMS` (or uses `MED_EX_OPUS_TARBALL` offline) and compiles a static encoder executable with `elixir_make`. No system libopus is needed.
 - Browser microphone capture (`getUserMedia` + `AudioWorklet`) requires a secure context (`https://`, or `http://localhost` / `http://127.0.0.1` for local development).
 
 ## 1. Serve the packaged browser assets

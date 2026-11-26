@@ -9,20 +9,23 @@
   <a href="https://github.com/nshkrdotcom/med_ex/blob/main/extensions/med_ex_opus/LICENSE"><img src="https://img.shields.io/badge/license-MIT-458f8b" alt="MIT license" /></a>
 </p>
 
-MedEx Opus provides `MedEx.Opus.Provider`, a Membrane-backed encoder for
-48 kHz mono PCM16LE preview frames. A host can use the provider directly or
+MedEx Opus provides `MedEx.Opus.Provider`, an encoder for
+48 kHz mono PCM16LE preview frames. Each provider runs its own libopus encoder
+OS process (a Port, no NIF), so a native fault cannot take down the VM. A host can use the provider directly or
 configure it for the base SDK's browser capture facade.
 
 ```elixir
 config :med_ex, :preview_provider, MedEx.Opus.Provider
 ```
 
-Use `{:med_ex_opus, "~> 0.1.0"}` once the package is available on Hex.
+Use `{:med_ex_opus, "~> 0.2.0"}`.
 
 The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.2.0`.
-Install a C compiler and native build tools for the Membrane Opus plugin.
-On supported Linux and macOS targets the plugin can use precompiled libopus.
-For a source build, install the libopus development headers and libraries.
+The package pins the Xiph libopus 1.5.2 release tarball (`c_src/vendor/SHA256SUMS`),
+fetches and caches it on first build (or reads `MED_EX_OPUS_TARBALL` for offline
+builds), verifies its SHA-256, and compiles a static `libopus.a` with
+`elixir_make`. You need `cc`, `make`, `tar`, `sh`, and `curl` (unless using
+`MED_EX_OPUS_TARBALL`). No system libopus is needed.
 
 ## Encoding lifecycle
 

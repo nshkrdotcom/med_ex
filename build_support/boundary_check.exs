@@ -179,10 +179,7 @@ defmodule MedEx.Build.Boundaries do
       med_capture: [:med_core],
       med_ex_opus: [
         :med_ex,
-        :membrane_core,
-        :membrane_raw_audio_format,
-        :membrane_opus_format,
-        :membrane_opus_plugin,
+        :elixir_make,
         :credo,
         :dialyxir,
         :ex_doc

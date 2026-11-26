@@ -135,7 +135,7 @@ Only `durable_receipt.durable_sequence` / `durable_sample` authorize upstream sp
 
 ## Optional Opus And WebRTC Providers
 
-`:med_ex_opus` (`MedEx.Opus.Provider`, backed by Membrane Opus) and `:med_ex_rtc` (`MedEx.RTC.Provider`, backed by ExWebRTC / ExRTP) are independent OTP applications:
+`:med_ex_opus` (`MedEx.Opus.Provider`, backed by a libopus encoder process) and `:med_ex_rtc` (`MedEx.RTC.Provider`, backed by ExWebRTC / ExRTP) are independent OTP applications:
 
 - Use `:med_ex_opus` alone to encode 20 ms 48 kHz mono PCM16LE frames under single-frame backpressure (`MedEx.PreviewProvider`).
 - Use `:med_ex_rtc` alone to negotiate send-only WebRTC peers and transmit pre-encoded Opus RTP packets (`MedEx.RTCProvider`).

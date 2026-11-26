@@ -18,8 +18,8 @@ defmodule ExternalDeviceDriverTest do
     rtc? = profile in ["rtc", "both"]
 
     assert :med_ex_opus in deps == opus?
-    assert :membrane_core in deps == opus?
-    assert :membrane_opus_plugin in deps == opus?
+    assert :elixir_make in deps == opus?
+    refute :membrane_core in deps
     assert :med_ex_rtc in deps == rtc?
     assert :ex_webrtc in deps == rtc?
 
