@@ -10,14 +10,17 @@ alias MedEx.Storage.File, as: Store
 
 {dir, count} =
   case System.argv() do
-    [d] -> {d, 5}
+    [d] ->
+      {d, 5}
+
     [d, n] ->
       case Integer.parse(n) do
         {count, ""} when count > 0 -> {d, count}
         _ -> raise ArgumentError, "frame_count must be a positive integer"
       end
 
-    _ -> raise "Usage: mix run tools/cli_recorder.exs <output_dir> [frame_count]"
+    _ ->
+      raise "Usage: mix run tools/cli_recorder.exs <output_dir> [frame_count]"
   end
 
 File.mkdir_p!(dir)

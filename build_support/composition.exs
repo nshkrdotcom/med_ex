@@ -44,7 +44,11 @@ extras = Enum.flat_map(groups, &elem(&1, 1))
     description: "Source-preserving waveform and measurement acquisition",
     licenses: ["MIT"],
     links: %{"Source" => source_url},
-    development_dependencies: [{:ex_doc, "~> 0.40.5", only: :dev, runtime: false}],
+    development_dependencies: [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
+    ],
     docs: [
       main: "readme",
       logo: "assets/med_ex.svg",

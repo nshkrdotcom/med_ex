@@ -53,7 +53,10 @@ defmodule MedEx.HostIntegrationTest do
       DynamicSupervisor.start_child(
         sup,
         {StreamWriter,
-         owner: self(), fence: "f1", stream: s, artifact_dir: dir,
+         owner: self(),
+         fence: "f1",
+         stream: s,
+         artifact_dir: dir,
          limits: %{checkpoint_ms: :manual}}
       )
 

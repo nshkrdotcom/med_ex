@@ -174,7 +174,7 @@ defmodule MedEx.Build.Boundaries do
 
   def dependencies!(app, deps) do
     expected = %{
-      med_ex: [:ex_doc],
+      med_ex: [:credo, :dialyxir, :ex_doc],
       med_core: [],
       med_capture: [:med_core],
       med_ex_opus: [

@@ -29,6 +29,7 @@ defmodule MedEx.CorePropertiesTest do
 
   test "CanonicalJSON emits sorted keys at every nesting level" do
     a = %{"z" => "1", "a" => [true, false, nil, "hi"], "m" => %{"b" => "2", "a" => "1"}}
+
     assert CanonicalJSON.encode(a) ==
              ~s({"a":[true,false,null,"hi"],"m":{"a":"1","b":"2"},"z":"1"})
 

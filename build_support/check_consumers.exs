@@ -653,12 +653,16 @@ defmodule MedEx.ConsumerCheck do
     end
 
     unless get_in(lock, ["projection", "git_revision"]) == revision,
-      do: raise("Full projection for #{app} does not match the current source revision; refresh it")
+      do:
+        raise("Full projection for #{app} does not match the current source revision; refresh it")
 
     content =
       for {relative, path, mode} <- project_files!(root),
           relative not in ~w(weld.provenance.json projection.lock.json),
-          do: :erlang.term_to_binary({relative, Bitwise.band(mode, 0o111), digest(File.read!(path))})
+          do:
+            :erlang.term_to_binary(
+              {relative, Bitwise.band(mode, 0o111), digest(File.read!(path))}
+            )
 
     unless marker["artifact_id"] == digest(content),
       do: raise("Full projection portable content changed for #{app}; refresh it")
@@ -887,7 +891,8 @@ defmodule MedEx.ConsumerCheck do
 
   @doc false
   def path_fingerprint(path) do
-    patterns = ~w(mix.exs mix.lock VERSION Makefile c_src/**/* lib/**/* components/**/* core/**/lib/**/*
+    patterns =
+      ~w(mix.exs mix.lock VERSION Makefile c_src/**/* lib/**/* components/**/* core/**/lib/**/*
                   config/**/* priv/**/* build_support/composition.exs projection.lock.json
                   weld.provenance.json)
 
