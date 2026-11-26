@@ -29,12 +29,7 @@ defmodule MedEx.ControlInterlock do
       )
       when is_map(watermarks) do
     cond do
-      not MedEx.ContractRules.id?(id) or not MedEx.ContractRules.id?(fp) or
-        not MedEx.ContractRules.uint?(e, 0xFFFFFFFD) or map_size(watermarks) > 8 or
-          not Enum.all?(watermarks, fn {k, v} ->
-            (is_atom(k) or MedEx.ContractRules.id?(k)) and
-                MedEx.ContractRules.uint?(v, 0xFFFFFFFFFFFFFFFF)
-          end) ->
+      not valid_request?(id, fp, e, watermarks) ->
         {:error, :invalid_command}
 
       Map.has_key?(command, :target) and command.target != state.target ->
@@ -53,6 +48,17 @@ defmodule MedEx.ControlInterlock do
   end
 
   def request(_, _, _), do: {:error, :invalid_command}
+
+  defp valid_request?(id, fingerprint, epoch, watermarks) do
+    alias MedEx.ContractRules
+
+    ContractRules.id?(id) and ContractRules.id?(fingerprint) and
+      ContractRules.uint?(epoch, 0xFFFFFFFD) and map_size(watermarks) <= 8 and
+      Enum.all?(watermarks, fn {key, value} ->
+        (is_atom(key) or ContractRules.id?(key)) and
+          ContractRules.uint?(value, 0xFFFFFFFFFFFFFFFF)
+      end)
+  end
 
   @spec step(t(), term()) :: {:ok, t(), [term()]} | {:error, atom()}
   def step(

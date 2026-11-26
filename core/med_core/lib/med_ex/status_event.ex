@@ -12,21 +12,28 @@ defmodule MedEx.StatusEvent do
               ]
 
   def validate(%__MODULE__{} = e) do
-    valid =
-      e.schema_version == 1 and
-        Enum.all?(
-          [e.event_id, e.acquisition_id, e.source_ref, e.boot_id, e.stream_id, e.code],
-          &R.id?/1
-        ) and
-        R.digest?(e.descriptor_ref) and R.uint?(e.source_epoch, 0xFFFFFFFF) and
-        R.uint?(e.sequence, 0xFFFFFFFFFFFFFFFF) and interval?(e.observed_interval) and
-        (is_nil(e.source_alarm_id) or R.id?(e.source_alarm_id)) and R.scalar?(e.state) and
-        R.scalar?(e.acknowledgement)
+    valid = valid_identity?(e) and valid_observation?(e)
 
     if valid, do: :ok, else: {:error, :invalid_status}
   end
 
   def validate(_), do: {:error, :invalid_status}
+
+  defp valid_identity?(e) do
+    e.schema_version == 1 and
+      Enum.all?(
+        [e.event_id, e.acquisition_id, e.source_ref, e.boot_id, e.stream_id, e.code],
+        &R.id?/1
+      )
+  end
+
+  defp valid_observation?(e) do
+    R.digest?(e.descriptor_ref) and R.uint?(e.source_epoch, 0xFFFFFFFF) and
+      R.uint?(e.sequence, 0xFFFFFFFFFFFFFFFF) and interval?(e.observed_interval) and
+      (is_nil(e.source_alarm_id) or R.id?(e.source_alarm_id)) and R.scalar?(e.state) and
+      R.scalar?(e.acknowledgement)
+  end
+
   defp interval?(:unknown), do: true
 
   defp interval?(%{clock_id: id, earliest: a, latest: b} = interval),

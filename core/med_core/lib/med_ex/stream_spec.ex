@@ -56,20 +56,32 @@ defmodule MedEx.StreamSpec do
 
   @spec validate(term()) :: :ok | {:error, atom()}
   def validate(%__MODULE__{} = s) do
+    with :ok <- validate_header(s), do: validate_format(s)
+  end
+
+  def validate(_), do: {:error, :invalid_descriptor}
+
+  defp validate_header(s) do
     cond do
       s.schema_version != 1 or s.layout != :interleaved ->
         {:error, :unsupported_descriptor}
 
-      not Enum.all?([s.acquisition_id, s.source_ref, s.boot_id, s.stream_id], &R.id?/1) ->
+      not valid_identity?(s) ->
         {:error, :invalid_identity}
 
-      not R.uint?(s.source_epoch, 0xFFFFFFFF) or not R.digest?(s.descriptor_ref) ->
+      not valid_revision?(s) ->
         {:error, :invalid_revision}
 
-      not R.id?(s.modality) or
-          not Regex.match?(~r/\A[a-z][a-z0-9_.-]*:[a-z][a-z0-9_.-]*\z/, s.modality) ->
+      not valid_modality?(s.modality) ->
         {:error, :invalid_modality}
 
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_format(s) do
+    cond do
       s.encoding not in [:s16le, :s24le, :s32le] ->
         {:error, :unsupported_encoding}
 
@@ -85,7 +97,7 @@ defmodule MedEx.StreamSpec do
       not clock?(s.clock) ->
         {:error, :invalid_clock}
 
-      s.source_processing != :unknown and not R.list?(s.source_processing, 32, &R.fact?/1) ->
+      not valid_processing?(s.source_processing) ->
         {:error, :invalid_processing}
 
       true ->
@@ -93,7 +105,16 @@ defmodule MedEx.StreamSpec do
     end
   end
 
-  def validate(_), do: {:error, :invalid_descriptor}
+  defp valid_identity?(s),
+    do: Enum.all?([s.acquisition_id, s.source_ref, s.boot_id, s.stream_id], &R.id?/1)
+
+  defp valid_revision?(s), do: R.uint?(s.source_epoch, 0xFFFFFFFF) and R.digest?(s.descriptor_ref)
+
+  defp valid_modality?(value),
+    do: R.id?(value) and Regex.match?(~r/\A[a-z][a-z0-9_.-]*:[a-z][a-z0-9_.-]*\z/, value)
+
+  defp valid_processing?(:unknown), do: true
+  defp valid_processing?(value), do: R.list?(value, 32, &R.fact?/1)
   def bytes_per_value(:s16le), do: 2
   def bytes_per_value(:s24le), do: 3
   def bytes_per_value(:s32le), do: 4

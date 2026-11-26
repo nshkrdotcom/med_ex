@@ -227,12 +227,16 @@ defmodule MedEx.Serialization do
       Enum.all?(ids, fn {_, v} -> ContractRules.id?(v) end) and
         Enum.all?(counts, fn {_, n} -> ContractRules.uint?(n, 0xFFFFFFFFFFFFFFFF) end) and
         ContractRules.digest?(r.descriptor_ref) and ContractRules.digest?(r.journal_digest) and
-        r.journal_generation > 0 and r.source_epoch <= 0xFFFFFFFF and
-        r.accepted_sample >= r.durable_sample and r.accepted_sequence >= r.durable_sequence
+        valid_receipt_counters?(r)
 
     if valid and to_map(r) == map, do: {:ok, r}, else: {:error, :invalid_receipt}
   rescue
     _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError] -> {:error, :invalid_receipt}
+  end
+
+  defp valid_receipt_counters?(r) do
+    r.journal_generation > 0 and r.source_epoch <= 0xFFFFFFFF and
+      r.accepted_sample >= r.durable_sample and r.accepted_sequence >= r.durable_sequence
   end
 
   def integer!(n) when is_binary(n) and byte_size(n) in 1..21 do

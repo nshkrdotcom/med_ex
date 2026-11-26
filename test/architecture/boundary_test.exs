@@ -3,13 +3,14 @@ Code.require_file("../../build_support/boundary_check.exs", __DIR__)
 defmodule MedEx.ArchitectureTest do
   use ExUnit.Case, async: false
 
+  alias MedEx.Build.{Boundaries, Ownership}
+
   setup context do
     if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
-    on_exit(&MedEx.Build.Boundaries.clear/0)
+    on_exit(&Boundaries.clear/0)
     :ok
   end
 
-  alias MedEx.Build.{Boundaries, Ownership}
   @fixture_path "/fixture/pure/negative.ex"
 
   test "negative fixtures fail for their own boundary" do

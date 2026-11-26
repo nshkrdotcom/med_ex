@@ -27,18 +27,24 @@ defmodule MedEx.SegmentRef do
           config_epoch: :unknown | non_neg_integer()
         }
   def validate(%__MODULE__{} = s) do
-    valid =
-      R.id?(s.key) and R.digest?(s.sha256) and R.digest?(s.descriptor_ref) and
-        R.uint?(s.byte_size, 262_144) and s.byte_size > 0 and R.config?(s.config_epoch) and
-        Enum.all?(
-          [s.first_sample, s.end_sample, s.first_sequence, s.next_sequence],
-          &R.uint?(&1, 0xFFFFFFFFFFFFFFFF)
-        ) and
-        s.first_sample < s.end_sample and s.first_sequence < s.next_sequence and
-        s.next_sequence - s.first_sequence <= s.end_sample - s.first_sample
+    valid = valid_object?(s) and valid_range?(s)
 
     if valid, do: :ok, else: {:error, :invalid_segment}
   end
 
   def validate(_), do: {:error, :invalid_segment}
+
+  defp valid_object?(s) do
+    R.id?(s.key) and R.digest?(s.sha256) and R.digest?(s.descriptor_ref) and
+      R.uint?(s.byte_size, 262_144) and s.byte_size > 0 and R.config?(s.config_epoch)
+  end
+
+  defp valid_range?(s) do
+    Enum.all?(
+      [s.first_sample, s.end_sample, s.first_sequence, s.next_sequence],
+      &R.uint?(&1, 0xFFFFFFFFFFFFFFFF)
+    ) and
+      s.first_sample < s.end_sample and s.first_sequence < s.next_sequence and
+      s.next_sequence - s.first_sequence <= s.end_sample - s.first_sample
+  end
 end

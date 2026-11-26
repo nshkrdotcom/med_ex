@@ -35,25 +35,33 @@ defmodule MedEx.StreamIndex do
   def validate(%__MODULE__{} = i) do
     with :ok <- StreamSpec.validate(i.stream) do
       valid =
-        i.schema_version == 1 and i.terminal in [:finished, :interrupted, :failed] and
-          (i.terminal != :finished or i.segments != []) and
-          ContractRules.id?(i.fence) and
-          ContractRules.uint?(i.journal_generation, 0xFFFFFFFFFFFFFFFF) and
-          ContractRules.digest?(i.journal_digest) and
-          ContractRules.list?(i.segments, 100_000, &(SegmentRef.validate(&1) == :ok)) and
-          ContractRules.list?(i.spans, 100_000, &(IntegritySpan.validate(&1) == :ok)) and
-          Enum.all?(
-            i.spans,
-            &(&1.stream_id == i.stream.stream_id and &1.source_epoch == i.stream.source_epoch)
-          ) and
-          Enum.all?(i.segments, &segment_matches?(&1, i.stream)) and
-          coverage?(i.segments, i.spans) and journal_coverage?(i)
+        valid_header?(i) and matching_records?(i) and coverage?(i.segments, i.spans) and
+          journal_coverage?(i)
 
       if valid, do: :ok, else: {:error, :invalid_stream_index}
     end
   end
 
   def validate(_), do: {:error, :invalid_stream_index}
+
+  defp valid_header?(i) do
+    i.schema_version == 1 and i.terminal in [:finished, :interrupted, :failed] and
+      (i.terminal != :finished or i.segments != []) and
+      ContractRules.id?(i.fence) and
+      ContractRules.uint?(i.journal_generation, 0xFFFFFFFFFFFFFFFF) and
+      ContractRules.digest?(i.journal_digest)
+  end
+
+  defp matching_records?(i) do
+    ContractRules.list?(i.segments, 100_000, &(SegmentRef.validate(&1) == :ok)) and
+      ContractRules.list?(i.spans, 100_000, &(IntegritySpan.validate(&1) == :ok)) and
+      Enum.all?(
+        i.spans,
+        &(&1.stream_id == i.stream.stream_id and &1.source_epoch == i.stream.source_epoch)
+      ) and
+      Enum.all?(i.segments, &segment_matches?(&1, i.stream))
+  end
+
   # Detached/legacy shape validation has no journal cursor. A journal-backed
   # index additionally proves every gap sequence and its exact terminal boundary.
   defp journal_coverage?(%{journal_id: nil}), do: true
@@ -63,24 +71,28 @@ defmodule MedEx.StreamIndex do
          true <- ContractRules.list?(i.gaps, 100_000, &gap?/1),
          true <- Enum.map(i.gaps, & &1.span) == Enum.filter(i.spans, &(&1.code == :source_gap)),
          true <- Enum.uniq_by(i.gaps, & &1.id) == i.gaps do
-      chunks =
-        Enum.map(
-          i.segments,
-          &{&1.first_sample, &1.first_sequence, &1.end_sample, &1.next_sequence}
-        )
-
-      missing =
-        Enum.map(
-          i.gaps,
-          &{&1.span.first_sample, &1.first_sequence, &1.span.end_sample, &1.next_sequence}
-        )
-
-      Enum.reduce_while(Enum.sort(chunks ++ missing), {0, 0}, fn {a, q, b, r}, current ->
-        if current == {a, q}, do: {:cont, {b, r}}, else: {:halt, :invalid}
-      end) == {i.next_sample, i.next_sequence}
+      journal_ranges_cover?(i)
     else
       _ -> false
     end
+  end
+
+  defp journal_ranges_cover?(i) do
+    chunks =
+      Enum.map(
+        i.segments,
+        &{&1.first_sample, &1.first_sequence, &1.end_sample, &1.next_sequence}
+      )
+
+    missing =
+      Enum.map(
+        i.gaps,
+        &{&1.span.first_sample, &1.first_sequence, &1.span.end_sample, &1.next_sequence}
+      )
+
+    Enum.reduce_while(Enum.sort(chunks ++ missing), {0, 0}, fn {a, q, b, r}, current ->
+      if current == {a, q}, do: {:cont, {b, r}}, else: {:halt, :invalid}
+    end) == {i.next_sample, i.next_sequence}
   end
 
   defp gap?(%{

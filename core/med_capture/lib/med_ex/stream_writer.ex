@@ -173,28 +173,7 @@ defmodule MedEx.StreamWriter do
           else: quarantine(s, "gap", id, incoming, {:ok, fp})
 
       :missing ->
-        case StreamCursor.plan(s.cursor, {:gap, gap}) do
-          {:ok, cursor, _} ->
-            cond do
-              over_duration?(cursor, s.limits) ->
-                capacity_stop(s, "duration_limit")
-
-              s.durable.journal_generation >= 99_997 ->
-                capacity_stop(s, "journal_limit")
-
-              s.storage.usage(s.adapter).span_count >= 99_999 ->
-                capacity_stop(s, "integrity_span_limit")
-
-              true ->
-                case flush(s) do
-                  {:ok, ready} -> answer_flush(commit(ready, {:gap, gap}, cursor))
-                  failure -> answer_flush(failure)
-                end
-            end
-
-          {:error, reason} ->
-            {:reply, {:error, reason}, s}
-        end
+        accept_gap(s, gap)
     end
   end
 
@@ -206,51 +185,103 @@ defmodule MedEx.StreamWriter do
 
   def handle_call({_, {:interrupt, reason}}, _, s), do: end_recording(s, :interrupted, reason)
 
+  defp accept_gap(s, gap) do
+    case StreamCursor.plan(s.cursor, {:gap, gap}) do
+      {:ok, cursor, _} ->
+        case gap_capacity(s, cursor) do
+          :ok -> flush_gap(s, gap, cursor)
+          {:error, reason} -> capacity_stop(s, reason)
+        end
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, s}
+    end
+  end
+
+  defp gap_capacity(s, cursor) do
+    cond do
+      over_duration?(cursor, s.limits) -> {:error, "duration_limit"}
+      s.durable.journal_generation >= 99_997 -> {:error, "journal_limit"}
+      s.storage.usage(s.adapter).span_count >= 99_999 -> {:error, "integrity_span_limit"}
+      true -> :ok
+    end
+  end
+
+  defp flush_gap(s, gap, cursor) do
+    case flush(s) do
+      {:ok, ready} -> answer_flush(commit(ready, {:gap, gap}, cursor))
+      failure -> answer_flush(failure)
+    end
+  end
+
   defp accept(s, frame, cursor) do
     size = byte_size(frame.payload)
+
+    case frame_capacity(s, frame, cursor, size) do
+      :ok -> buffer_frame(s, frame, cursor, size)
+      {:error, reason} -> capacity_stop(s, reason)
+    end
+  end
+
+  defp frame_capacity(s, frame, cursor, size) do
     usage = s.storage.usage(s.adapter)
 
     cond do
       over_duration?(cursor, s.limits) ->
-        capacity_stop(s, "duration_limit")
+        {:error, "duration_limit"}
 
       usage.raw_bytes + s.bytes + size > s.limits.artifact_bytes ->
-        capacity_stop(s, "artifact_limit")
+        {:error, "artifact_limit"}
 
       usage.frame_count + s.count >= 1_000_000 ->
-        capacity_stop(s, "frame_limit")
+        {:error, "frame_limit"}
 
       usage.span_count >= 99_999 and frame.config_epoch == :unknown ->
-        capacity_stop(s, "integrity_span_limit")
+        {:error, "integrity_span_limit"}
 
       s.durable.journal_generation >= 99_998 ->
-        capacity_stop(s, "journal_limit")
+        {:error, "journal_limit"}
 
+      true ->
+        :ok
+    end
+  end
+
+  defp buffer_frame(s, frame, cursor, size) do
+    cond do
       size > s.limits.pending_bytes ->
         {:reply, {:error, :credit_limit}, s}
 
-      s.bytes + size > s.limits.pending_bytes or s.count == s.limits.pending_frames or
-          (s.pending != [] and hd(s.pending).config_epoch != frame.config_epoch) ->
+      flush_before_buffering?(s, frame, size) ->
         case flush(s) do
           {:ok, ready} -> accept(ready, frame, cursor)
           error -> answer_flush(error)
         end
 
       true ->
-        next = %{
-          s
-          | cursor: cursor,
-            bytes: s.bytes + size,
-            count: s.count + 1,
-            peak_count: max(s.peak_count, s.count + 1),
-            peak_bytes: max(s.peak_bytes, s.bytes + size),
-            pending: [frame | s.pending]
-        }
-
-        if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
-          do: answer_flush(flush(next)),
-          else: reply_receipt(arm_timer(next))
+        enqueue_frame(s, frame, cursor, size)
     end
+  end
+
+  defp flush_before_buffering?(s, frame, size) do
+    s.bytes + size > s.limits.pending_bytes or s.count == s.limits.pending_frames or
+      (s.pending != [] and hd(s.pending).config_epoch != frame.config_epoch)
+  end
+
+  defp enqueue_frame(s, frame, cursor, size) do
+    next = %{
+      s
+      | cursor: cursor,
+        bytes: s.bytes + size,
+        count: s.count + 1,
+        peak_count: max(s.peak_count, s.count + 1),
+        peak_bytes: max(s.peak_bytes, s.bytes + size),
+        pending: [frame | s.pending]
+    }
+
+    if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
+      do: answer_flush(flush(next)),
+      else: reply_receipt(arm_timer(next))
   end
 
   defp over_duration?(cursor, limits) do
@@ -291,11 +322,7 @@ defmodule MedEx.StreamWriter do
   defp commit(s, event, cursor) do
     case s.storage.commit_batch(s.adapter, event) do
       {:ok, adapter, r} ->
-        if valid_receipt?(r, cursor.stream, s.fence) and r.journal_id == s.durable.journal_id and
-             r.journal_generation == s.durable.journal_generation + 1 and
-             r.journal_digest != s.durable.journal_digest and
-             {r.durable_sequence, r.durable_sample} == {cursor.next_sequence, cursor.next_sample} and
-             {r.accepted_sequence, r.accepted_sample} == {r.durable_sequence, r.durable_sample} do
+        if committed_receipt?(r, s, cursor) do
           {:ok,
            disarm(%{
              s
@@ -318,13 +345,22 @@ defmodule MedEx.StreamWriter do
     end
   end
 
+  defp committed_receipt?(r, s, cursor) do
+    valid_receipt?(r, cursor.stream, s.fence) and r.journal_id == s.durable.journal_id and
+      r.journal_generation == s.durable.journal_generation + 1 and
+      r.journal_digest != s.durable.journal_digest and
+      {r.durable_sequence, r.durable_sample} == {cursor.next_sequence, cursor.next_sample} and
+      {r.accepted_sequence, r.accepted_sample} == {r.durable_sequence, r.durable_sample}
+  end
+
   defp valid_receipt?(r, spec, fence) when is_map(r) do
-    with {:ok, parsed} <- Serialization.receipt(Serialization.to_map(r)) do
-      parsed == r and
+    case Serialization.receipt(Serialization.to_map(r)) do
+      {:ok, ^r} ->
         {r.fence, r.stream_id, r.source_epoch, r.descriptor_ref} ==
           {fence, spec.stream_id, spec.source_epoch, spec.descriptor_ref}
-    else
-      _ -> false
+
+      _ ->
+        false
     end
   end
 
@@ -375,30 +411,32 @@ defmodule MedEx.StreamWriter do
   defp end_recording(s, terminal, reason) do
     if (terminal == :failed and is_map(reason)) or ContractRules.id?(reason) do
       case flush(s) do
-        {:ok, ready} ->
-          case ready.storage.seal(ready.adapter, terminal, reason) do
-            {:ok, %StreamIndex{} = i} ->
-              if StreamIndex.validate(i) == :ok and i.fence == s.fence and
-                   i.stream == s.cursor.stream and
-                   i.terminal == terminal and i.journal_id == ready.durable.journal_id and
-                   i.journal_generation == ready.durable.journal_generation + 1 and
-                   {i.next_sequence, i.next_sample} ==
-                     {ready.cursor.next_sequence, ready.cursor.next_sample} do
-                {:stop, :normal, {:ok, i}, ready}
-              else
-                {:stop, :normal, {:error, {:outcome_unknown, :invalid_storage_index}}, ready}
-              end
-
-            {:error, reason} ->
-              {:stop, :normal, {:error, reason}, ready}
-          end
-
-        failure ->
-          answer_flush(failure)
+        {:ok, ready} -> seal_recording(ready, terminal, reason)
+        failure -> answer_flush(failure)
       end
     else
       {:reply, {:error, :invalid_terminal_reason}, s}
     end
+  end
+
+  defp seal_recording(s, terminal, reason) do
+    case s.storage.seal(s.adapter, terminal, reason) do
+      {:ok, %StreamIndex{} = index} ->
+        if sealed_index?(index, s, terminal),
+          do: {:stop, :normal, {:ok, index}, s},
+          else: {:stop, :normal, {:error, {:outcome_unknown, :invalid_storage_index}}, s}
+
+      {:error, reason} ->
+        {:stop, :normal, {:error, reason}, s}
+    end
+  end
+
+  defp sealed_index?(i, s, terminal) do
+    StreamIndex.validate(i) == :ok and i.fence == s.fence and
+      i.stream == s.cursor.stream and i.terminal == terminal and
+      i.journal_id == s.durable.journal_id and
+      i.journal_generation == s.durable.journal_generation + 1 and
+      {i.next_sequence, i.next_sample} == {s.cursor.next_sequence, s.cursor.next_sample}
   end
 
   @impl true

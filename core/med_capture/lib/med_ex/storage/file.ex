@@ -67,25 +67,29 @@ defmodule MedEx.Storage.File do
          {:ok, fd} <- :file.open(Path.join(dir, @journal), [:raw, :binary, :write, :exclusive]) do
       s = %{dir: dir, fd: fd, hook: hook, view: reset(old, fence, header), offset: 0}
 
-      case append(s, header, s.view) do
-        {:ok, next, receipt} ->
-          case Wav.sync_directory(dir) do
-            :ok ->
-              {:ok, next, receipt}
-
-            {:error, reason} ->
-              :file.close(fd)
-              {:error, {:outcome_unknown, reason}}
-          end
-
-        error ->
-          :file.close(fd)
-          error
-      end
+      append_identity(s, header)
     else
       false -> {:error, {:not_committed, :invalid_fence}}
       {:ok, _} -> {:error, {:not_committed, :invalid_directory}}
       {:error, reason} -> {:error, {:not_committed, reason}}
+    end
+  end
+
+  defp append_identity(s, header) do
+    case append(s, header, s.view) do
+      {:ok, next, receipt} ->
+        case Wav.sync_directory(s.dir) do
+          :ok ->
+            {:ok, next, receipt}
+
+          {:error, reason} ->
+            :file.close(s.fd)
+            {:error, {:outcome_unknown, reason}}
+        end
+
+      error ->
+        :file.close(s.fd)
+        error
     end
   end
 
@@ -187,9 +191,8 @@ defmodule MedEx.Storage.File do
   def commit_batch(s, {:gap, gap}) do
     record = Serialization.to_map(%{type: "gap", gap: gap})
 
-    with {:ok, view} <- Records.apply_record(s.view, record, nil) do
-      append(s, record, view)
-    else
+    case Records.apply_record(s.view, record, nil) do
+      {:ok, view} -> append(s, record, view)
       {:error, reason} -> {:error, {:not_committed, reason}}
     end
   end
@@ -239,11 +242,9 @@ defmodule MedEx.Storage.File do
 
   @impl true
   def close(s) do
-    try do
-      :file.close(s.fd)
-    after
-      release(s.dir)
-    end
+    :file.close(s.fd)
+  after
+    release(s.dir)
   end
 
   @impl true
