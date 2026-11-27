@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.3.0 - 2026-11-26
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.3.0] - 2026-11-26
 
 ### Breaking changes
 
@@ -17,7 +22,7 @@
 - Cover native build/cache failure, protocol validation and concrete lifecycle.
 - Document independent installation and exact native/detached release gates.
 
-## 0.2.1 — 2026-11-26
+## [0.2.1] - 2026-11-26
 
 - Build the test decoder with the configured compiler and support compiler wrappers.
 - Retry the alternate Opus mirror after checksum failure, terminate the Linux codec on supervisor death, and run provider decode tests against the pinned static library.
@@ -25,7 +30,7 @@
 - Reject whitespace in the Mix application build path before build or clean recipes run. Verify downloaded archives before publishing them to the cache so failed downloads can be retried.
 - Exercise the built encoder with a real tone and check decoded sample count and energy in provider tests and consumer qualification.
 
-## 0.2.0 — 2026-11-25
+## [0.2.0] - 2026-11-25
 
 - Consolidate live Opus encoding by removing the Membrane framework dependencies and running a small C11 `libopus` 1.5.2 encoder in its own OS process over an Erlang `Port` (`elixir_make`), preserving the `MedEx.Opus.Provider` behaviour and timeouts.
 - Verify the pinned Xiph `opus-1.5.2.tar.gz` SHA-256 before extraction, caching downloads outside `_build` and supporting offline builds via `MED_EX_OPUS_TARBALL`.
@@ -33,7 +38,12 @@
 - Require absolute offline tarball paths, fail without network access when an explicit tarball is missing, reject an unset `MIX_APP_PATH`, and rebuild after native Makefile changes; add executable protocol and Make boundary regressions.
 - Require `med_ex ~> 0.3.0`.
 
-## 0.1.0 — 2026-11-24
+## [0.1.0] - 2026-11-24
 
 - Add the Membrane-backed Opus provider for 48 kHz mono PCM16LE preview.
 - Integrate with MedEx `~> 0.2.0`.
+
+[0.3.0]: https://github.com/nshkrdotcom/med_ex/compare/med_ex_opus-v0.2.1...med_ex_opus-v0.3.0
+[0.2.1]: https://github.com/nshkrdotcom/med_ex/compare/med_ex_opus-v0.2.0...med_ex_opus-v0.2.1
+[0.2.0]: https://github.com/nshkrdotcom/med_ex/compare/med_ex_opus-v0.1.0...med_ex_opus-v0.2.0
+[0.1.0]: https://github.com/nshkrdotcom/med_ex/releases/tag/med_ex_opus-v0.1.0
