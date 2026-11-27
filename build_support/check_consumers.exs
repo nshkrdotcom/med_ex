@@ -945,7 +945,6 @@ defmodule MedEx.ConsumerCheck do
       if read_json!(outputs["inputs"]) ==
            read_json!(cell_outputs(ctx, "direct-#{profile}")["inputs"]) do
         File.cp!(Path.join(ctx.evidence, "#{label}-smoke.log"), outputs["test"])
-        [_, count] = Regex.run(~r/^Result: (\d+) passed$/m, output)
 
         finish_cell!(
           ctx,
@@ -955,7 +954,7 @@ defmodule MedEx.ConsumerCheck do
           inventory,
           outputs,
           canonical_proof(ctx, name, profile),
-          String.to_integer(count)
+          test_results!(output)
         )
       else
         IO.puts("DISTINCT #{label} (effective inputs differ, running its behavioral suite)")
@@ -970,14 +969,27 @@ defmodule MedEx.ConsumerCheck do
     output = mix!(ctx, "#{label}-test", work, ["test"], env)
 
     if ctx.optimized do
-      [_, count] = Regex.run(~r/^Result: (\d+) passed$/m, output)
-      finish_cell!(ctx, label, profile, work, inventory, outputs, "own", String.to_integer(count))
+      finish_cell!(ctx, label, profile, work, inventory, outputs, "own", test_results!(output))
     else
       compare_modules!(ctx, profile, inventory)
     end
   end
 
-  defp finish_cell!(ctx, label, profile, work, inventory, outputs, source, count) do
+  @doc false
+  def test_results!(output) do
+    case Regex.scan(~r/^Result: ([1-9]\d*) passed(?:, ([1-9]\d*) excluded)?$/m, output) do
+      [[_, passed]] ->
+        %{"tests" => String.to_integer(passed), "excluded" => 0}
+
+      [[_, passed, excluded]] ->
+        %{"tests" => String.to_integer(passed), "excluded" => String.to_integer(excluded)}
+
+      _ ->
+        raise "Expected one passing ExUnit summary with at least one executed test"
+    end
+  end
+
+  defp finish_cell!(ctx, label, profile, work, inventory, outputs, source, results) do
     File.cp!(inventory, outputs["modules"])
     lock = read_lock(Path.join(work, "mix.lock"))
     File.write!(outputs["lock"], JSON.encode!(Map.new(lock, fn {k, v} -> {k, inspect(v)} end)))
@@ -986,7 +998,7 @@ defmodule MedEx.ConsumerCheck do
     unless read_json!(reference) == read_json!(inventory),
       do: raise("Module inventory differs for #{label}")
 
-    %{"tests" => count, "functional_source" => source}
+    Map.put(results, "functional_source", source)
   end
 
   defp create_consumer!(ctx, work, apps, specs, override?, requirements \\ %{}) do

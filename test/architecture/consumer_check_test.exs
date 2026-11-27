@@ -3,6 +3,27 @@ Code.require_file("../../build_support/check_consumers.exs", __DIR__)
 defmodule MedEx.ConsumerCheckTest do
   use ExUnit.Case, async: true
 
+  test "consumer receipts retain passed and excluded ExUnit counts" do
+    assert MedEx.ConsumerCheck.test_results!(
+             "Finished in 1 second\nResult: 11 passed, 1 excluded\n"
+           ) ==
+             %{"tests" => 11, "excluded" => 1}
+
+    assert MedEx.ConsumerCheck.test_results!("Result: 4 passed\n") ==
+             %{"tests" => 4, "excluded" => 0}
+
+    for output <- [
+          "",
+          "Result: 0 passed, 1 excluded",
+          "Result: 1/2 passed",
+          "Result: 1 passed\nResult: 2 passed"
+        ] do
+      assert_raise RuntimeError, ~r/Expected one passing ExUnit summary/, fn ->
+        MedEx.ConsumerCheck.test_results!(output)
+      end
+    end
+  end
+
   test "registry package selection accepts one source and requires a registry command" do
     for selection <- [[], [projected_packages: true], [prepared_packages: true]] do
       assert :ok =
