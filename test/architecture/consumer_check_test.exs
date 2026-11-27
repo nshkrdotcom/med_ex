@@ -87,7 +87,7 @@ defmodule MedEx.ConsumerCheckTest do
       {"name", "med_ex"},
       {"optional", false},
       {"repository", "hexpm"},
-      {"requirement", "~> 0.2.0"}
+      {"requirement", "~> 0.4.0"}
     ]
 
     expected = %{"med_ex" => Map.new(properties)}
@@ -110,8 +110,8 @@ defmodule MedEx.ConsumerCheckTest do
   end
 
   test "Opus packages must contain every input needed for the native build" do
-    required = ~w(mix.exs lib/med_ex/opus/provider.ex lib/med_ex/opus/encoder.ex Makefile
-                  c_src/opus_encoder.c c_src/vendor/SHA256SUMS)
+    required = ~w(mix.exs lib/med_ex/opus/provider.ex Makefile
+                  c_src/opus_encoder.c c_src/build_native.sh c_src/vendor/SHA256SUMS)
     files = Enum.map(required, &{&1, "fixture bytes"})
     assert :ok = MedEx.ConsumerCheck.verify_package_files!(:med_ex_opus, files)
 
@@ -128,7 +128,7 @@ defmodule MedEx.ConsumerCheckTest do
   @tag :tmp_dir
   test "native source and build recipe changes invalidate path qualification", %{tmp_dir: root} do
     on_exit(fn -> File.rm_rf!(root) end)
-    files = ~w(Makefile c_src/opus_encoder.c c_src/vendor/SHA256SUMS)
+    files = ~w(Makefile c_src/opus_encoder.c c_src/build_native.sh c_src/vendor/SHA256SUMS)
 
     for relative <- files do
       file = Path.join(root, relative)

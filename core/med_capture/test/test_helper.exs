@@ -1,9 +1,2 @@
-ExUnit.start()
-
-if Mix.Project.config()[:app] == :med_capture,
-  do:
-    Application.put_env(
-      :med_capture,
-      :test_asset_dir,
-      Path.expand("../../../priv/static/med_web", __DIR__)
-    )
+ExUnit.start(exclude: if(System.get_env("MED_EX_ENOSPC_ROOT"), do: [], else: [:enospc]))
+Code.require_file("support/fixture.exs", __DIR__)

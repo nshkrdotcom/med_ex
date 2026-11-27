@@ -1,9 +1,9 @@
 defmodule MedEx.Storage.Journal do
   @moduledoc false
-  alias MedEx.{CanonicalJSON, Serialization}
-  @max_record 65_424
-  @max_generations 100_000
-  @max_bytes 268_435_456
+  alias MedEx.{CanonicalJSON, RecordingLimits, Serialization}
+  @max_record RecordingLimits.max_record_bytes()
+  @max_generations RecordingLimits.maximum().generations
+  @max_bytes RecordingLimits.maximum().journal_bytes
   @zero String.duplicate("0", 64)
   def zero, do: @zero
   def max_bytes, do: @max_bytes

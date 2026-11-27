@@ -11,7 +11,6 @@ defmodule MedExOpus.MixProject do
       elixir: "~> 1.20",
       compilers: [:elixir_make | Mix.compilers()],
       deps: [
-        {:med_ex, "~> 0.3.0"},
         {:elixir_make, "~> 0.9", runtime: false},
         {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
         {:dialyxir, "~> 1.4", only: :dev, runtime: false},

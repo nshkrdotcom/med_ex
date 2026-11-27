@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 - 2026-11-26
+
+### Breaking changes
+
+- Make StreamWriter, the immutable journal and verified indexes the sole waveform
+  recording path; remove the capture/WAV evidence API, browser assets and media
+  provider facades.
+- Introduce typed Receipt, RecordingLimits and recovered-prefix contracts,
+  explicit owner/fence operations, revision-2 acquisition control and bounded
+  per-operation frame/byte credit.
+- Separate read-only recovery from authorized terminal-index reconciliation;
+  verify bounded segment bytes and derive playback WAV headers from descriptors.
+- Require exclusive host root ownership and preserve unknown durable outcomes.
+- Build only the base SDK through Weld; the two providers are direct Mix packages.
+
+### Verification and documentation
+
+- Add receipt, capacity, lifecycle, replay, resource-transfer and credit tests.
+- Rewrite technical, host, durability and source/release guides for revision 2.
+- Native Elixir, detached artifact and service qualification remain mandatory
+  before release; this entry does not assert that those gates have passed.
+
 ## 0.3.1 — 2026-11-26
 
 - Classify foreign receipt identities before counter rollback and validate handoff context.

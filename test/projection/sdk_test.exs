@@ -1,10 +1,16 @@
 defmodule MedEx.PackageTest do
   use ExUnit.Case, async: true
 
-  test "the base application owns the SDK, starts no worker and carries the browser assets" do
-    assert MedEx.Contract.api_revision() == 1
+  test "the base application owns the SDK, starts no worker" do
+    assert MedEx.Contract.api_revision() == 2
 
-    for module <- [MedEx.StreamSpec, MedEx.Wire.FrameV1, MedEx.StreamWriter, MedEx.Web] do
+    for module <- [
+          MedEx.StreamSpec,
+          MedEx.Wire.FrameV1,
+          MedEx.StreamWriter,
+          MedEx.Receipt,
+          MedEx.Wire.Credit
+        ] do
       assert Application.get_application(module) == :med_ex
     end
 
@@ -24,10 +30,8 @@ defmodule MedEx.PackageTest do
              ]
            end)
 
-    for name <- ~w(pcm_capture.js pcm_worklet.js session_hook.js) do
-      path = MedEx.Web.asset_path(name)
-      assert path == Application.app_dir(:med_ex, "priv/static/med_web/#{name}")
-      assert byte_size(File.read!(path)) > 0
-    end
+    assert function_exported?(MedEx.StreamWriter, :push, 4)
+    refute function_exported?(MedEx.StreamWriter, :push, 2)
+    refute File.exists?(Application.app_dir(:med_ex, "priv/static"))
   end
 end

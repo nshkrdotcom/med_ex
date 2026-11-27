@@ -170,6 +170,102 @@ printf 'install:\\n\\tmkdir -p "%s/lib"\\n\\ttouch "%s/lib/libopus.a"\\n' "$pref
         self.build_library(self.root / "app")
         self.assertEqual((self.root / "configure.log").read_text(), "configuredconfigured")
 
+    def test_warm_missing_explicit_archive_cannot_reuse_library_or_binary(self):
+        archive = self.fixture_tarball()
+        self.env["MED_EX_OPUS_TARBALL"] = str(archive)
+        app = self.root / "app"
+        self.build_library(app)
+        (app / "priv").mkdir()
+        (app / "priv/opus_encoder").write_text("stale executable")
+        archive.unlink()
+        result = self.make(f"MIX_APP_PATH={app}", str(app / "opus_build/install/lib/libopus.a"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((app / "priv/opus_encoder").exists())
+        self.assertFalse((app / "opus_build/.library-key").exists())
+        self.assertFalse(self.log.exists())
+
+    def test_warm_corrupt_or_relative_archive_fails_before_cache_reuse(self):
+        for kind in ("corrupt", "relative"):
+            archive = self.fixture_tarball()
+            self.env["MED_EX_OPUS_TARBALL"] = str(archive)
+            app = self.root / kind
+            self.build_library(app)
+            if kind == "corrupt":
+                archive.write_bytes(b"damaged")
+            else:
+                self.env["MED_EX_OPUS_TARBALL"] = archive.name
+            result = self.make(f"MIX_APP_PATH={app}", str(app / "opus_build/install/lib/libopus.a"))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse((app / "opus_build/.library-key").exists())
+
+    def test_unchanged_validated_identity_does_not_touch_stamp(self):
+        self.env["MED_EX_OPUS_TARBALL"] = str(self.fixture_tarball())
+        app = self.root / "app"
+        self.build_library(app)
+        stamp = app / "opus_build/.library-key"
+        original = (stamp.read_bytes(), stamp.stat().st_mtime_ns)
+        self.build_library(app)
+        self.assertEqual(original, (stamp.read_bytes(), stamp.stat().st_mtime_ns))
+        self.assertEqual((self.root / "configure.log").read_text(), "configured")
+
+    def test_pin_flags_and_toolchain_identity_invalidate_warm_library(self):
+        archive = self.fixture_tarball()
+        self.env["MED_EX_OPUS_TARBALL"] = str(archive)
+        app = self.root / "app"
+        self.build_library(app)
+        self.env["CFLAGS"] = "-O1"
+        self.build_library(app)
+        self.env["MED_EX_OPUS_CONFIGURE_FLAGS"] = "--disable-tests"
+        self.build_library(app)
+        compiler = self.bin / "fixture-cc"
+        compiler.write_text("#!/bin/sh\ncase \"$1\" in --version) echo fixture-toolchain;; -dumpmachine) echo fixture-target;; *) exec cc \"$@\";; esac\n")
+        compiler.chmod(0o755)
+        self.env["CC"] = str(compiler)
+        self.build_library(app)
+        pin = self.root / "c_src/vendor/SHA256SUMS"
+        pin.write_text(pin.read_text() + "\n")
+        self.build_library(app)
+        self.assertEqual((self.root / "configure.log").read_text(), "configured" * 5)
+
+    def test_partial_stamp_never_authorizes_cache(self):
+        self.env["MED_EX_OPUS_TARBALL"] = str(self.fixture_tarball())
+        app = self.root / "app"
+        self.build_library(app)
+        (app / "opus_build/.library-key").write_text("partial")
+        self.build_library(app)
+        self.assertEqual((self.root / "configure.log").read_text(), "configuredconfigured")
+        self.assertEqual(len((app / "opus_build/.library-key").read_text().strip()), 64)
+
+    def test_parallel_same_directory_builds_are_serialized(self):
+        self.env["MED_EX_OPUS_TARBALL"] = str(self.fixture_tarball())
+        app = self.root / "app"
+        command = ["make", f"MIX_APP_PATH={app}", str(app / "opus_build/install/lib/libopus.a")]
+        processes = [subprocess.Popen(command, cwd=self.root, env=self.env,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(4)]
+        for process in processes:
+            output, error = process.communicate(timeout=20)
+            self.assertEqual(process.returncode, 0, output + error)
+        self.assertEqual((self.root / "configure.log").read_text(), "configured")
+        self.assertEqual(list(app.glob(".opus-work.*")), [])
+        self.assertEqual(list(app.glob(".opus-input.*")), [])
+
+    def test_symlink_archive_and_traversal_are_refused(self):
+        archive = self.fixture_tarball()
+        link = self.root / "archive-link"
+        link.symlink_to(archive)
+        self.env["MED_EX_OPUS_TARBALL"] = str(link)
+        self.assertNotEqual(self.make(f"MIX_APP_PATH={self.root / 'app'}").returncode, 0)
+        bad = self.root / "traversal.tar.gz"
+        with tarfile.open(bad, "w:gz") as tar:
+            entry = tarfile.TarInfo("opus-1.5.2/../../escape")
+            entry.size = 1
+            tar.addfile(entry, io.BytesIO(b"x"))
+        (self.root / "c_src/vendor/SHA256SUMS").write_text(
+            hashlib.sha256(bad.read_bytes()).hexdigest() + "  opus-1.5.2.tar.gz\n")
+        self.env["MED_EX_OPUS_TARBALL"] = str(bad)
+        self.assertNotEqual(self.make(f"MIX_APP_PATH={self.root / 'app'}").returncode, 0)
+        self.assertFalse((self.root / "escape").exists())
+
     def test_unset_build_root_fails_before_recipes_including_clean(self):
         for args in ([], ["clean"]):
             with self.subTest(args=args):

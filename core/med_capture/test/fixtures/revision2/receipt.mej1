@@ -1,0 +1,1 @@
+{"accepted_sample":"960","accepted_sequence":"1","descriptor_ref":"7f281102e09efd435b0e8b8ff8e450731ddf1e5f8f46e845dd71b9c18d146868","durable_sample":"960","durable_sequence":"1","fence":"frozen-fence","journal_digest":"b2ce3913d7a16202bb16a541c4933fb759fb5cc908de7448cbe6dc099cf5b3b8","journal_generation":"3","journal_id":"frozen-journal","source_epoch":"0","stream_id":"audio"}

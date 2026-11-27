@@ -1,92 +1,97 @@
-<p align="center">
-  <img src="assets/med_ex_opus.svg" alt="MedEx Opus logo" width="200" />
-</p>
+# MedEx Opus
 
-<h1 align="center">MedEx Opus</h1>
+`med_ex_opus` is an independent concrete encoder capability. It requires Elixir
+`~> 1.20` and `elixir_make`; it has no dependency on `med_ex`, `med_ex_rtc`,
+Phoenix, a host registry, or a provider behavior. Add `{:med_ex_opus, "~> 0.3.0"}`
+to the owning host. Build this package directly from `extensions/med_ex_opus`.
 
-<p align="center">
-  <a href="https://github.com/nshkrdotcom/med_ex/tree/main/extensions/med_ex_opus"><img src="https://img.shields.io/badge/GitHub-med__ex__opus-345366" alt="GitHub source" /></a>
-  <a href="https://github.com/nshkrdotcom/med_ex/blob/main/extensions/med_ex_opus/LICENSE"><img src="https://img.shields.io/badge/license-MIT-458f8b" alt="MIT license" /></a>
-</p>
-
-MedEx Opus provides `MedEx.Opus.Provider`, an encoder for
-48 kHz mono PCM16LE preview frames. Each provider opens an Erlang Port to a
-native process that supervises one libopus codec child. Closing the port lets the supervisor kill and reap the
-child even if encoding has stalled. A host can use the provider directly or
-configure it for the base SDK's browser capture facade.
+## One encoder, one owner
 
 ```elixir
-config :med_ex, :preview_provider, MedEx.Opus.Provider
+{:ok, encoder} = MedEx.Opus.Provider.start_link(owner: self())
+:ok = MedEx.Opus.Provider.offer(encoder, "preview_42", source_sample, pcm)
+receive do
+  {:med_ex_encoded, "preview_42", ^source_sample, opus} -> send_to_viewer(opus)
+  {:med_ex_encode_failed, "preview_42", reason} -> retire_preview(reason)
+end
+:ok = MedEx.Opus.Provider.stop(encoder)
 ```
 
-Use `{:med_ex_opus, "~> 0.2.1"}`.
+The PCM contract is fixed: 48 kHz, mono, signed 16-bit little-endian, 960 samples
+and exactly 1,920 bytes per offer. Source sample and operation ID are supplied
+by the host; IDs are 1–96 ASCII letters, digits, underscores or hyphens and must
+be unique within the peer session. Source samples are unsigned 64-bit integers.
+The provider does no resampling, source-clock conversion, storage or RTP work.
 
-The package requires Elixir `~> 1.20` and the MedEx base package `~> 0.3.0`.
-### Build toolchain and platform support
+One GenServer owns one native Port. The native executable owns and supervises
+one libopus child. `offer/4` admits at most one operation; it returns `:ok` for
+admission, `{:error, :busy}` if one is pending, and a structured rejection for
+invalid input or a non-owner caller. The explicit owner receives exactly one
+successful completion or failure notification for a completed admitted offer.
+A timeout or unknown outcome retires the encoder; it must not be retried in the
+same pipeline. Stop, owner death, caller abandonment, native exit and protocol
+failure retire the Port and native codec. The startup caller may differ from
+the owner; both lifetimes are tracked.
 
-The package pins the Xiph `libopus` 1.5.2 release tarball (`c_src/vendor/SHA256SUMS`),
-fetches and caches it under `${XDG_CACHE_HOME:-~/.cache}/med_ex_opus/` on first
-build (or reads `MED_EX_OPUS_TARBALL=/path/to/opus-1.5.2.tar.gz` for offline
-builds), verifies its SHA-256 before extraction, and compiles a static
-`libopus.a` linked into `priv/opus_encoder` via `elixir_make`.
+Native hello has a five-second monotonic deadline and OTP startup has a
+six-second outer deadline, including scheduling delay. Each encode and public
+call has a one-second bound. The provider reports
+`{:error, {:outcome_unknown, reason}}` when a call cannot prove its outcome.
+Native packets are 1–1,275 bytes. Nothing is queued behind a pending encode.
+The owner admission handshake shares that same one-second call deadline. A
+handshake timeout submits no encode and returns a known
+`encoder_authorization_unavailable` refusal; it cannot retire an unrelated
+owner's encoder. Uncertainty after an authorized submission retires the encoder.
+Hosts drop preview data when unavailable; authoritative source storage is a
+separate caller-owned operation.
 
-- **Assumed toolchain:** POSIX `cc` (C11), GNU `make`, `tar`, `sh`, and `curl`
-  (when not using `MED_EX_OPUS_TARBALL`), plus `sha256sum` or `shasum`.
-  No system `libopus-dev` or
-  `pkg-config` is needed.
-- **Platform qualification:** Natively tested on Ubuntu Linux (`x86_64`, `ext4`).
-  macOS and other POSIX hosts use the same standard autotools + C11 build flow
-  but still need native qualification, including pipe-reader closure during a codec stall.
-  Linux also terminates the codec on abrupt supervisor death through a parent-death signal. Windows is unsupported.
+## Checksum-pinned native build
 
-An explicitly supplied `MED_EX_OPUS_TARBALL` must be an absolute path to an
-existing file, so its meaning is the same from every consumer and provider
-working directory. An unset or empty value uses the normal download cache. A missing file
-fails without downloading or creating that path. Downloads enter the cache only after
-checksum verification. A failed primary download or digest check tries the GitHub mirror. Cached and supplied tarballs
-are checked before extraction; a checksum mismatch stops the build. `MIX_APP_PATH`
-is supplied by `elixir_make` and must be set for direct `make` or `make clean` calls.
-Choose a Mix build directory whose absolute path contains no whitespace.
-
-## Encoding lifecycle
-
-For direct use, call `MedEx.Opus.Provider.start_link(owner: self())` from the
-process that will offer frames. Startup waits for the native protocol hello and
-fails within five seconds if the child never becomes ready. Call
-`offer(pid, operation, sample_index, pcm)`
-with one 20 ms frame (960 samples, 1,920 bytes) and a nonnegative sample index
-on the 48 kHz clock. The provider accepts one frame at a time. An `:ok` reply
-means the frame was accepted. The owner receives
-`{:med_ex_encoded, operation, sample_index, opus}` when encoding finishes.
-`{:error, :busy}` means the provider already has a frame in flight. Call
-`stop(pid)` when preview ends.
-
-## Native regression checks
-
-The provider and consumer suites decode a 20 ms tone using a test executable
-linked against the pinned static library. Additional Python checks exercise
-framing, Linux process lifetime, an independent system-libopus decoder and
-the build cache. Run them with Python 3 and a discoverable libopus shared library.
+The package pins libopus 1.5.2 with the real SHA-256 in
+`c_src/vendor/SHA256SUMS`. `elixir_make` builds a static archive and links
+`priv/opus_encoder`. An offline build can set:
 
 ```sh
-python3 test/native_protocol_test.py _build/dev/lib/med_ex_opus/priv/opus_encoder
-python3 test/build_test.py
+MED_EX_OPUS_TARBALL=/absolute/path/opus-1.5.2.tar.gz mix compile
 ```
 
-The build-boundary suite uses a tiny local configure/install fixture and a
-controlled download command. It does not qualify the pinned codec build.
-Release qualification must also build and test the actual checksum-pinned
-libopus tarball offline, run the Elixir provider suites, and decode a real
-encoded frame with libopus.
+An explicit archive must be an absolute, readable regular file and cannot be a
+symlink. A missing or invalid explicit file fails without fetching. Otherwise
+the helper uses the download cache, verifies the primary or mirror download
+before installing it, and extracts a unique verified snapshot. Every build,
+including a warm build, checks the selected archive before reusing output.
+Archive paths must stay under the pinned source root and cannot contain `..`,
+symlinks, hard links or special entries.
 
-This provider encodes audio for preview. For browser delivery, pair it with a
-WebRTC transport such as `med_ex_rtc`. Use MedEx capture or stream recording
-for the authoritative PCM.
+The Linux build requires a C11 compiler, GNU make, GNU tar, POSIX shell, `flock`,
+`ar`, `ranlib`, and `sha256sum` or `shasum`; `curl` is needed only for downloads.
+A per-application `flock` serializes archive/build/install/clean operations.
+The reuse key covers archive bytes and pin, Makefile and helper, compiler
+identity and target, compiler/linker flags, archive tools and configure options.
+Only complete successful builds install success stamps. C source has its own
+binary key. Revalidating unchanged input preserves stamps. Use a build path
+without whitespace. `MIX_APP_PATH` is required for direct make calls.
 
-When using a checkout, choose compatible base and provider sources in the
-host's Mix dependencies. Use the [source development guide][sources] for
-the exact declarations and [host integration guide][integration] for
-configuration and process isolation.
+The native lifetime implementation has Linux-specific parent-death protection.
+Linux, native codec decoding and process-lifetime checks must be qualified on
+the actual deployment architecture and filesystem. Other systems are not
+qualified by Linux fixture results; macOS requires an explicit supported build
+and lifetime qualification before use. Windows is unsupported.
 
-[sources]: https://github.com/nshkrdotcom/med_ex/blob/main/guides/source_development.md
-[integration]: https://github.com/nshkrdotcom/med_ex/blob/main/guides/host_integration.md
+## Verification
+
+```sh
+mix test
+python3 test/build_test.py
+python3 test/native_protocol_test.py _build/dev/lib/med_ex_opus/priv/opus_encoder
+```
+
+The ExUnit tests exercise this concrete API and decode a real packet using a
+separate executable linked to the pinned library. Startup/lifetime tests use
+private per-caller fixtures through the actual public API; those fixtures do
+not qualify libopus. The Python build suite uses a local configure/install
+fixture to test archive validation, reuse, failure recovery and concurrency.
+The native protocol suite independently decodes with a system libopus shared
+library and checks Linux supervisor/codec death using procfs and pidfds.
+Missing BEAM, toolchain, archive, decoder or kernel capability means the
+applicable gate was **NOT RUN**, never a passing native qualification.

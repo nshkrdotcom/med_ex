@@ -68,5 +68,21 @@ defmodule MedEx.StreamCursorTest do
     assert {:ok, done, [{:append, ^future}]} = StreamCursor.plan(next, {:frame, future})
     assert {done.next_sequence, done.next_sample} == {3, 6}
     assert {:error, _} = StreamCursor.plan(c, {:gap, %{gap | irreversible: false}})
+
+    assert :duplicate =
+             StreamCursor.plan(next, {:gap_replay, gap, MedEx.Serialization.digest(gap)})
+
+    assert {:error, :duplicate_conflict} =
+             StreamCursor.plan(next, {:gap_replay, gap, String.duplicate("f", 64)})
+
+    for malformed <- [
+          %{span: span},
+          Map.delete(gap, :next_sequence),
+          %{gap | next_sequence: "2"},
+          %{gap | irreversible: false}
+        ] do
+      assert {:error, _} =
+               StreamCursor.plan(next, {:gap_replay, malformed, String.duplicate("f", 64)})
+    end
   end
 end

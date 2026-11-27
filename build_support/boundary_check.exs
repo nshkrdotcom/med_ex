@@ -100,7 +100,7 @@ defmodule MedEx.Build.Boundaries do
     :group_leader
   ]
   # Narrow exceptions for behaviour-selected calls. Core has no module-dispatch exceptions.
-  @dispatch ~w(med_ex/preview.ex med_ex/preview_session.ex med_ex/stream_writer.ex)
+  @dispatch ~w(med_ex/stream_writer.ex)
 
   def configure(roots, core_modules) do
     :persistent_term.put(__MODULE__, {roots, MapSet.new(core_modules)})
@@ -178,13 +178,12 @@ defmodule MedEx.Build.Boundaries do
       med_core: [],
       med_capture: [:med_core],
       med_ex_opus: [
-        :med_ex,
         :elixir_make,
         :credo,
         :dialyxir,
         :ex_doc
       ],
-      med_ex_rtc: [:med_ex, :ex_webrtc, :ex_rtp, :credo, :dialyxir, :ex_doc]
+      med_ex_rtc: [:ex_webrtc, :ex_rtp, :credo, :dialyxir, :ex_doc]
     }
 
     names = Enum.map(deps, &elem(&1, 0)) |> Enum.sort()

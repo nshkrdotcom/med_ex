@@ -45,7 +45,7 @@ defmodule MedEx.SemanticVectorsTest do
   end
 
   test "technical receipt decoding refuses undeclared wrapper or authority fields" do
-    receipt = %{
+    receipt = %MedEx.Receipt{
       stream_id: "ecg",
       source_epoch: 0,
       descriptor_ref: String.duplicate("a", 64),
@@ -60,10 +60,10 @@ defmodule MedEx.SemanticVectorsTest do
     }
 
     wire = Serialization.to_map(receipt)
-    assert {:ok, ^receipt} = Serialization.receipt(wire)
+    assert {:ok, ^receipt} = MedEx.Receipt.parse(wire)
 
     for extra <- [%{"type" => "durable"}, %{"replacement_fence" => "attempt-2"}] do
-      assert {:error, :invalid_receipt} = Serialization.receipt(Map.merge(wire, extra))
+      assert {:error, :invalid_receipt} = MedEx.Receipt.parse(Map.merge(wire, extra))
     end
   end
 end

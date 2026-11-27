@@ -1,2 +1,1 @@
-ExUnit.start()
-Application.put_env(:med_ex, :rtc_provider, MedEx.RTC.Provider)
+ExUnit.start(exclude: if(System.get_env("MED_EX_RTC_TURN_URL"), do: [], else: [:turn]))

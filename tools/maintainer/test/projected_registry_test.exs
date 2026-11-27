@@ -29,9 +29,8 @@ defmodule MedEx.ProjectedRegistryTest do
       workspace: [root: "..", project_globs: []],
       artifacts: [
         registry_freshness: [
-          mode: :source_project,
+          mode: :package_projection,
           roots: ["."],
-          source_project: [files: ~w(mix.exs lib)],
           package: [name: "registry_freshness", otp_app: :registry_freshness,
                     version: "0.1.0", description: "Registry freshness fixture"],
           verify: [hex_build: false, hex_publish: false]

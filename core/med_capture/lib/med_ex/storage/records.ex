@@ -4,6 +4,8 @@ defmodule MedEx.Storage.Records do
     ContractRules,
     FrameFingerprint,
     IntegritySpan,
+    Receipt,
+    RecordingLimits,
     SampleFrame,
     SegmentRef,
     Serialization,
@@ -12,8 +14,6 @@ defmodule MedEx.Storage.Records do
   }
 
   alias MedEx.Storage.Journal
-  @max_frames 1_000_000
-  @max_spans 100_000
 
   def initial(stream, fence) do
     {:ok, cursor} = StreamCursor.new(stream)
@@ -39,7 +39,7 @@ defmodule MedEx.Storage.Records do
   end
 
   def receipt(s) do
-    %{
+    %Receipt{
       stream_id: s.cursor.stream.stream_id,
       source_epoch: s.cursor.stream.source_epoch,
       descriptor_ref: s.cursor.stream.descriptor_ref,
@@ -53,15 +53,6 @@ defmodule MedEx.Storage.Records do
       accepted_sample: s.cursor.next_sample
     }
   end
-
-  def durable_match?(actual, known) when is_map(known) do
-    fields =
-      ~w(stream_id source_epoch descriptor_ref fence journal_id journal_generation journal_digest durable_sequence durable_sample)a
-
-    Enum.all?(fields, &(Map.fetch(actual, &1) == Map.fetch(known, &1)))
-  end
-
-  def durable_match?(_, _), do: false
 
   def index(s) do
     %StreamIndex{
@@ -116,8 +107,8 @@ defmodule MedEx.Storage.Records do
   def apply_record(%{terminal: status}, _, _) when not is_nil(status),
     do: {:error, :record_after_terminal}
 
-  def apply_record(s, %{"type" => "chunk", "segment" => raw, "frames" => frames}, read)
-      when is_list(frames) and length(frames) in 1..16 do
+  def apply_record(s, %{"type" => "chunk", "segment" => raw, "frames" => frames} = record, read)
+      when map_size(record) == 3 and is_list(frames) and length(frames) in 1..16 do
     with {:ok, seg} <- Serialization.segment_ref(raw),
          true <- seg.key == seg.sha256 <> ".pcm",
          true <-
@@ -125,10 +116,11 @@ defmodule MedEx.Storage.Records do
              seg.first_sample == s.cursor.next_sample and
              seg.first_sequence == s.cursor.next_sequence,
          true <-
-           map_size(s.frames) + length(frames) <= @max_frames and
-             s.byte_total + seg.byte_size <= 536_870_912,
+           map_size(s.frames) + length(frames) <= RecordingLimits.maximum().frames and
+             s.byte_total + seg.byte_size <= RecordingLimits.maximum().artifact_bytes,
          {:ok, bytes} <- read.(seg),
          {:ok, next} <- verify_frames(s, seg, frames, bytes),
+         true <- duration?(next.cursor),
          true <-
            {seg.end_sample, seg.next_sequence} ==
              {next.cursor.next_sample, next.cursor.next_sequence} do
@@ -154,32 +146,13 @@ defmodule MedEx.Storage.Records do
     end
   end
 
-  def apply_record(s, %{"type" => "gap", "gap" => raw}, _read) do
-    m = raw["span"]
-
-    span = %IntegritySpan{
-      stream_id: m["stream_id"],
-      source_epoch: n(m["source_epoch"]),
-      code: Serialization.enum!(m["code"], [:source_gap]),
-      source: m["source"],
-      first_sample: n(m["first_sample"]),
-      end_sample: n(m["end_sample"]),
-      event_ids: m["event_ids"],
-      record_refs: m["record_refs"],
-      context: Map.new(m["context"], fn {k, v} -> {k, Serialization.unscalar!(v)} end)
-    }
-
-    gap = %{
-      id: raw["id"],
-      span: span,
-      first_sequence: n(raw["first_sequence"]),
-      next_sequence: n(raw["next_sequence"]),
-      irreversible: raw["irreversible"]
-    }
-
-    with true <- Serialization.to_map(gap) == raw and not Map.has_key?(s.gap_ids, gap.id),
+  def apply_record(s, %{"type" => "gap", "gap" => raw} = record, _read)
+      when map_size(record) == 2 do
+    with {:ok, gap} <- Serialization.gap(raw),
+         true <- not Map.has_key?(s.gap_ids, gap.id),
          {:ok, cursor, _} <- StreamCursor.plan(s.cursor, {:gap, gap}),
-         {:ok, next} <- add_span(s, span) do
+         true <- duration?(cursor),
+         {:ok, next} <- add_span(s, gap.span) do
       {:ok,
        %{
          next
@@ -199,15 +172,17 @@ defmodule MedEx.Storage.Records do
           "type" => "terminal",
           "status" => "failed",
           "reason" => "duplicate_conflict",
-          "conflict" => %{
-            "family" => family,
-            "id" => id,
-            "attempted" => attempted,
-            "stored" => stored
-          }
+          "conflict" =>
+            %{
+              "family" => family,
+              "id" => id,
+              "attempted" => attempted,
+              "stored" => stored
+            } = conflict
         } = record,
         read
-      ) do
+      )
+      when map_size(record) == 4 and map_size(conflict) == 4 do
     known =
       case family do
         "frame" -> Map.get(s.frames, n(id))
@@ -239,7 +214,8 @@ defmodule MedEx.Storage.Records do
     end
   end
 
-  def apply_record(s, %{"type" => "terminal", "status" => raw, "reason" => reason}, _) do
+  def apply_record(s, %{"type" => "terminal", "status" => raw, "reason" => reason} = record, _)
+      when map_size(record) == 3 do
     status = Serialization.enum!(raw, [:finished, :interrupted, :failed])
 
     if ContractRules.id?(reason) and (status != :finished or s.segments != []),
@@ -250,10 +226,17 @@ defmodule MedEx.Storage.Records do
   def apply_record(_, _, _), do: {:error, :unknown_record}
   defp n(v), do: Serialization.integer!(v)
 
-  defp add_span(s, span) when s.span_count < @max_spans,
-    do: {:ok, %{s | spans: [span | s.spans], span_count: s.span_count + 1}}
+  defp duration?(cursor) do
+    {rate, divisor} = cursor.stream.sample_rate
+    cursor.next_sample * divisor <= RecordingLimits.maximum().duration_seconds * rate
+  end
 
-  defp add_span(_, _), do: {:error, :span_limit}
+  defp add_span(s, span) do
+    if s.span_count < RecordingLimits.maximum().spans,
+      do: {:ok, %{s | spans: [span | s.spans], span_count: s.span_count + 1}},
+      else: {:error, :span_limit}
+  end
+
   defp verify_frames(s, _seg, [], <<>>), do: {:ok, s}
 
   defp verify_frames(s, seg, [raw | rest], data) do
@@ -261,7 +244,7 @@ defmodule MedEx.Storage.Records do
     spec = s.cursor.stream
     length = count * length(spec.channels) * MedEx.StreamSpec.bytes_per_value(spec.encoding)
 
-    with true <- length > 0 and length <= byte_size(data),
+    with true <- is_map(raw) and map_size(raw) == 5 and length > 0 and length <= byte_size(data),
          <<bytes::binary-size(^length), tail::binary>> <- data,
          f = %SampleFrame{
            stream_id: spec.stream_id,

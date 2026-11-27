@@ -1,302 +1,548 @@
 defmodule MedEx.StreamWriter do
   @moduledoc """
-  One temporary writer per authenticated stream attempt. The host issues the
-  fence, selects a trusted directory and supervises the worker. The owner uses
-  synchronous calls to bound one ingress stream. Push receipts distinguish
-  accepted (volatile) from journal-backed durable boundaries. A timer checkpoint
-  sends the owner `{:med_ex_durable, writer, receipt}`. A call timeout or process
-  exit is an unknown outcome. Reconcile storage before granting a replacement.
-
-  With `checkpoint_ms: :manual`, owner loss closes storage without committing
-  pending frames or writing a terminal record. The host controls explicit writes.
+  One owner and explicit fence per stream attempt. Every operation has one fenced
+  signature and an explicit positive timeout. Accepted receipts are volatile;
+  only a fully durable receipt authorizes a host to persist a durable observation.
+  The default limits use a 250 ms checkpoint; protected hosts select `:manual`.
+  Owner loss never flushes source bytes. Timeout/unknown retires the writer and
+  requires quiescent File recovery before a new attempt. Terminal results retain
+  the installed index and verified receipt; sealed operations cannot mutate.
   """
   use GenServer, restart: :temporary
-  alias MedEx.{ContractRules, FrameFingerprint, Serialization, StreamCursor, StreamIndex}
-  alias MedEx.Storage.File, as: Posix
 
-  @defaults %{
-    pending_bytes: 262_144,
-    pending_frames: 16,
-    checkpoint_ms: 250,
-    duration_seconds: 1_800,
-    artifact_bytes: 536_870_912
+  alias MedEx.{
+    ContractRules,
+    FrameFingerprint,
+    Receipt,
+    RecordingLimits,
+    Serialization,
+    StreamCursor
   }
 
-  @timeout 5_000
-  @finish_timeout 20_000
-  def start_link(opts),
-    do: GenServer.start_link(__MODULE__, opts, timeout: Keyword.get(opts, :open_timeout, 30_000))
+  alias MedEx.Storage.{File, Records, RecoveredPrefix, Terminal, Transfer, Usage}
+  @options [:owner, :fence, :stream, :artifact_dir, :limits, :predecessor, :root_owner]
+  @open_timeout 30_000
 
-  def push(pid, frame), do: call(pid, :bound, {:push, frame}, @timeout)
-  def push(pid, fence, frame), do: push(pid, fence, frame, @timeout)
+  def start_link(opts) when is_list(opts) do
+    if Keyword.keyword?(opts) and Enum.all?(Keyword.keys(opts), &(&1 in @options)) and
+         length(Keyword.keys(opts)) == length(Enum.uniq(Keyword.keys(opts))) do
+      # Private conformance seam; no production backend option or global selection.
+      storage =
+        if Code.ensure_loaded?(ExUnit),
+          do: Process.get({__MODULE__, :test_storage}, File),
+          else: File
+
+      hook = if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :fault_hook}), else: nil
+      GenServer.start_link(__MODULE__, {opts, storage, hook}, timeout: @open_timeout)
+    else
+      {:error, :invalid_options}
+    end
+  end
+
+  def start_link(_), do: {:error, :invalid_options}
+
   def push(pid, fence, frame, timeout), do: call(pid, fence, {:push, frame}, timeout)
-  def checkpoint(pid, timeout \\ @timeout), do: call(pid, :bound, :checkpoint, timeout)
-  def record_gap(pid, gap, timeout \\ @timeout), do: call(pid, :bound, {:gap, gap}, timeout)
-  def finish(pid, timeout \\ @finish_timeout), do: call(pid, :bound, :finish, timeout)
+  def record_gap(pid, fence, gap, timeout), do: call(pid, fence, {:gap, gap}, timeout)
+  def checkpoint(pid, fence, timeout), do: call(pid, fence, :checkpoint, timeout)
+  def finish(pid, fence, timeout), do: call(pid, fence, :finish, timeout)
+  def interrupt(pid, fence, reason, timeout), do: call(pid, fence, {:interrupt, reason}, timeout)
+  def receipt(pid, fence, timeout), do: call(pid, fence, :receipt, timeout)
+  def stats(pid, fence, timeout), do: call(pid, fence, :stats, timeout)
 
-  def interrupt(pid, reason, timeout \\ @finish_timeout),
-    do: call(pid, :bound, {:interrupt, reason}, timeout)
+  defp call(pid, fence, request, timeout)
+       when is_pid(pid) and is_integer(timeout) and timeout > 0 do
+    deadline = System.monotonic_time(:millisecond) + timeout
 
-  def stats(pid), do: call(pid, :bound, :stats, @timeout)
-  def receipt(pid, timeout \\ @timeout), do: call(pid, :bound, :receipt, timeout)
+    case authorize(pid, fence, timeout) do
+      :ok ->
+        remaining = deadline - System.monotonic_time(:millisecond)
 
-  defp call(pid, fence, request, timeout) when is_integer(timeout) and timeout > 0 do
-    GenServer.call(pid, {fence, request}, timeout)
+        if remaining > 0,
+          do: submitted_call(pid, fence, request, deadline, remaining),
+          else: {:error, {:not_committed, :expired}}
+
+      {:error, _} = error ->
+        error
+
+      _ ->
+        {:error, {:not_committed, :invalid_writer_authorization}}
+    end
+  end
+
+  defp call(_, _, _, _), do: {:error, :invalid_call}
+
+  defp authorize(pid, fence, timeout) do
+    GenServer.call(pid, {fence, :authorize}, timeout)
   catch
-    :exit, {:timeout, _} -> {:error, {:outcome_unknown, :timeout}}
-    :exit, {reason, _} -> {:error, {:outcome_unknown, reason}}
+    :exit, _ -> {:error, {:not_committed, :writer_authorization_unavailable}}
+  end
+
+  defp submitted_call(pid, fence, request, deadline, timeout) do
+    GenServer.call(pid, {fence, request, deadline}, timeout)
+  catch
+    :exit, _ ->
+      Process.unlink(pid)
+      Process.exit(pid, :kill)
+      {:error, {:outcome_unknown, :writer_call_failed}}
   end
 
   @impl true
-  def init(opts) do
-    owner = Keyword.fetch!(opts, :owner)
-    stream = Keyword.fetch!(opts, :stream)
-    fence = Keyword.fetch!(opts, :fence)
-    storage = Keyword.get(opts, :storage, Posix)
+  def init({opts, storage, hook}) do
+    owner = opts[:owner]
+    stream = opts[:stream]
+    fence = opts[:fence]
 
-    with true <- is_pid(owner) and ContractRules.id?(fence),
-         {:ok, limits} <- limits(opts[:limits] || %{}),
+    with true <- is_pid(owner) and node(owner) == node() and Process.alive?(owner),
+         true <- ContractRules.id?(fence) and is_binary(opts[:artifact_dir]),
+         {:ok, limits} <- RecordingLimits.new(opts[:limits] || %{}),
          {:ok, cursor} <- StreamCursor.new(stream),
-         :ok <- verify_descriptor(stream),
-         {:ok, adapter, receipt} <- storage.open(opts) do
-      if valid_receipt?(receipt, stream, fence) and
-           receipt.accepted_sequence == receipt.durable_sequence and
-           receipt.accepted_sample == receipt.durable_sample do
-        {:ok,
-         %{
-           owner: owner,
-           monitor: Process.monitor(owner),
-           fence: fence,
-           cursor: %{
-             cursor
-             | next_sequence: receipt.durable_sequence,
-               next_sample: receipt.durable_sample
-           },
-           limits: limits,
-           storage: storage,
-           adapter: adapter,
-           durable: receipt,
-           pending: [],
-           bytes: 0,
-           count: 0,
-           peak_count: 0,
-           peak_bytes: 0,
-           timer: nil
-         }}
-      else
-        storage.close(adapter)
-        {:error, :invalid_storage_receipt}
+         true <- stream.descriptor_ref == Serialization.descriptor_ref(stream),
+         true <- is_nil(opts[:predecessor]) or is_struct(opts[:predecessor], RecoveredPrefix) do
+      monitor = Process.monitor(owner)
+      storage_opts = opts |> Keyword.put(:limits, limits)
+
+      storage_opts =
+        if is_function(hook, 1),
+          do: Keyword.put(storage_opts, :_fault_hook, hook),
+          else: storage_opts
+
+      open_result = safely(fn -> storage.open(storage_opts) end)
+
+      case open_result do
+        %Transfer{handle: handle, result: {:ok, raw}} ->
+          with {:ok, r} <- Receipt.parse(raw),
+               :ok <-
+                 Receipt.validate_identity(r, %{
+                   stream_id: stream.stream_id,
+                   source_epoch: stream.source_epoch,
+                   descriptor_ref: stream.descriptor_ref,
+                   fence: fence
+                 }),
+               true <- Receipt.durable?(r),
+               :ok <- initial_prefix(r, opts[:predecessor]),
+               true <- Process.alive?(owner) do
+            {:ok,
+             %{
+               owner: owner,
+               monitor: monitor,
+               fence: fence,
+               cursor: %{
+                 cursor
+                 | next_sequence: r.durable_sequence,
+                   next_sample: r.durable_sample
+               },
+               limits: limits,
+               storage: storage,
+               adapter: handle,
+               durable: r,
+               pending: [],
+               bytes: 0,
+               count: 0,
+               peak_count: 0,
+               peak_bytes: 0,
+               timer: nil,
+               terminal: nil
+             }}
+          else
+            _ ->
+              safely(fn -> storage.close(handle) end)
+              {:stop, :invalid_storage_open}
+          end
+
+        %Transfer{handle: handle} ->
+          safely(fn -> storage.close(handle) end)
+          {:stop, :invalid_storage_open}
+
+        {:error, reason} ->
+          {:stop, reason}
+
+        _ ->
+          {:stop, {:outcome_unknown, :invalid_storage_open}}
       end
     else
-      {:error, reason} -> {:error, reason}
-      false -> {:error, :invalid_owner_or_fence}
+      {:error, reason} -> {:stop, reason}
+      false -> {:stop, :invalid_writer_options}
     end
   end
 
-  defp verify_descriptor(stream) do
-    if stream.descriptor_ref == Serialization.descriptor_ref(stream),
+  defp initial_prefix(r, nil) do
+    if r.journal_generation == 1 and r.durable_sequence == 0 and r.durable_sample == 0,
       do: :ok,
-      else: {:error, :invalid_descriptor}
+      else: {:error, :invalid_initial_receipt}
   end
 
-  defp limits(list) when is_list(list), do: limits(Map.new(list))
-
-  defp limits(map) when is_map(map) do
-    if Enum.all?(map, fn
-         {:checkpoint_ms, :manual} ->
-           true
-
-         {key, value} ->
-           Map.has_key?(@defaults, key) and is_integer(value) and
-             value in 1..Map.fetch!(@defaults, key)
-       end) do
-      {:ok, Map.merge(@defaults, map)}
-    else
-      {:error, :invalid_limits}
-    end
+  defp initial_prefix(r, %RecoveredPrefix{} = prefix) do
+    Receipt.handoff(prefix.receipt, r, %{
+      previous: prefix.receipt,
+      successor: r,
+      authority: :verified_storage,
+      authenticated: true,
+      quiescent: true,
+      imported: prefix
+    })
   end
 
-  defp limits(_), do: {:error, :invalid_limits}
   @impl true
   def handle_call(_, {caller, _}, s) when caller != s.owner, do: {:reply, {:error, :not_owner}, s}
 
-  def handle_call({fence, _}, _, s) when fence != :bound and fence != s.fence,
+  def handle_call({fence, _, _}, _, s) when fence != s.fence,
     do: {:reply, {:error, :stale_fence}, s}
 
-  def handle_call({_, :stats}, _, s) do
-    {:reply,
-     Map.merge(s.storage.usage(s.adapter), %{
-       pending_frames: s.count,
-       pending_bytes: s.bytes,
-       peak_pending_frames: s.peak_count,
-       peak_pending_bytes: s.peak_bytes,
-       limits: s.limits
-     }), s}
+  def handle_call({fence, request, deadline}, from, s) do
+    if is_integer(deadline) and System.monotonic_time(:millisecond) < deadline,
+      do: handle_call({fence, request}, from, s),
+      else: {:reply, {:error, {:not_committed, :expired}}, s}
   end
 
+  def handle_call({fence, _}, _, s) when fence != s.fence, do: {:reply, {:error, :stale_fence}, s}
+  def handle_call({_, :authorize}, _, s), do: {:reply, :ok, s}
   def handle_call({_, :receipt}, _, s), do: reply_receipt(s)
+
+  def handle_call({_, :finish}, _, %{terminal: %Terminal{} = terminal} = s),
+    do: {:reply, {:ok, terminal}, s}
+
+  def handle_call({_, {:interrupt, _}}, _, %{terminal: %Terminal{}} = s),
+    do: {:reply, {:error, :sealed}, s}
+
+  def handle_call({_, operation}, _, %{terminal: %Terminal{}} = s) when operation != :stats,
+    do: {:reply, {:error, :sealed}, s}
+
+  def handle_call({_, :stats}, _, s) do
+    case usage(s) do
+      {:ok, usage} ->
+        {:reply,
+         {:ok,
+          Map.merge(Map.from_struct(usage), %{
+            pending_frames: s.count,
+            pending_bytes: s.bytes,
+            peak_pending_frames: s.peak_count,
+            peak_pending_bytes: s.peak_bytes,
+            limits: s.limits
+          })}, s}
+
+      {:error, reason} ->
+        {:stop, :normal, {:error, reason}, s}
+    end
+  end
+
   def handle_call({_, :checkpoint}, _, s), do: answer_flush(flush(s))
 
   def handle_call({_, {:push, frame}}, _, s) do
     case StreamCursor.plan(s.cursor, {:frame, frame}) do
-      {:ok, cursor, _} ->
-        accept(s, frame, cursor)
-
-      {:reconcile, old} ->
-        match =
-          case Enum.find(s.pending, &(&1.sequence == old.sequence)) do
-            nil -> s.storage.lookup(s.adapter, :frame, old.sequence)
-            f -> {:ok, FrameFingerprint.of(f)}
-          end
-
-        incoming = FrameFingerprint.of(old)
-
-        if match == {:ok, incoming},
-          do: reply_receipt(s),
-          else: quarantine(s, "frame", to_string(old.sequence), incoming, match)
-
-      {:replay, {seq, sample}} ->
-        {:reply, {:error, {:replay, seq, sample}}, s}
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, s}
+      {:ok, cursor, _} -> accept_frame(s, frame, cursor)
+      {:reconcile, old} -> reconcile_frame(s, old)
+      {:replay, {sequence, sample}} -> {:reply, {:error, {:replay, sequence, sample}}, s}
+      {:error, reason} -> {:reply, {:error, reason}, s}
     end
   end
 
   def handle_call({_, {:gap, %{id: id} = gap}}, _, s) do
-    case s.storage.lookup(s.adapter, :gap, id) do
-      {:ok, fp} ->
-        incoming = Serialization.digest(gap)
+    case lookup(s, :gap, id) do
+      {:ok, fingerprint} ->
+        case StreamCursor.plan(s.cursor, {:gap_replay, gap, fingerprint}) do
+          :duplicate ->
+            reply_receipt(s)
 
-        if incoming == fp,
-          do: reply_receipt(s),
-          else: quarantine(s, "gap", id, incoming, {:ok, fp})
+          {:error, :duplicate_conflict} ->
+            quarantine(s, "gap", id, Serialization.digest(gap), fingerprint)
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, s}
+        end
 
       :missing ->
-        accept_gap(s, gap)
+        case StreamCursor.plan(s.cursor, {:gap, gap}) do
+          {:ok, cursor, _} -> accept_gap(s, gap, cursor)
+          {:error, reason} -> {:reply, {:error, reason}, s}
+        end
+
+      {:error, reason} ->
+        {:stop, :normal, {:error, reason}, s}
     end
   end
 
   def handle_call({_, {:gap, _}}, _, s), do: {:reply, {:error, :invalid_gap}, s}
   def handle_call({_, :finish}, _, s), do: end_recording(s, :finished, "source_finished")
-
-  def handle_call({_, {:interrupt, reason}}, _, s) when is_atom(reason),
-    do: end_recording(s, :interrupted, Atom.to_string(reason))
-
   def handle_call({_, {:interrupt, reason}}, _, s), do: end_recording(s, :interrupted, reason)
+  def handle_call(_, _, s), do: {:reply, {:error, :invalid_operation}, s}
 
-  defp accept_gap(s, gap) do
-    case StreamCursor.plan(s.cursor, {:gap, gap}) do
-      {:ok, cursor, _} ->
-        case gap_capacity(s, cursor) do
-          :ok -> flush_gap(s, gap, cursor)
-          {:error, reason} -> capacity_stop(s, reason)
-        end
+  defp reconcile_frame(s, frame) do
+    found =
+      case Enum.find(s.pending, &(&1.sequence == frame.sequence)) do
+        nil -> lookup(s, :frame, frame.sequence)
+        pending -> {:ok, FrameFingerprint.of(pending)}
+      end
 
+    case found do
       {:error, reason} ->
-        {:reply, {:error, reason}, s}
+        {:stop, :normal, {:error, reason}, s}
+
+      _ ->
+        case StreamCursor.plan(s.cursor, {:frame_replay, frame, found}) do
+          :duplicate ->
+            reply_receipt(s)
+
+          {:error, :duplicate_conflict} ->
+            previous =
+              case found do
+                {:ok, fp} -> fp
+                :missing -> nil
+              end
+
+            quarantine(
+              s,
+              "frame",
+              Integer.to_string(frame.sequence),
+              FrameFingerprint.of(frame),
+              previous
+            )
+
+          {:error, reason} ->
+            {:reply, {:error, reason}, s}
+        end
     end
   end
 
-  defp gap_capacity(s, cursor) do
-    cond do
-      over_duration?(cursor, s.limits) -> {:error, "duration_limit"}
-      s.durable.journal_generation >= 99_997 -> {:error, "journal_limit"}
-      s.storage.usage(s.adapter).span_count >= 99_999 -> {:error, "integrity_span_limit"}
-      true -> :ok
-    end
-  end
-
-  defp flush_gap(s, gap, cursor) do
-    case flush(s) do
-      {:ok, ready} -> answer_flush(commit(ready, {:gap, gap}, cursor))
-      failure -> answer_flush(failure)
-    end
-  end
-
-  defp accept(s, frame, cursor) do
+  defp accept_frame(s, frame, cursor) do
     size = byte_size(frame.payload)
 
-    case frame_capacity(s, frame, cursor, size) do
-      :ok -> buffer_frame(s, frame, cursor, size)
-      {:error, reason} -> capacity_stop(s, reason)
-    end
-  end
-
-  defp frame_capacity(s, frame, cursor, size) do
-    usage = s.storage.usage(s.adapter)
-
-    cond do
-      over_duration?(cursor, s.limits) ->
-        {:error, "duration_limit"}
-
-      usage.raw_bytes + s.bytes + size > s.limits.artifact_bytes ->
-        {:error, "artifact_limit"}
-
-      usage.frame_count + s.count >= 1_000_000 ->
-        {:error, "frame_limit"}
-
-      usage.span_count >= 99_999 and frame.config_epoch == :unknown ->
-        {:error, "integrity_span_limit"}
-
-      s.durable.journal_generation >= 99_998 ->
-        {:error, "journal_limit"}
-
-      true ->
-        :ok
-    end
-  end
-
-  defp buffer_frame(s, frame, cursor, size) do
     cond do
       size > s.limits.pending_bytes ->
-        {:reply, {:error, :credit_limit}, s}
+        {:reply, {:error, {:not_committed, :credit_limit}}, s}
 
-      flush_before_buffering?(s, frame, size) ->
+      s.count > 0 and
+          (s.bytes + size > s.limits.pending_bytes or s.count >= s.limits.pending_frames or
+             hd(s.pending).config_epoch != frame.config_epoch) ->
         case flush(s) do
-          {:ok, ready} -> accept(ready, frame, cursor)
-          error -> answer_flush(error)
+          {:ok, ready} -> accept_frame(ready, frame, cursor)
+          failure -> answer_flush(failure)
         end
 
       true ->
-        enqueue_frame(s, frame, cursor, size)
+        {record, _, _} = Records.chunk_record(Enum.reverse([frame | s.pending]))
+
+        extra = %{
+          bytes: size,
+          frames: 1,
+          spans: if(frame.config_epoch == :unknown, do: 1, else: 0),
+          commits: 1,
+          encoded_bytes: RecordingLimits.encoded_record_bytes(record)
+        }
+
+        case capacity(s, cursor, extra, false) do
+          :ok ->
+            next = %{
+              s
+              | cursor: cursor,
+                pending: [frame | s.pending],
+                count: s.count + 1,
+                bytes: s.bytes + size,
+                peak_count: max(s.peak_count, s.count + 1),
+                peak_bytes: max(s.peak_bytes, s.bytes + size)
+            }
+
+            if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
+              do: answer_flush(flush(next)),
+              else: reply_receipt(arm_timer(next))
+
+          {:error, {:outcome_unknown, _} = reason} ->
+            {:stop, :normal, {:error, reason}, s}
+
+          {:error, reason} ->
+            {:reply, {:error, {:not_committed, {:capacity, reason}}}, s}
+        end
     end
   end
 
-  defp flush_before_buffering?(s, frame, size) do
-    s.bytes + size > s.limits.pending_bytes or s.count == s.limits.pending_frames or
-      (s.pending != [] and hd(s.pending).config_epoch != frame.config_epoch)
-  end
-
-  defp enqueue_frame(s, frame, cursor, size) do
-    next = %{
-      s
-      | cursor: cursor,
-        bytes: s.bytes + size,
-        count: s.count + 1,
-        peak_count: max(s.peak_count, s.count + 1),
-        peak_bytes: max(s.peak_bytes, s.bytes + size),
-        pending: [frame | s.pending]
+  defp accept_gap(s, gap, cursor) do
+    extra = %{
+      bytes: 0,
+      frames: 0,
+      spans: 1,
+      commits: 1,
+      encoded_bytes: RecordingLimits.encoded_record_bytes(%{type: "gap", gap: gap})
     }
 
-    if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
-      do: answer_flush(flush(next)),
-      else: reply_receipt(arm_timer(next))
+    case capacity(s, cursor, extra, true) do
+      :ok ->
+        case flush(s) do
+          {:ok, ready} -> answer_flush(commit(ready, {:gap, gap}, cursor))
+          failure -> answer_flush(failure)
+        end
+
+      {:error, {:outcome_unknown, _} = reason} ->
+        {:stop, :normal, {:error, reason}, s}
+
+      {:error, reason} ->
+        {:reply, {:error, {:not_committed, {:capacity, reason}}}, s}
+    end
   end
 
-  defp over_duration?(cursor, limits) do
-    {rate, divisor} = cursor.stream.sample_rate
-    cursor.next_sample * divisor > limits.duration_seconds * rate
+  defp capacity(s, cursor, extra, separate) do
+    with {:ok, used} <- usage(s) do
+      pending_record = if s.count > 0, do: elem(Records.chunk_record(Enum.reverse(s.pending)), 0)
+
+      pending = %{
+        bytes: s.bytes,
+        frames: s.count,
+        spans:
+          if(separate and s.count > 0 and hd(s.pending).config_epoch == :unknown, do: 1, else: 0),
+        commits: if(separate and s.count > 0, do: 1, else: 0),
+        encoded_bytes:
+          if(separate and pending_record,
+            do: RecordingLimits.encoded_record_bytes(pending_record),
+            else: 0
+          )
+      }
+
+      RecordingLimits.admit(s.limits, used, pending, cursor, extra)
+    end
   end
 
-  defp capacity_stop(s, reason) do
-    case end_recording(s, :interrupted, reason) do
-      {:stop, :normal, {:ok, index}, next} ->
-        send(s.owner, {:med_ex_interrupted, self(), index})
-        {:stop, :normal, {:error, {:capacity, reason}}, next}
+  defp usage(%{adapter: nil, terminal: %Terminal{recovered: recovered}}) do
+    i = recovered.index
 
-      failure ->
-        failure
+    {:ok,
+     %Usage{
+       raw_bytes: Enum.sum(Enum.map(i.segments, & &1.byte_size)),
+       frame_count: Enum.sum(Enum.map(i.segments, &(&1.next_sequence - &1.first_sequence))),
+       span_count: length(i.spans),
+       journal_bytes: recovered.provenance.journal_bytes,
+       journal_generation: i.journal_generation
+     }}
+  end
+
+  defp usage(s) do
+    case safely(fn -> s.storage.usage(s.adapter) end) do
+      %Usage{} = usage ->
+        values = Map.from_struct(usage)
+
+        if Enum.all?(values, fn {_, n} -> is_integer(n) and n >= 0 end) and
+             usage.journal_generation == s.durable.journal_generation and
+             usage.raw_bytes <= s.limits.artifact_bytes and usage.frame_count <= s.limits.frames and
+             usage.span_count <= s.limits.spans and usage.journal_bytes <= s.limits.journal_bytes,
+           do: {:ok, usage},
+           else: {:error, {:outcome_unknown, :invalid_storage_usage}}
+
+      _ ->
+        {:error, {:outcome_unknown, :invalid_storage_usage}}
+    end
+  end
+
+  defp lookup(s, family, key) do
+    case safely(fn -> s.storage.lookup(s.adapter, family, key) end) do
+      {:ok, digest} ->
+        if ContractRules.digest?(digest),
+          do: {:ok, digest},
+          else: {:error, {:outcome_unknown, :invalid_storage_lookup}}
+
+      :missing ->
+        :missing
+
+      _ ->
+        {:error, {:outcome_unknown, :invalid_storage_lookup}}
+    end
+  end
+
+  defp flush(%{pending: []} = s), do: {:ok, s}
+  defp flush(s), do: commit(s, {:frames, Enum.reverse(s.pending)}, s.cursor)
+
+  defp commit(s, event, cursor) do
+    case transfer(s, fn -> s.storage.commit_batch(s.adapter, event) end) do
+      {:ok, value, adopted} ->
+        with {:ok, receipt} <- Receipt.parse(value),
+             :ok <- Receipt.committed_successor(s.durable, receipt, cursor) do
+          {:ok,
+           disarm(%{adopted | durable: receipt, cursor: cursor, pending: [], count: 0, bytes: 0})}
+        else
+          _ -> {:error, {:outcome_unknown, :invalid_storage_receipt}, adopted}
+        end
+
+      {:error, reason, adopted} ->
+        {:error, reason, adopted}
+    end
+  end
+
+  defp transfer(s, operation) do
+    case safely(operation) do
+      %Transfer{handle: handle, result: result} ->
+        adopted = %{s | adapter: handle}
+
+        case result do
+          {:ok, value} ->
+            {:ok, value, adopted}
+
+          {:error, {kind, _} = reason} when kind in [:not_committed, :outcome_unknown] ->
+            {:error, reason, adopted}
+
+          _ ->
+            {:error, {:outcome_unknown, :invalid_storage_result}, adopted}
+        end
+
+      _ ->
+        {:error, {:outcome_unknown, :invalid_storage_transfer}, s}
+    end
+  end
+
+  defp reply_receipt(s) do
+    receipt = %{
+      s.durable
+      | accepted_sequence: s.cursor.next_sequence,
+        accepted_sample: s.cursor.next_sample
+    }
+
+    {:reply, {:ok, receipt}, s}
+  end
+
+  defp answer_flush({:ok, s}), do: reply_receipt(s)
+  defp answer_flush({:error, {:not_committed, _} = reason, s}), do: {:reply, {:error, reason}, s}
+  defp answer_flush({:error, reason, s}), do: {:stop, :normal, {:error, reason}, s}
+
+  defp end_recording(s, disposition, reason) do
+    valid = ContractRules.id?(reason) or (disposition == :failed and is_map(reason))
+
+    if valid do
+      case flush(s) do
+        {:ok, ready} -> seal(ready, disposition, reason)
+        failure -> answer_flush(failure)
+      end
+    else
+      {:reply, {:error, :invalid_terminal_reason}, s}
+    end
+  end
+
+  defp seal(s, disposition, reason) do
+    case transfer(s, fn -> s.storage.seal(s.adapter, disposition, reason) end) do
+      {:ok, %Terminal{} = terminal, adopted} ->
+        with true <- terminal.index.terminal == disposition,
+             {:ok, receipt} <-
+               Receipt.terminal_receipt(terminal.index, terminal.recovered, s.durable),
+             true <- receipt == terminal.receipt,
+             :ok <- safely(fn -> adopted.storage.close(adopted.adapter) end) do
+          {:reply, {:ok, terminal},
+           disarm(%{adopted | adapter: nil, terminal: terminal, durable: receipt})}
+        else
+          _ -> {:stop, :normal, {:error, {:outcome_unknown, :invalid_storage_terminal}}, adopted}
+        end
+
+      {:ok, _, adopted} ->
+        {:stop, :normal, {:error, {:outcome_unknown, :invalid_storage_terminal}}, adopted}
+
+      {:error, {:not_committed, _} = reason, adopted} ->
+        {:reply, {:error, reason}, adopted}
+
+      {:error, reason, adopted} ->
+        {:stop, :normal, {:error, reason}, adopted}
+    end
+  end
+
+  defp quarantine(s, family, id, attempted, stored) do
+    conflict = %{conflict: %{family: family, id: id, attempted: attempted, stored: stored}}
+
+    case end_recording(s, :failed, conflict) do
+      {:reply, {:ok, _}, next} -> {:reply, {:error, :duplicate_conflict}, next}
+      {_, _, next} -> {:stop, :normal, {:error, {:outcome_unknown, :duplicate_conflict}}, next}
+      {_, _, _, next} -> {:stop, :normal, {:error, {:outcome_unknown, :duplicate_conflict}}, next}
     end
   end
 
@@ -304,8 +550,11 @@ defmodule MedEx.StreamWriter do
 
   defp arm_timer(%{timer: nil} = s) do
     token = make_ref()
-    timer = Process.send_after(self(), {:checkpoint, token}, s.limits.checkpoint_ms)
-    %{s | timer: {timer, token}}
+
+    %{
+      s
+      | timer: {Process.send_after(self(), {:checkpoint, token}, s.limits.checkpoint_ms), token}
+    }
   end
 
   defp arm_timer(s), do: s
@@ -316,155 +565,36 @@ defmodule MedEx.StreamWriter do
     %{s | timer: nil}
   end
 
-  defp flush(%{pending: []} = s), do: {:ok, s}
-  defp flush(s), do: commit(s, {:frames, Enum.reverse(s.pending)}, s.cursor)
+  @impl true
+  def handle_info({:checkpoint, token}, %{timer: {_, token}, terminal: nil} = s) do
+    if Process.alive?(s.owner) do
+      case flush(%{s | timer: nil}) do
+        {:ok, next} ->
+          send(s.owner, {:med_ex_durable, self(), next.durable})
+          {:noreply, next}
 
-  defp commit(s, event, cursor) do
-    case s.storage.commit_batch(s.adapter, event) do
-      {:ok, adapter, r} ->
-        if committed_receipt?(r, s, cursor) do
-          {:ok,
-           disarm(%{
-             s
-             | adapter: adapter,
-               durable: r,
-               cursor: cursor,
-               pending: [],
-               count: 0,
-               bytes: 0
-           })}
-        else
-          {:error, {:outcome_unknown, :invalid_storage_receipt}, s}
-        end
-
-      {:error, {kind, _} = error} when kind in [:not_committed, :outcome_unknown] ->
-        {:error, error, s}
-
-      other ->
-        {:error, {:outcome_unknown, other}, s}
-    end
-  end
-
-  defp committed_receipt?(r, s, cursor) do
-    valid_receipt?(r, cursor.stream, s.fence) and
-      Serialization.receipt_progress(s.durable, r) == :ok and
-      r.journal_generation == s.durable.journal_generation + 1 and
-      {r.durable_sequence, r.durable_sample} == {cursor.next_sequence, cursor.next_sample}
-  end
-
-  defp valid_receipt?(r, spec, fence) when is_map(r) do
-    case Serialization.receipt(Serialization.to_map(r)) do
-      {:ok, ^r} ->
-        {r.fence, r.stream_id, r.source_epoch, r.descriptor_ref} ==
-          {fence, spec.stream_id, spec.source_epoch, spec.descriptor_ref}
-
-      _ ->
-        false
-    end
-  end
-
-  defp valid_receipt?(_, _, _), do: false
-
-  defp reply_receipt(s) do
-    r = %{
-      s.durable
-      | accepted_sample: s.cursor.next_sample,
-        accepted_sequence: s.cursor.next_sequence
-    }
-
-    {:reply, {:ok, r}, s}
-  end
-
-  defp answer_flush({:ok, s}), do: reply_receipt(s)
-
-  defp answer_flush({:error, {:not_committed, _} = reason, s}),
-    do: {:reply, {:error, reason}, arm_if_needed(s)}
-
-  defp answer_flush({:error, reason, s}), do: {:stop, :normal, {:error, reason}, s}
-  defp arm_if_needed(%{pending: []} = s), do: s
-  defp arm_if_needed(s), do: arm_timer(s)
-
-  defp quarantine(s, family, id, attempted, prior) do
-    # The changed identity receives no receipt. Stop admitting this attempt even
-    # when persistence of its failed terminal outcome cannot be established.
-    stored =
-      case prior do
-        {:ok, fp} -> fp
-        :missing -> nil
-      end
-
-    conflict = %{family: family, id: id, attempted: attempted, stored: stored}
-
-    case end_recording(s, :failed, %{conflict: conflict}) do
-      {:stop, _, {:ok, _}, next} ->
-        {:stop, :normal, {:error, :duplicate_conflict}, next}
-
-      {_, _, {:error, reason}, next} ->
-        {:stop, :normal, {:error, {:outcome_unknown, reason}}, next}
-
-      {:reply, {:error, reason}, next} ->
-        {:stop, :normal, {:error, {:outcome_unknown, reason}}, next}
-    end
-  end
-
-  defp end_recording(s, terminal, reason) do
-    if (terminal == :failed and is_map(reason)) or ContractRules.id?(reason) do
-      case flush(s) do
-        {:ok, ready} -> seal_recording(ready, terminal, reason)
-        failure -> answer_flush(failure)
+        {:error, reason, next} ->
+          send(s.owner, {:med_ex_storage_failed, self(), reason})
+          {:stop, :normal, next}
       end
     else
-      {:reply, {:error, :invalid_terminal_reason}, s}
-    end
-  end
-
-  defp seal_recording(s, terminal, reason) do
-    case s.storage.seal(s.adapter, terminal, reason) do
-      {:ok, %StreamIndex{} = index} ->
-        if sealed_index?(index, s, terminal),
-          do: {:stop, :normal, {:ok, index}, s},
-          else: {:stop, :normal, {:error, {:outcome_unknown, :invalid_storage_index}}, s}
-
-      {:error, reason} ->
-        {:stop, :normal, {:error, reason}, s}
-    end
-  end
-
-  defp sealed_index?(i, s, terminal) do
-    StreamIndex.validate(i) == :ok and i.fence == s.fence and
-      i.stream == s.cursor.stream and i.terminal == terminal and
-      i.journal_id == s.durable.journal_id and
-      i.journal_generation == s.durable.journal_generation + 1 and
-      {i.next_sequence, i.next_sample} == {s.cursor.next_sequence, s.cursor.next_sample}
-  end
-
-  @impl true
-  def handle_info({:checkpoint, token}, %{timer: {_, token}} = s) do
-    case flush(%{s | timer: nil}) do
-      {:ok, next} ->
-        send(s.owner, {:med_ex_durable, self(), next.durable})
-        {:noreply, next}
-
-      {:error, reason, next} ->
-        send(s.owner, {:med_ex_storage_failed, self(), reason})
-        {:stop, :normal, next}
+      {:stop, :normal, s}
     end
   end
 
   def handle_info({:checkpoint, _}, s), do: {:noreply, s}
-
-  def handle_info(
-        {:DOWN, ref, :process, _, _},
-        %{monitor: ref, limits: %{checkpoint_ms: :manual}} = s
-      ),
-      do: {:stop, :normal, s}
-
-  def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s) do
-    # If flushing fails, the host must recover the verified prefix.
-    result = end_recording(s, :interrupted, "owner_lost")
-    {:stop, :normal, elem(result, tuple_size(result) - 1)}
-  end
+  def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s), do: {:stop, :normal, s}
+  def handle_info(_, s), do: {:noreply, s}
 
   @impl true
-  def terminate(_, s), do: s.storage.close(s.adapter)
+  def terminate(_, %{adapter: nil}), do: :ok
+  def terminate(_, s), do: safely(fn -> s.storage.close(s.adapter) end)
+
+  defp safely(operation) do
+    operation.()
+  rescue
+    _ -> {:error, {:outcome_unknown, :storage_exception}}
+  catch
+    _, _ -> {:error, {:outcome_unknown, :storage_exception}}
+  end
 end

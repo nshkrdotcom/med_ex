@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 - 2026-11-26
+
+### Breaking changes
+
+- Provide one concrete owner-bound opaque RTC handle with peer_ref/1 and a single
+  state notification contract. Remove base SDK dependency and global selection.
+- Bound signaling and peer lifetime, enforce owner checks and monotonic submission
+  deadlines, and validate RTP sequence/tick conversion at the transport boundary.
+- Keep independent ExWebRTC/ExRTP operation with externally encoded Opus packets.
+- Publish directly from this Mix project; no provider Weld projection.
+
+### Tests and documentation
+
+- Update standalone negotiation, ownership, deadline, teardown and wrap tests.
+- Document direct and relay-only native receiver qualification requirements.
+
 ## 0.2.1 — 2026-11-26
 
 - Qualify the WebRTC provider with the MedEx 0.3.1 release family.

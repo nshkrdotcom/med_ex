@@ -15,15 +15,15 @@ groups = [
    [
      {"guides/stream_recording.md", "Streams, Storage, Clock, and Control"},
      {"guides/durability_and_guarantees.md", "Durability and Ordering Guarantees"},
-     {"guides/stability_and_compatibility.md", "Public Surface and 0.x Compatibility"},
-     {"guides/host_integration.md", "Host Integration and Browser Compatibility"},
-     {"guides/source_development.md", "Consumption, Extensions, and Verification"}
+     {"guides/technical_contract.md", "Technical Contract and Revision 2"},
+     {"guides/host_integration.md", "Host Integration and Root Ownership"},
+     {"guides/source_development.md", "Consumption, Extensions, and Verification"},
+     {"guides/releasing.md", "Coordinated Release"}
    ]},
   {"Horizon", [{"guides/product_horizon.md", "Medical-Device Product Horizon"}]},
   {"Release",
    [
      {"CHANGELOG.md", "Changelog"},
-     {"guides/history/med_rtc_changelog.md", "Historical MedRTC Changelog"},
      {"LICENSE", "License"}
    ]}
 ]
@@ -34,7 +34,7 @@ extras = Enum.flat_map(groups, &elem(&1, 1))
   components: components,
   version_file: version_file,
   documents: Enum.map(extras, &elem(&1, 0)),
-  assets: ~w(assets priv),
+  assets: ~w(assets),
   extras: extras,
   package: [
     name: "med_ex",

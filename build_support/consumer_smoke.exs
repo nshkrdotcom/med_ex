@@ -6,14 +6,14 @@ defmodule ExternalDeviceDriverTest do
     :ok
   end
 
-  alias MedEx.{StreamWriter, SampleFrame, StreamSpec}
-
-  test "ordinary Mix owns exactly the selected applications and browser assets" do
+  test "ordinary Mix owns exactly the selected independent applications" do
     profile = System.fetch_env!("SDK_PROFILE")
     transport = System.fetch_env!("SDK_TRANSPORT")
     source = System.fetch_env!("SDK_SOURCE_ROOT")
     dependency_projects = Mix.Project.deps_paths()
     deps = Map.keys(dependency_projects)
+    base? = profile in ["base", "both"]
+    assert :med_ex in deps == base?
     opus? = profile in ["opus", "both"]
     rtc? = profile in ["rtc", "both"]
 
@@ -35,7 +35,7 @@ defmodule ExternalDeviceDriverTest do
     for app <- forbidden, do: refute(app in deps)
 
     apps =
-      [:med_ex] ++
+      if(base?, do: [:med_ex], else: []) ++
         if(opus?, do: [:med_ex_opus], else: []) ++ if(rtc?, do: [:med_ex_rtc], else: [])
 
     started = MapSet.new(Application.started_applications(), &elem(&1, 0))
@@ -67,14 +67,9 @@ defmodule ExternalDeviceDriverTest do
 
     implemented = modules |> Map.values() |> List.flatten()
     assert implemented == Enum.uniq(implemented)
-    assert StreamSpec in modules.med_ex
+    if base?, do: assert(MedEx.Receipt in modules.med_ex)
     if opus?, do: assert(MedEx.Opus.Provider in modules.med_ex_opus)
     if rtc?, do: assert(MedEx.RTC.Provider in modules.med_ex_rtc)
-
-    for asset <- ~w(pcm_capture.js pcm_worklet.js session_hook.js) do
-      assert File.read!(MedEx.Web.asset_path(asset)) ==
-               File.read!(Path.join([source, "priv", "static", "med_web", asset]))
-    end
 
     if evidence = System.get_env("SDK_EFFECTIVE_INPUTS") do
       File.write!(evidence, JSON.encode!(effective_inputs(modules, dependency_projects, source)))
@@ -119,11 +114,6 @@ defmodule ExternalDeviceDriverTest do
         {app, %{beams: executable, application: hash(:erlang.term_to_binary(specification))}}
       end)
 
-    assets =
-      Map.new(~w(pcm_capture.js pcm_worklet.js session_hook.js), fn asset ->
-        {asset, hash(File.read!(MedEx.Web.asset_path(asset)))}
-      end)
-
     test_inputs =
       for app <- Map.keys(modules) -- [:med_ex],
           file <- Path.wildcard(Path.join([source, "extensions", to_string(app), "test", "**/*"])),
@@ -149,7 +139,6 @@ defmodule ExternalDeviceDriverTest do
 
     %{
       sdk: sdk,
-      assets: assets,
       native: native,
       provider_tests: Enum.sort(test_inputs) |> Map.new(),
       dependency_lock:
@@ -168,70 +157,20 @@ defmodule ExternalDeviceDriverTest do
 
   @tag :tmp_dir
   test "CLI reference host records against the selected external SDK", %{tmp_dir: dir} do
-    script = Path.join(System.fetch_env!("SDK_SOURCE_ROOT"), "tools/cli_recorder.exs")
+    if System.fetch_env!("SDK_PROFILE") in ["base", "both"] do
+      # The standalone host script is copied beside the consumer, never loaded
+      # as product source or from a checkout-relative runtime dependency.
+      script = Path.join(__DIR__, "cli_recorder.exs")
 
-    {output, status} =
-      System.cmd("mix", ["run", "--no-compile", "--no-deps-check", script, dir, "4"],
-        env: [{"MIX_ENV", to_string(Mix.env())}],
-        stderr_to_stdout: true
-      )
+      {output, status} =
+        System.cmd("mix", ["run", "--no-compile", "--no-deps-check", script, dir, "4"],
+          env: [{"MIX_ENV", to_string(Mix.env())}],
+          stderr_to_stdout: true
+        )
 
-    assert status == 0, output
-    assert output =~ "cli_recorder ok frames=4"
-    assert output =~ "sealed=true"
-  end
-
-  @tag :tmp_dir
-  test "public root records both raw streams with the stream-v1 contract", %{tmp_dir: dir} do
-    assert MedEx.Contract.api_revision() == 1
-
-    for {name, rate} <- [{"ecg", 250}, {"diagnostic_audio", 48_000}] do
-      spec = %StreamSpec{
-        acquisition_id: "a",
-        source_ref: "driver",
-        boot_id: "boot",
-        stream_id: name,
-        source_epoch: 0,
-        descriptor_ref: String.duplicate("0", 64),
-        modality: "medex:" <> name,
-        channels: [%{id: "one", label: "1", unit: :unknown, calibration: :unknown}],
-        encoding: :s16le,
-        sample_rate: {rate, 1},
-        capabilities: %{
-          encodings: [:s16le],
-          max_frame_samples: 2,
-          max_payload_bytes: 4,
-          replay: :none,
-          commands: []
-        }
-      }
-
-      spec = %{spec | descriptor_ref: MedEx.Serialization.descriptor_ref(spec)}
-
-      frame = %SampleFrame{
-        stream_id: name,
-        source_epoch: 0,
-        descriptor_ref: spec.descriptor_ref,
-        sequence: 0,
-        first_sample: 0,
-        sample_count: 2,
-        config_epoch: :unknown,
-        payload: <<7, 0, 9, 0>>
-      }
-
-      path = Path.join(dir, name)
-
-      assert {:ok, w} =
-               StreamWriter.start_link(
-                 owner: self(),
-                 stream: spec,
-                 artifact_dir: path,
-                 fence: "f"
-               )
-
-      assert {:ok, _} = StreamWriter.push(w, frame)
-      assert {:ok, %{segments: [chunk]}} = StreamWriter.finish(w)
-      assert MedEx.Storage.File.read_segment(path, chunk) == {:ok, frame.payload}
+      assert status == 0, output
+      assert output =~ "cli_recorder ok frames=4"
+      assert output =~ "sealed=true"
     end
   end
 end

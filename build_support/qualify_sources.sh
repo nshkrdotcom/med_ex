@@ -13,16 +13,21 @@ done
 for transport in direct live full prepared git registry; do
   entries='{}'
   for app in "${apps[@]}"; do
-    home=$sdk
-    [[ "$app" == med_ex ]] || home="$sdk/extensions/$app"
+    project_source=$sdk
+    [[ "$app" == med_ex ]] || project_source="$sdk/extensions/$app"
     case "$transport" in
-      direct) entry=$(jq -cn --arg path "$home" '{path:$path}') ;;
-      live) entry=$(jq -cn --arg path "$sdk/.weld/live/$app" '{path:$path}') ;;
-      full) entry=$(jq -cn --arg path "$sdk/.weld/full/$app/project" '{path:$path}') ;;
+      direct) entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
+      live) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/live/med_ex"; fi
+        entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
+      full) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/full/med_ex/project"; fi
+        entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
       prepared)
-        read -r schema identity < "$sdk/.weld/releases/$app/CURRENT"
-        [[ "$schema" == weld.release/v1 && "$identity" =~ ^[0-9a-f]{64}$ ]]
-        entry=$(jq -cn --arg path "$sdk/.weld/releases/$app/$identity/project" '{path:$path}')
+        if [[ "$app" == med_ex ]]; then
+          read -r schema identity < "$sdk/.weld/releases/med_ex/CURRENT"
+          [[ "$schema" == weld.release/v1 && "$identity" =~ ^[0-9a-f]{64}$ ]]
+          project_source="$sdk/.weld/releases/med_ex/$identity/project"
+        fi
+        entry=$(jq -cn --arg path "$project_source" '{path:$path}')
         ;;
       git)
         subdir=''

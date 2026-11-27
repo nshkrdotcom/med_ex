@@ -13,7 +13,7 @@ defmodule MedEx.StreamIndex do
   ]
   defstruct @enforce_keys ++
               [
-                schema_version: 1,
+                schema_version: 2,
                 journal_id: nil,
                 terminal_reason: nil,
                 next_sequence: 0,
@@ -23,7 +23,7 @@ defmodule MedEx.StreamIndex do
               ]
 
   @type t :: %__MODULE__{
-          schema_version: 1,
+          schema_version: 2,
           stream: MedEx.StreamSpec.t(),
           segments: [MedEx.SegmentRef.t()],
           spans: [MedEx.IntegritySpan.t()],
@@ -45,16 +45,25 @@ defmodule MedEx.StreamIndex do
   def validate(_), do: {:error, :invalid_stream_index}
 
   defp valid_header?(i) do
-    i.schema_version == 1 and i.terminal in [:finished, :interrupted, :failed] and
+    i.schema_version == 2 and i.terminal in [:finished, :interrupted, :failed] and
       (i.terminal != :finished or i.segments != []) and
       ContractRules.id?(i.fence) and
-      ContractRules.uint?(i.journal_generation, 0xFFFFFFFFFFFFFFFF) and
+      ContractRules.uint?(i.journal_generation, MedEx.RecordingLimits.maximum().generations) and
+      i.journal_generation > 0 and
       ContractRules.digest?(i.journal_digest)
   end
 
   defp matching_records?(i) do
-    ContractRules.list?(i.segments, 100_000, &(SegmentRef.validate(&1) == :ok)) and
-      ContractRules.list?(i.spans, 100_000, &(IntegritySpan.validate(&1) == :ok)) and
+    ContractRules.list?(
+      i.segments,
+      MedEx.RecordingLimits.maximum().generations,
+      &(SegmentRef.validate(&1) == :ok)
+    ) and
+      ContractRules.list?(
+        i.spans,
+        MedEx.RecordingLimits.maximum().spans,
+        &(IntegritySpan.validate(&1) == :ok)
+      ) and
       Enum.all?(
         i.spans,
         &(&1.stream_id == i.stream.stream_id and &1.source_epoch == i.stream.source_epoch)
@@ -62,13 +71,9 @@ defmodule MedEx.StreamIndex do
       Enum.all?(i.segments, &segment_matches?(&1, i.stream))
   end
 
-  # Detached/legacy shape validation has no journal cursor. A journal-backed
-  # index additionally proves every gap sequence and its exact terminal boundary.
-  defp journal_coverage?(%{journal_id: nil}), do: true
-
   defp journal_coverage?(i) do
     with true <- ContractRules.id?(i.journal_id) and ContractRules.id?(i.terminal_reason),
-         true <- ContractRules.list?(i.gaps, 100_000, &gap?/1),
+         true <- ContractRules.list?(i.gaps, MedEx.RecordingLimits.maximum().spans, &gap?/1),
          true <- Enum.map(i.gaps, & &1.span) == Enum.filter(i.spans, &(&1.code == :source_gap)),
          true <- Enum.uniq_by(i.gaps, & &1.id) == i.gaps do
       journal_ranges_cover?(i)

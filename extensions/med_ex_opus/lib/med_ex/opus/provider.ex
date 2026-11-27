@@ -1,117 +1,284 @@
 defmodule MedEx.Opus.Provider do
   @moduledoc """
-  One in-flight 20 ms mono PCM16LE offer to a libopus encoder OS process. Startup
-  and stop wait at most five seconds. A pending encode has a one-second
-  deadline; timeout reports failure and retires that provider, so uncertain late
-  output cannot be assigned to a subsequent offer. Native failure isolation
-  still requires a separate BEAM OS process in the strict host profile.
+  One explicit owner, GenServer and native Port. Offers are 960 mono 48 kHz
+  signed PCM16LE samples (1920 bytes). One accepted request is pending at a time;
+  `:ok` acknowledges admission, not encoding. The owner receives
+  `{:med_ex_encoded, operation_id, source_sample, packet}` or
+  `{:med_ex_encode_failed, operation_id, reason}`. A failed/uncertain pipeline is
+  retired. Operation IDs are bounded strings unique within the host peer session.
+  Startup hello is bounded at 5 seconds with a 6-second outer OTP deadline.
   """
   use GenServer, restart: :temporary
-  @behaviour MedEx.PreviewProvider
-  @start_timeout 5_000
+  @hello_timeout 5_000
+  @start_timeout 6_000
   @encode_timeout 1_000
-  @impl MedEx.PreviewProvider
-  def start_legacy(owner) do
-    with {:ok, encoder} <- MedEx.Opus.Encoder.start_link(owner), do: {:ok, encoder, encoder}
+  @call_timeout 1_000
+  @hello "med_ex_opus/1 "
+
+  def start_link(opts) when is_list(opts) do
+    if Keyword.keyword?(opts) and Keyword.keys(opts) == [:owner] and
+         is_pid(opts[:owner]) and node(opts[:owner]) == node() and Process.alive?(opts[:owner]) do
+      executable =
+        if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :executable}), else: nil
+
+      executable =
+        executable || Path.join(to_string(:code.priv_dir(:med_ex_opus)), "opus_encoder")
+
+      GenServer.start_link(
+        __MODULE__,
+        %{
+          owner: opts[:owner],
+          caller: self(),
+          executable: executable,
+          deadline: now() + @hello_timeout
+        }, timeout: @start_timeout)
+    else
+      {:error, :invalid_owner_or_options}
+    end
   end
 
-  @impl MedEx.PreviewProvider
-  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, timeout: @start_timeout)
-  @impl MedEx.PreviewProvider
-  def offer(pid, operation, index, pcm) do
-    GenServer.call(pid, {:offer, operation, index, pcm}, @encode_timeout)
-  catch
-    :exit, {:timeout, _} -> {:error, {:outcome_unknown, :timeout}}
-    :exit, {reason, _} -> {:error, {:outcome_unknown, reason}}
+  def start_link(_), do: {:error, :invalid_owner_or_options}
+
+  def offer(pid, id, sample, pcm) when is_pid(pid) do
+    if operation_id?(id) and is_integer(sample) and sample in 0..0xFFFFFFFFFFFFFFFF and
+         is_binary(pcm) and byte_size(pcm) == 1920 do
+      owned_call(pid, fn deadline -> {:offer, id, sample, pcm, deadline} end)
+    else
+      {:error, :invalid_frame}
+    end
   end
 
-  @impl MedEx.PreviewProvider
-  def stop(pid), do: GenServer.stop(pid, :normal, @start_timeout)
+  def offer(_, _, _, _), do: {:error, :invalid_frame}
 
-  @impl GenServer
-  def init(opts) do
-    Process.flag(:trap_exit, true)
-    owner = Keyword.fetch!(opts, :owner)
+  def stop(pid) when is_pid(pid) do
+    if Process.alive?(pid), do: owned_call(pid, fn _ -> :stop end), else: :ok
+  end
 
-    case Keyword.get(opts, :format, {48_000, 1, :s16le}) do
-      {48_000, 1, :s16le} ->
-        case MedEx.Opus.Encoder.start_link(self()) do
-          {:ok, encoder} ->
-            {:ok,
-             %{
-               owner: owner,
-               monitor: Process.monitor(owner),
-               encoder: encoder,
-               pending: nil
-             }}
+  def stop(_), do: {:error, :invalid_encoder}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+  defp owned_call(pid, message) do
+    deadline = now() + @call_timeout
+
+    case authorize(pid) do
+      :ok ->
+        remaining = deadline - now()
+
+        if remaining > 0,
+          do: submitted_call(pid, message.(deadline), remaining),
+          else: {:error, {:not_committed, :expired}}
+
+      {:error, _} = error ->
+        error
 
       _ ->
-        {:error, :unsupported_format}
+        {:error, {:not_committed, :invalid_encoder_authorization}}
     end
   end
 
-  @impl GenServer
-  def handle_call({:offer, _, _, _}, {caller, _}, %{owner: owner} = s) when caller != owner,
-    do: {:reply, {:error, :not_owner}, s}
-
-  def handle_call({:offer, id, index, pcm}, _, %{pending: nil} = s)
-      when is_integer(index) and index >= 0 and is_binary(pcm) and byte_size(pcm) == 1_920 do
-    send(s.encoder, {:pcm, index, pcm})
-    token = make_ref()
-    timer = Process.send_after(self(), {:encode_timeout, token}, @encode_timeout)
-    {:reply, :ok, %{s | pending: {id, index, token, timer}}}
+  defp authorize(pid) do
+    GenServer.call(pid, :authorize, @call_timeout)
+  catch
+    :exit, _ -> {:error, {:not_committed, :encoder_authorization_unavailable}}
   end
 
-  def handle_call({:offer, _, index, pcm}, _, s)
-      when not is_integer(index) or index < 0 or not is_binary(pcm) or byte_size(pcm) != 1920,
-      do: {:reply, {:error, :invalid_frame}, s}
-
-  def handle_call({:offer, _, _, _}, _, s), do: {:reply, {:error, :busy}, s}
-
-  @impl GenServer
-  def handle_info(
-        {:preview_encoded, pid, index, data},
-        %{encoder: pid, pending: {op, index, _, timer}} = s
-      ) do
-    Process.cancel_timer(timer)
-    send(s.owner, {:med_ex_encoded, op, index, data})
-    {:noreply, %{s | pending: nil}}
+  defp submitted_call(pid, message, timeout) do
+    GenServer.call(pid, message, timeout)
+  catch
+    :exit, _ ->
+      retire(pid)
+      {:error, {:outcome_unknown, :encoder_call_failed}}
   end
 
-  def handle_info({:encode_timeout, token}, %{pending: {op, _, token, _}} = s) do
-    send(s.owner, {:med_ex_encode_failed, op, :timeout})
-    # Retire this pipeline. Its unknown late output must not be attributed to a
-    # later offer, even when the caller reuses a sample index or operation ID.
-    {:stop, :normal, %{s | pending: nil}}
+  @impl true
+  def init(initial) do
+    Process.flag(:trap_exit, true)
+    owner_ref = Process.monitor(initial.owner)
+    caller_ref = Process.monitor(initial.caller)
+
+    with true <-
+           now() < initial.deadline and Process.alive?(initial.owner) and
+             Process.alive?(initial.caller),
+         {:ok, port} <- open_port(initial.executable) do
+      result = await_hello(port, initial, owner_ref, caller_ref)
+
+      case result do
+        :ok ->
+          {:ok,
+           %{
+             owner: initial.owner,
+             owner_ref: owner_ref,
+             caller: initial.caller,
+             caller_ref: caller_ref,
+             port: port,
+             pending: nil,
+             used: MapSet.new()
+           }}
+
+        {:error, reason} ->
+          close_port(port)
+          {:stop, reason}
+      end
+    else
+      false -> {:stop, :startup_abandoned}
+      {:error, reason} -> {:stop, reason}
+    end
   end
+
+  defp open_port(executable) do
+    {:ok, Port.open({:spawn_executable, executable}, [:binary, :exit_status, {:packet, 4}])}
+  rescue
+    _ in [ArgumentError, ErlangError] -> {:error, :executable_unavailable}
+  end
+
+  defp await_hello(port, initial, owner_ref, caller_ref) do
+    remaining = max(initial.deadline - now(), 0)
+
+    receive do
+      {^port, {:data, @hello <> version}} when byte_size(version) in 1..48 ->
+        if String.valid?(version) and Regex.match?(~r/\A[A-Za-z0-9 ._+-]+\z/, version) and
+             now() < initial.deadline and Process.alive?(initial.owner) and
+             Process.alive?(initial.caller), do: :ok, else: {:error, :invalid_hello}
+
+      {^port, {:data, _}} ->
+        {:error, :invalid_hello}
+
+      {^port, {:exit_status, status}} ->
+        {:error, {:encoder_exit, status}}
+
+      {:EXIT, ^port, _} ->
+        {:error, :encoder_exit}
+
+      {:DOWN, ^owner_ref, :process, _, _} ->
+        {:error, :owner_down}
+
+      {:DOWN, ^caller_ref, :process, _, _} ->
+        {:error, :startup_abandoned}
+
+      {:EXIT, caller, _} when caller == initial.caller ->
+        {:error, :startup_abandoned}
+    after
+      remaining -> {:error, :startup_timeout}
+    end
+  end
+
+  @impl true
+  def handle_call(_, {caller, _}, s) when caller != s.owner, do: {:reply, {:error, :not_owner}, s}
+  def handle_call(:authorize, _, s), do: {:reply, :ok, s}
+  def handle_call(:stop, _, s), do: {:stop, :normal, :ok, fail_pending(s, :encoder_stopped)}
+
+  def handle_call({:offer, id, sample, pcm, deadline}, _, s) do
+    cond do
+      not operation_id?(id) or not is_integer(sample) or sample < 0 or sample > 0xFFFFFFFFFFFFFFFF or
+        not is_binary(pcm) or byte_size(pcm) != 1920 ->
+        {:reply, {:error, :invalid_frame}, s}
+
+      now() >= deadline ->
+        {:stop, :normal, {:error, {:not_committed, :expired}}, s}
+
+      not is_nil(s.pending) ->
+        {:reply, {:error, :busy}, s}
+
+      MapSet.member?(s.used, id) ->
+        {:reply, {:error, :operation_id_reused}, s}
+
+      MapSet.size(s.used) >= 100_000 ->
+        {:stop, :normal, {:error, :operation_limit}, s}
+
+      true ->
+        case command(s.port, pcm) do
+          :ok ->
+            token = make_ref()
+            timer = Process.send_after(self(), {:encode_timeout, token}, @encode_timeout)
+
+            pending = %{
+              id: id,
+              sample: sample,
+              token: token,
+              timer: timer,
+              deadline: now() + @encode_timeout
+            }
+
+            {:reply, :ok, %{s | pending: pending, used: MapSet.put(s.used, id)}}
+
+          {:error, reason} ->
+            {:stop, :normal, {:error, {:outcome_unknown, reason}}, s}
+        end
+    end
+  end
+
+  def handle_call(_, _, s), do: {:reply, {:error, :invalid_operation}, s}
+
+  @impl true
+  def handle_info({port, {:data, packet}}, %{port: port, pending: pending} = s)
+      when is_map(pending) and byte_size(packet) in 1..1275 do
+    if now() < pending.deadline and Process.alive?(s.owner) do
+      Process.cancel_timer(pending.timer)
+      send(s.owner, {:med_ex_encoded, pending.id, pending.sample, packet})
+      {:noreply, %{s | pending: nil}}
+    else
+      {:stop, :normal, fail_pending(s, :encode_timeout)}
+    end
+  end
+
+  def handle_info({port, {:data, _}}, %{port: port} = s),
+    do: {:stop, :normal, fail_pending(s, :protocol_error)}
+
+  def handle_info({:encode_timeout, token}, %{pending: %{token: token}} = s),
+    do: {:stop, :normal, fail_pending(s, :encode_timeout)}
 
   def handle_info({:encode_timeout, _}, s), do: {:noreply, s}
-  def handle_info({:EXIT, pid, reason}, %{encoder: pid} = s), do: encoder_down(s, reason)
 
-  def handle_info({:DOWN, ref, :process, _, _}, %{monitor: ref} = s), do: {:stop, :normal, s}
-  def handle_info(_, s), do: {:noreply, s}
+  def handle_info({port, {:exit_status, _}}, %{port: port} = s),
+    do: {:stop, :normal, fail_pending(s, :encoder_exit)}
 
-  defp encoder_down(s, reason) do
-    if s.pending do
-      {op, _, _, _} = s.pending
-      send(s.owner, {:med_ex_encode_failed, op, reason})
-    end
+  def handle_info({:EXIT, port, _}, %{port: port} = s),
+    do: {:stop, :normal, fail_pending(s, :encoder_exit)}
 
-    {:stop, :normal, %{s | pending: nil}}
+  def handle_info({:DOWN, ref, :process, _, _}, %{owner_ref: ref} = s),
+    do: {:stop, :normal, fail_pending(s, :owner_down)}
+
+  def handle_info({:DOWN, ref, :process, _, _}, %{caller_ref: ref} = s),
+    do: {:stop, :normal, fail_pending(s, :caller_down)}
+
+  def handle_info({:EXIT, caller, _}, %{caller: caller} = s),
+    do: {:stop, :normal, fail_pending(s, :caller_down)}
+
+  def handle_info(_, s), do: {:stop, :normal, fail_pending(s, :unexpected_message)}
+
+  defp fail_pending(%{pending: nil} = s, _), do: s
+
+  defp fail_pending(s, reason) do
+    Process.cancel_timer(s.pending.timer)
+    if Process.alive?(s.owner), do: send(s.owner, {:med_ex_encode_failed, s.pending.id, reason})
+    %{s | pending: nil}
   end
 
-  @impl GenServer
+  @impl true
   def terminate(_, s) do
-    if s.pending do
-      {id, _, _, _} = s.pending
-      send(s.owner, {:med_ex_encode_failed, id, :encoder_stopped})
-    end
-
-    Process.exit(s.encoder, :shutdown)
-    :ok
+    fail_pending(s, :encoder_stopped)
+    close_port(s.port)
   end
+
+  defp command(port, pcm) do
+    if Port.command(port, pcm), do: :ok, else: {:error, :port_closed}
+  rescue
+    _ in [ArgumentError, ErlangError] -> {:error, :port_closed}
+  end
+
+  defp close_port(port) do
+    if Port.info(port), do: Port.close(port)
+    :ok
+  rescue
+    _ in [ArgumentError, ErlangError] -> :ok
+  end
+
+  defp retire(pid) do
+    Process.unlink(pid)
+    Process.exit(pid, :kill)
+  end
+
+  defp operation_id?(id),
+    do: is_binary(id) and byte_size(id) in 1..96 and Regex.match?(~r/\A[A-Za-z0-9_-]+\z/, id)
+
+  defp now, do: System.monotonic_time(:millisecond)
 end

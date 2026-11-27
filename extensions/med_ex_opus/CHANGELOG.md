@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 - 2026-11-26
+
+### Breaking changes
+
+- Replace the layered encoder with one owner-bound Provider GenServer and Port.
+- Remove the base SDK dependency and provider behavior/discovery mechanisms.
+- Enforce bounded hello/encode deadlines, exact operation identity, one pending
+  request and native cleanup on owner loss, malformed output and uncertainty.
+- Validate pinned archive and build-input identity before warm output reuse;
+  retain the pinned libopus OS-process isolation and source-only distribution.
+- Publish directly from this Mix project; no provider Weld projection.
+
+### Tests and documentation
+
+- Cover native build/cache failure, protocol validation and concrete lifecycle.
+- Document independent installation and exact native/detached release gates.
+
 ## 0.2.1 — 2026-11-26
 
 - Build the test decoder with the configured compiler and support compiler wrappers.

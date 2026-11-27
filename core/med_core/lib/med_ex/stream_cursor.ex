@@ -60,5 +60,46 @@ defmodule MedEx.StreamCursor do
     end
   end
 
+  def plan(%__MODULE__{} = cursor, {:frame_replay, %SampleFrame{} = frame, known}) do
+    with :ok <- SampleFrame.validate(frame, cursor.stream),
+         true <- frame.sequence < cursor.next_sequence do
+      if known == {:ok, MedEx.FrameFingerprint.of(frame)},
+        do: :duplicate,
+        else: {:error, :duplicate_conflict}
+    else
+      _ -> {:error, :invalid_replay}
+    end
+  end
+
+  def plan(
+        %__MODULE__{} = cursor,
+        {:gap_replay,
+         %{
+           id: id,
+           span: %IntegritySpan{} = span,
+           first_sequence: first,
+           next_sequence: next,
+           irreversible: true
+         } = gap, fingerprint}
+      ) do
+    with :ok <- IntegritySpan.validate(span),
+         true <- ContractRules.id?(id) and span.code == :source_gap and span.event_ids == [],
+         true <-
+           {span.stream_id, span.source_epoch} ==
+             {cursor.stream.stream_id, cursor.stream.source_epoch},
+         true <-
+           ContractRules.uint?(first, 0xFFFFFFFFFFFFFFFF) and
+             ContractRules.uint?(next, 0xFFFFFFFFFFFFFFFF),
+         true <-
+           next >= first and span.end_sample <= cursor.next_sample and
+             next <= cursor.next_sequence do
+      if MedEx.Serialization.digest(gap) == fingerprint,
+        do: :duplicate,
+        else: {:error, :duplicate_conflict}
+    else
+      _ -> {:error, :invalid_replay}
+    end
+  end
+
   def plan(_, _), do: {:error, :invalid_event}
 end

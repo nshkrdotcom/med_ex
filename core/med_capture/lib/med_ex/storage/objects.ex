@@ -1,6 +1,6 @@
 defmodule MedEx.Storage.Objects do
   @moduledoc false
-  alias MedEx.{Serialization, Wav}
+  alias MedEx.Serialization
   @block 65_536
 
   def install(dir, name, bytes, hook) do
@@ -14,7 +14,7 @@ defmodule MedEx.Storage.Objects do
              :ok <- hook.(:after_object_sync),
              :ok <-
                link(temp, Path.join(dir, name), byte_size(bytes), Serialization.sha256(bytes)),
-             :ok <- Wav.sync_directory(dir),
+             :ok <- sync_directory(dir),
              do: hook.(:after_object_install)
       after
         :file.close(fd)
@@ -34,7 +34,7 @@ defmodule MedEx.Storage.Objects do
                  :ok <- :file.sync(dst),
                  key = digest <> ".prefix",
                  :ok <- link(temp, Path.join(dir, key), size, digest),
-                 :ok <- Wav.sync_directory(dir),
+                 :ok <- sync_directory(dir),
                  do: {:ok, key}
           after
             :file.close(dst)
@@ -90,6 +90,16 @@ defmodule MedEx.Storage.Objects do
       :ok -> :ok
       {:error, :eexist} -> verify(dst, size, digest)
       error -> error
+    end
+  end
+
+  def sync_directory(dir) do
+    with {:ok, fd} <- :file.open(dir, [:raw, :read, :directory]) do
+      try do
+        :file.sync(fd)
+      after
+        :file.close(fd)
+      end
     end
   end
 

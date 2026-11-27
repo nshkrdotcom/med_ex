@@ -6,20 +6,23 @@ defmodule MedEx.Serialization do
   """
   alias MedEx.{
     CanonicalJSON,
-    ContractRules,
     MeasurementEvent,
     SegmentRef,
     StatusEvent,
     StreamSpec
   }
 
-  @receipt_ids ~w(stream_id descriptor_ref fence journal_id journal_digest)a
-  @receipt_counts ~w(source_epoch journal_generation accepted_sequence accepted_sample durable_sequence durable_sample)a
+  @max_index_entries max(
+                       MedEx.RecordingLimits.maximum().spans,
+                       MedEx.RecordingLimits.maximum().generations
+                     )
 
   def bytes(value), do: value |> to_map() |> CanonicalJSON.encode()
   def digest(value), do: sha256(bytes(value))
   def sha256(bytes), do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
   def descriptor_ref(%StreamSpec{} = s), do: to_map(s) |> Map.delete("descriptor_ref") |> digest()
+
+  def to_map(%MedEx.Receipt{} = receipt), do: MedEx.Receipt.to_map(receipt)
 
   def to_map(%MeasurementEvent{} = e) do
     e
@@ -215,84 +218,102 @@ defmodule MedEx.Serialization do
         )
     }
 
-  def receipt(map) do
-    ids = Map.new(@receipt_ids, fn k -> {k, Map.fetch!(map, Atom.to_string(k))} end)
-
-    counts =
-      Map.new(@receipt_counts, fn k -> {k, integer!(Map.fetch!(map, Atom.to_string(k)))} end)
-
-    r = Map.merge(ids, counts)
-
-    valid =
-      Enum.all?(ids, fn {_, v} -> ContractRules.id?(v) end) and
-        Enum.all?(counts, fn {_, n} -> ContractRules.uint?(n, 0xFFFFFFFFFFFFFFFF) end) and
-        ContractRules.digest?(r.descriptor_ref) and ContractRules.digest?(r.journal_digest) and
-        valid_receipt_counters?(r)
-
-    if valid and to_map(r) == map, do: {:ok, r}, else: {:error, :invalid_receipt}
-  rescue
-    _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError] -> {:error, :invalid_receipt}
-  end
-
-  @doc "Projects a parsed receipt to the prefix proven durable by its journal."
-  def durable_prefix(receipt) do
-    %{
-      receipt
-      | accepted_sequence: receipt.durable_sequence,
-        accepted_sample: receipt.durable_sample
+  def integrity_span(map) when is_map(map) do
+    span = %MedEx.IntegritySpan{
+      stream_id: map["stream_id"],
+      source_epoch: integer!(map["source_epoch"]),
+      code:
+        enum!(map["code"], [
+          :source_gap,
+          :configuration_unknown,
+          :duplicate_conflict,
+          :clock_unavailable,
+          :device_status_invalid,
+          :source_processing_unverified
+        ]),
+      source: map["source"],
+      first_sample: if(is_nil(map["first_sample"]), do: nil, else: integer!(map["first_sample"])),
+      end_sample: if(is_nil(map["end_sample"]), do: nil, else: integer!(map["end_sample"])),
+      event_ids: map["event_ids"],
+      record_refs: map["record_refs"],
+      context: Map.new(map["context"], fn {k, v} -> {k, unscalar!(v)} end)
     }
+
+    if MedEx.IntegritySpan.validate(span) == :ok and to_map(span) == map,
+      do: {:ok, span},
+      else: {:error, :invalid_integrity_span}
+  rescue
+    _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError, Protocol.UndefinedError] ->
+      {:error, :invalid_integrity_span}
   end
 
-  @doc """
-  Checks progression between parsed receipts. The new receipt must name a durable prefix.
-  Pass `:verified_handoff` only after the host has authenticated the successor
-  fence and verified its predecessor. The host still owns local coverage and reclamation.
-  """
-  def receipt_progress(last, next, context \\ :same_attempt)
-      when context in [:same_attempt, :verified_handoff] do
-    cond do
-      durable_prefix(next) != next ->
-        {:error, :not_durable_receipt}
+  def integrity_span(_), do: {:error, :invalid_integrity_span}
 
-      {last.stream_id, last.source_epoch, last.descriptor_ref} !=
-          {next.stream_id, next.source_epoch, next.descriptor_ref} ->
-        {:error, :receipt_identity}
+  def gap(map) when is_map(map) do
+    with {:ok, span} <- integrity_span(map["span"]) do
+      gap = %{
+        id: map["id"],
+        span: span,
+        first_sequence: integer!(map["first_sequence"]),
+        next_sequence: integer!(map["next_sequence"]),
+        irreversible: map["irreversible"]
+      }
 
-      next.durable_sequence < last.durable_sequence or next.durable_sample < last.durable_sample ->
-        {:error, :receipt_rollback}
+      if to_map(gap) == map, do: {:ok, gap}, else: {:error, :invalid_gap}
+    end
+  rescue
+    _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError] -> {:error, :invalid_gap}
+  end
 
-      last.fence == next.fence ->
-        journal_progress(last, next)
+  def gap(_), do: {:error, :invalid_gap}
 
-      context == :verified_handoff ->
-        :ok
+  def stream_index(map) when is_map(map) do
+    with {:ok, stream} <- stream_spec(map["stream"]),
+         {:ok, segments} <- parse_list(map["segments"], &segment_ref/1),
+         {:ok, spans} <- parse_list(map["spans"], &integrity_span/1),
+         {:ok, gaps} <- parse_list(map["gaps"], &gap/1) do
+      index = %MedEx.StreamIndex{
+        schema_version: integer!(map["schema_version"]),
+        stream: stream,
+        segments: segments,
+        spans: spans,
+        gaps: gaps,
+        terminal: enum!(map["terminal"], [:finished, :interrupted, :failed]),
+        terminal_reason: map["terminal_reason"],
+        fence: map["fence"],
+        journal_id: map["journal_id"],
+        journal_generation: integer!(map["journal_generation"]),
+        journal_digest: map["journal_digest"],
+        next_sequence: integer!(map["next_sequence"]),
+        next_sample: integer!(map["next_sample"]),
+        predecessor: map["predecessor"]
+      }
 
-      true ->
-        {:error, :receipt_identity}
+      if MedEx.StreamIndex.validate(index) == :ok and to_map(index) == map,
+        do: {:ok, index},
+        else: {:error, :invalid_stream_index}
+    end
+  rescue
+    _ in [ArgumentError, FunctionClauseError, BadMapError, KeyError] ->
+      {:error, :invalid_stream_index}
+  end
+
+  def stream_index(_), do: {:error, :invalid_stream_index}
+
+  defp parse_list(list, parser) when is_list(list) and length(list) <= @max_index_entries do
+    Enum.reduce_while(list, {:ok, []}, fn raw, {:ok, values} ->
+      case parser.(raw) do
+        {:ok, value} -> {:cont, {:ok, [value | values]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
     end
   end
 
-  defp journal_progress(last, next) do
-    cond do
-      last.journal_id != next.journal_id or next.journal_generation < last.journal_generation ->
-        {:error, :receipt_rollback}
-
-      next.journal_generation == last.journal_generation and durable_prefix(last) != next ->
-        {:error, :receipt_conflict}
-
-      next.journal_generation > last.journal_generation and
-          next.journal_digest == last.journal_digest ->
-        {:error, :receipt_conflict}
-
-      true ->
-        :ok
-    end
-  end
-
-  defp valid_receipt_counters?(r) do
-    r.journal_generation > 0 and r.source_epoch <= 0xFFFFFFFF and
-      r.accepted_sample >= r.durable_sample and r.accepted_sequence >= r.durable_sequence
-  end
+  defp parse_list(_, _), do: {:error, :invalid_list}
 
   def integer!(n) when is_binary(n) and byte_size(n) in 1..21 do
     case Integer.parse(n) do

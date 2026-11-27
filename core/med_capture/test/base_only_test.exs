@@ -1,24 +1,25 @@
 defmodule MedEx.BaseOnlyTest do
   use ExUnit.Case, async: true
+  alias MedEx.CaptureFixture, as: F
 
-  setup context do
-    if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
-    :ok
-  end
+  test "base records and verifies exact PCM with no codec or RTC runtime" do
+    fixture = F.root()
+    on_exit(fn -> F.cleanup(fixture) end)
+    {:ok, writer} = F.start(fixture)
+    {:ok, _} = MedEx.StreamWriter.push(writer, "f1", F.frame(0), 1000)
+    {:ok, durable} = MedEx.StreamWriter.checkpoint(writer, "f1", 1000)
+    {:ok, terminal} = MedEx.StreamWriter.finish(writer, "f1", 5000)
+    {:ok, recovered} = F.recover(fixture, known_receipt: durable)
+    assert MedEx.Receipt.exact_prefix?(terminal.receipt, recovered)
+    {:ok, index} = F.verified(recovered)
 
-  @tag :tmp_dir
-  test "no installed encoder is needed for canonical evidence", %{tmp_dir: dir} do
-    {:ok, pid} =
-      MedEx.Capture.start_link(
-        owner: self(),
-        artifact_dir: dir,
-        acquisition_id: "headless",
-        preview_provider: nil
-      )
+    assert {:ok, F.frame(0).payload} ==
+             MedEx.Storage.File.read_verified_segment(index, 0, F.expected(recovered))
 
-    assert {:error, :preview_unavailable} = MedEx.Capture.subscribe(pid)
-    assert :ok = MedEx.Capture.push(pid, 0, <<1, 0>>)
-    assert {:ok, %MedEx.Evidence{sample_count: 1}} = MedEx.Capture.finish(pid)
-    assert {:error, :rtc_unavailable} = MedEx.Preview.answer("sdp")
+    runtime =
+      Application.spec(:med_ex, :applications) || Application.spec(:med_capture, :applications)
+
+    refute :med_ex_opus in runtime
+    refute :med_ex_rtc in runtime
   end
 end

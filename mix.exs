@@ -39,6 +39,8 @@ defmodule MedEx.MixProject do
         groups_for_modules: [
           "Stream and Event Contracts": [
             MedEx.Contract,
+            MedEx.Receipt,
+            MedEx.RecordingLimits,
             MedEx.StreamSpec,
             MedEx.SampleFrame,
             MedEx.FrameFingerprint,
@@ -52,6 +54,7 @@ defmodule MedEx.MixProject do
           "Framing, Serialization, Clock, and Control": [
             MedEx.Wire.FrameV1,
             MedEx.Wire.Control,
+            MedEx.Wire.Credit,
             MedEx.Serialization,
             MedEx.CanonicalJSON,
             MedEx.ClockAlign,
@@ -60,20 +63,9 @@ defmodule MedEx.MixProject do
           ],
           "Authoritative Stream Recording": [
             MedEx.StreamWriter,
-            MedEx.Storage,
             MedEx.Storage.File
           ],
-          "Browser WAV Capture and Media Ports": [
-            MedEx.Capture,
-            MedEx.Evidence,
-            MedEx.Wav,
-            MedEx.Format.Wav,
-            MedEx.Web,
-            MedEx.Preview,
-            MedEx.Preview.Clock,
-            MedEx.PreviewProvider,
-            MedEx.RTCProvider
-          ]
+          "Validated Playback Projection": [MedEx.Format.Wav]
         ]
       ]
   end

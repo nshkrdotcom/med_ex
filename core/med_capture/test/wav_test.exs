@@ -1,71 +1,36 @@
-defmodule MedEx.WavTest do
+defmodule MedEx.FormatWavTest do
   use ExUnit.Case, async: true
+  alias MedEx.Format.Wav
 
-  alias MedEx.Wav
+  test "descriptor-derived PCM headers preserve rate, channel count and exact alignment" do
+    for {encoding, bits} <- [s16le: 16, s24le: 24, s32le: 32],
+        rate <- [250, 8000, 44_100, 48_000],
+        channels <- [1, 2, 8] do
+      align = div(bits, 8) * channels
+      bytes = align * 17
 
-  test "parses the fixed layout, including the smallest supported PCM payload" do
-    assert Wav.header_size() == 44
+      assert {:ok,
+              <<"RIFF", riff::little-32, "WAVEfmt ", 16::little-32, 1::little-16,
+                ^channels::little-16, ^rate::little-32, byte_rate::little-32, ^align::little-16,
+                ^bits::little-16, "data", ^bytes::little-32>>} =
+               Wav.header(encoding, channels, rate, bytes)
 
-    assert {:ok, %{pcm_bytes: 2, sample_count: 1, sample_rate_hz: 48_000}} =
-             Wav.parse_header(canonical_header(2), 46)
-
-    assert Wav.header(2, 48_000) == canonical_header(2)
-  end
-
-  test "accepts up to 30 minutes of audio at the full sample rate" do
-    assert {:ok, %{pcm_bytes: 172_800_000, sample_count: 86_400_000, sample_rate_hz: 48_000}} =
-             Wav.parse_header(canonical_header(172_800_000), 172_800_044)
-
-    assert {:error, :invalid_wav} =
-             Wav.parse_header(canonical_header(172_800_002), 172_800_046)
-  end
-
-  test "rejects headers with unsupported encoding or layout fields" do
-    header = canonical_header(2)
-
-    for {offset, replacement} <- [
-          {0, "RF64"},
-          {4, <<39::little-32>>},
-          {8, "FAKE"},
-          {12, "JUNK"},
-          {16, <<18::little-32>>},
-          {20, <<3::little-16>>},
-          {22, <<2::little-16>>},
-          {24, <<44_100::little-32>>},
-          {28, <<48_000::little-32>>},
-          {32, <<4::little-16>>},
-          {34, <<8::little-16>>},
-          {36, "LIST"},
-          {40, <<4::little-32>>}
-        ] do
-      tail_offset = offset + byte_size(replacement)
-
-      malformed =
-        binary_part(header, 0, offset) <>
-          replacement <>
-          binary_part(header, tail_offset, 44 - tail_offset)
-
-      assert {:error, :invalid_wav} = Wav.parse_header(malformed, 46)
+      assert riff == 36 + bytes and byte_rate == rate * align
     end
   end
 
-  test "requires exactly a header and a nonempty aligned payload of the declared size" do
-    header = canonical_header(2)
-
-    for {head, size} <- [
-          {binary_part(header, 0, 43), 46},
-          {header <> <<0>>, 46},
-          {header, 45},
-          {header, 47},
-          {canonical_header(0), 44},
-          {canonical_header(3), 47}
+  test "invalid encoding, alignment, widths, rate and RIFF overflow are refused" do
+    for args <- [
+          [:float, 1, 48_000, 2],
+          [:s16le, 0, 48_000, 2],
+          [:s16le, 1, 0, 2],
+          [:s16le, 2, 48_000, 3],
+          [:s16le, 1, 0xFFFFFFFF, 2],
+          [:s32le, 65535, 1, 4],
+          [:s16le, 1, 48_000, 0xFFFFFFFF],
+          [:s16le, 1, 48000.0, 2]
         ] do
-      assert {:error, :invalid_wav} = Wav.parse_header(head, size)
+      assert {:error, :invalid_wav_projection} = apply(Wav, :header, args)
     end
-  end
-
-  defp canonical_header(size) do
-    <<"RIFF", size + 36::little-32, "WAVEfmt ", 16::little-32, 1::little-16, 1::little-16,
-      48_000::little-32, 96_000::little-32, 2::little-16, 16::little-16, "data", size::little-32>>
   end
 end

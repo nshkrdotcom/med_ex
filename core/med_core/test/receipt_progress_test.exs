@@ -1,66 +1,151 @@
 defmodule MedEx.ReceiptProgressTest do
   use ExUnit.Case, async: true
-  alias MedEx.Serialization
+  alias MedEx.{Receipt, Serialization}
+  @fixture Path.join(__DIR__, "fixtures/receipt_vectors_v2.json")
 
-  @receipt %{
-    stream_id: "ecg",
-    source_epoch: 0,
-    descriptor_ref: String.duplicate("a", 64),
-    fence: "one",
-    journal_id: "journal",
-    journal_generation: 2,
-    journal_digest: String.duplicate("b", 64),
-    accepted_sequence: 4,
-    durable_sequence: 4,
-    accepted_sample: 100,
-    durable_sample: 100
-  }
+  test "one hashed corpus proves canonical shape, identity, commit/observe and handoff" do
+    bytes = File.read!(@fixture)
 
-  test "receipt progression keeps journal continuity separate from verified handoff" do
-    r = @receipt
-    assert :ok = Serialization.receipt_progress(r, r)
+    [expected_hash, _] =
+      File.read!(@fixture |> String.replace(".json", ".sha256")) |> String.split()
 
-    assert {:error, :not_durable_receipt} =
-             Serialization.receipt_progress(r, %{r | accepted_sample: 101})
+    assert Serialization.sha256(bytes) == expected_hash
+    corpus = JSON.decode!(bytes)
+    assert corpus["api_revision"] == 2
+    assert length(corpus["cases"]) >= 50
 
-    assert {:error, :receipt_rollback} =
-             Serialization.receipt_progress(r, %{r | accepted_sample: 99, durable_sample: 99})
-
-    assert {:error, :receipt_identity} = Serialization.receipt_progress(r, %{r | source_epoch: 1})
-
-    assert {:error, :receipt_conflict} =
-             Serialization.receipt_progress(r, %{r | journal_digest: String.duplicate("c", 64)})
-
-    newer = %{r | journal_generation: 3, journal_digest: String.duplicate("e", 64)}
-
-    assert :ok =
-             Serialization.receipt_progress(r, %{
-               newer
-               | durable_sample: 101,
-                 accepted_sample: 101
-             })
-
-    assert_raise FunctionClauseError, fn ->
-      Serialization.receipt_progress(r, r, String.to_atom("typo"))
+    for vector <- corpus["cases"] do
+      assert outcome(vector) == vector["expected"], vector["id"]
     end
+  end
 
-    for context <- [:same_attempt, :verified_handoff],
-        {changes, error} <- [
-          {%{accepted_sequence: 5}, :not_durable_receipt},
-          {%{durable_sequence: 3, accepted_sequence: 3}, :receipt_rollback},
-          {%{stream_id: "audio", durable_sample: 1, accepted_sample: 1}, :receipt_identity},
-          {%{descriptor_ref: String.duplicate("f", 64)}, :receipt_identity},
-          {%{journal_id: "other"}, :receipt_rollback},
-          {%{journal_generation: 1}, :receipt_rollback},
-          {%{journal_generation: 3}, :receipt_conflict},
-          {%{accepted_sequence: 5, durable_sequence: 5}, :receipt_conflict}
-        ] do
-      assert {:error, ^error} = Serialization.receipt_progress(r, Map.merge(r, changes), context)
+  defp outcome(%{"operation" => "parse", "proposed" => proposed}),
+    do: result(Receipt.parse(proposed))
+
+  defp outcome(vector) do
+    {:ok, previous} = Receipt.parse(vector["previous"])
+    {:ok, proposed} = Receipt.parse(vector["proposed"])
+
+    case vector["operation"] do
+      "observe" ->
+        result(Receipt.observe(previous, proposed))
+
+      "commit" ->
+        cursor = vector["planned_cursor"]
+
+        result(
+          Receipt.committed_successor(previous, proposed, %{
+            next_sequence: String.to_integer(cursor["next_sequence"]),
+            next_sample: String.to_integer(cursor["next_sample"])
+          })
+        )
+
+      "exact" ->
+        to_string(Receipt.exact_prefix?(previous, proposed))
+
+      "handoff" ->
+        result(Receipt.handoff(previous, proposed, binding(vector["binding"])))
     end
+  end
 
-    next = %{r | fence: "two", journal_id: "successor", journal_generation: 1}
-    assert {:error, :receipt_identity} = Serialization.receipt_progress(r, next)
-    assert :ok = Serialization.receipt_progress(r, next, :verified_handoff)
-    assert ^r = Serialization.durable_prefix(%{r | accepted_sequence: 5, accepted_sample: 120})
+  defp binding(value) when is_map(value),
+    do: %{
+      authority: :authenticated_host,
+      authenticated: value["authenticated"],
+      quiescent: value["quiescent"],
+      previous: value["previous"],
+      successor: value["successor"],
+      imported: value["imported"]
+    }
+
+  defp binding(value), do: value
+  defp result(:ok), do: "ok"
+  defp result({:ok, _}), do: "ok"
+  defp result({:error, reason}), do: Atom.to_string(reason)
+
+  test "normalization is not a durable assertion and counters above JS precision remain exact" do
+    vector = JSON.decode!(File.read!(@fixture))["cases"] |> hd()
+    {:ok, r} = Receipt.parse(vector["proposed"])
+    volatile = %{r | accepted_sample: r.durable_sample + 1}
+    refute Receipt.durable?(volatile)
+    assert Receipt.durable_prefix(volatile) == r
+    refute Receipt.exact_prefix?(volatile, r)
+    huge = %{r | durable_sample: 9_007_199_254_740_993, accepted_sample: 9_007_199_254_740_993}
+    assert {:ok, ^huge} = Receipt.parse(Receipt.to_map(huge))
+  end
+
+  test "unchecked or malformed recovered identity cannot become handoff evidence" do
+    vector =
+      JSON.decode!(File.read!(@fixture))["cases"]
+      |> Enum.find(&(&1["operation"] == "handoff" and &1["expected"] == "ok"))
+
+    {:ok, previous} = Receipt.parse(vector["previous"])
+    {:ok, successor} = Receipt.parse(vector["proposed"])
+
+    for stream <- [nil, 1, [], %{}, %{stream_id: previous.stream_id}] do
+      imported = %{
+        receipt: previous,
+        provenance: %{scope: :full_journal, receipt: previous},
+        stream: stream,
+        fence: previous.fence
+      }
+
+      assert {:error, :unverified_handoff} =
+               Receipt.handoff(previous, successor, %{
+                 authority: :verified_storage,
+                 authenticated: true,
+                 quiescent: true,
+                 previous: previous,
+                 successor: successor,
+                 imported: imported
+               })
+    end
+  end
+
+  test "seed 20261126 generated observer and single-commit boundaries agree" do
+    :rand.seed(:exsss, {2026, 11, 26})
+    first = JSON.decode!(File.read!(@fixture))["cases"] |> hd()
+    {:ok, base} = Receipt.parse(first["proposed"])
+
+    for generation <- 1..50 do
+      sequence = :rand.uniform(100_000)
+      sample = sequence * 960
+
+      old = %{
+        base
+        | journal_generation: generation,
+          journal_digest: Serialization.sha256("old-#{generation}"),
+          accepted_sequence: sequence,
+          durable_sequence: sequence,
+          accepted_sample: sample,
+          durable_sample: sample
+      }
+
+      jump = :rand.uniform(5)
+
+      next = %{
+        old
+        | journal_generation: generation + jump,
+          journal_digest: Serialization.sha256("new-#{generation}"),
+          accepted_sequence: sequence + 1,
+          durable_sequence: sequence + 1,
+          accepted_sample: sample + 960,
+          durable_sample: sample + 960
+      }
+
+      assert :ok = Receipt.observe(old, next)
+      planned = %{next_sequence: sequence + 1, next_sample: sample + 960}
+
+      if jump == 1,
+        do: assert(:ok = Receipt.committed_successor(old, next, planned)),
+        else:
+          assert({:error, :unexpected_commit} = Receipt.committed_successor(old, next, planned))
+
+      assert {:error, :receipt_conflict} =
+               Receipt.observe(old, %{next | journal_digest: old.journal_digest})
+
+      assert {:error, :receipt_identity} = Receipt.observe(old, %{next | fence: "different"})
+      assert {:ok, ^next} = Receipt.parse(Receipt.to_map(next))
+    end
   end
 end

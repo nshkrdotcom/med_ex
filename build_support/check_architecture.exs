@@ -1,4 +1,5 @@
 Code.require_file("boundary_check.exs", __DIR__)
+Code.require_file("public_api.exs", __DIR__)
 
 defmodule MedEx.Build.Architecture do
   @moduledoc false
@@ -26,6 +27,7 @@ defmodule MedEx.Build.Architecture do
     unless Ownership.beam_inventory!(direct, source_roots) == expected,
       do: raise("direct/component BEAM inventories differ")
 
+    MedEx.Build.PublicAPI.check!()
     trace!(expected, source_roots, Map.keys(Map.fetch!(proofs, :med_core)))
     if projection, do: compare!(projection, root, direct, composition, expected, source_roots)
     IO.puts("Verified #{map_size(expected)} compiled SDK modules against the component builds")
@@ -117,16 +119,6 @@ defmodule MedEx.Build.Architecture do
       do: raise("direct and projected OTP application metadata differ")
 
     verify_test_inputs!(files, root, projection, composition, package_files)
-
-    for name <- ~w(pcm_capture.js pcm_worklet.js session_hook.js) do
-      relative = "priv/static/med_web/#{name}"
-      source = File.read!(Path.join(root, relative))
-
-      unless covered?(relative, package_files) and
-               File.read!(Path.join(Path.dirname(direct), relative)) == source and
-               File.read!(Path.join(Path.dirname(projected), relative)) == source,
-             do: raise("browser asset differs in the package or compiled application: #{name}")
-    end
 
     IO.puts("Verified the #{provenance["kind"]} base closure, module ownership, tests and assets")
   end

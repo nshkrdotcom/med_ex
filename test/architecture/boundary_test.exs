@@ -82,7 +82,8 @@ defmodule MedEx.ArchitectureTest do
       Code.compiler_options(tracers: [Boundaries])
 
       for {body, reason} <- [
-            {"def bad(pid), do: MedEx.StreamWriter.receipt(pid)", "reverse dependency"},
+            {"def bad(pid), do: MedEx.StreamWriter.receipt(pid, \"fence\", 5000)",
+             "reverse dependency"},
             {"alias File, as: NoEffects; def bad(p), do: NoEffects.read(p)", "core effect"},
             {"def bad(pid), do: :erlang.send_after(5, pid, :ping)", "core effect"}
           ] do
@@ -110,6 +111,7 @@ defmodule MedEx.ArchitectureTest do
     assert cfg[:test_paths] == ["test" | Enum.map(composition.components, &Path.join(&1, "test"))]
     assert :ok == Boundaries.dependencies!(:med_ex, cfg[:deps])
 
+    assert Keyword.keys(artifacts) == [:med_ex]
     manifest_base = artifacts[:med_ex]
     assert manifest_base[:mode] == :package_projection
     assert manifest_base[:roots] == composition.components
@@ -130,10 +132,7 @@ defmodule MedEx.ArchitectureTest do
     assert Enum.sort(cfg[:package][:files]) == Enum.sort(expected_files)
 
     for app <- [:med_ex_opus, :med_ex_rtc] do
-      extension = artifacts[app]
-      assert extension[:roots] == ["extensions/#{app}"]
-      assert extension[:mode] == :source_project
-      assert extension[:external_projects] == ["."]
+      refute Keyword.has_key?(artifacts, app)
       version = File.read!("extensions/#{app}/VERSION") |> String.trim()
       assert extension[:package][:version] == version
 
@@ -141,7 +140,7 @@ defmodule MedEx.ArchitectureTest do
         config = Mix.Project.config()
         assert config[:app] == app
         assert config[:version] == version
-        assert {:med_ex, "~> 0.3.0"} in config[:deps]
+        refute Enum.any?(config[:deps], &(elem(&1, 0) == :med_ex))
 
         native = if app == :med_ex_opus, do: ~w(Makefile c_src), else: []
 

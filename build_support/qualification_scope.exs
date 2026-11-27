@@ -38,7 +38,7 @@ defmodule MedEx.Build.QualificationScope do
 
   defp classify("extensions/med_ex_opus/" <> file), do: provider([:opus, :both], file)
   defp classify("extensions/med_ex_rtc/" <> file), do: provider([:rtc, :both], file)
-  defp classify("core/" <> _), do: {@profiles, true, true, false}
+  defp classify("core/" <> _), do: {[:base, :both], true, true, false}
   defp classify("priv/" <> _), do: {@profiles, true, true, false}
   defp classify("test/" <> _), do: {@profiles, true, false, false}
   defp classify(_), do: {@profiles, true, true, true}

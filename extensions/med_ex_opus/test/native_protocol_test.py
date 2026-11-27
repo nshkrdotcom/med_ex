@@ -36,6 +36,21 @@ def unpack(data):
 
 
 class NativeProtocolTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not ENCODER or not Path(ENCODER).is_file() or not os.access(ENCODER, os.X_OK):
+            raise RuntimeError("native qualification requires the actual built executable")
+
+    def require_linux_lifetime_capability(self):
+        children = Path(f"/proc/{os.getpid()}/task/{os.getpid()}/children")
+        if not children.is_file() or not os.access(children, os.R_OK):
+            raise RuntimeError("required Linux child-reap proof needs readable procfs children")
+        if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+            raise RuntimeError("required Linux parent-death proof needs Python/kernel pidfd support")
+        # Check the actual kernel capability, not only Python/platform labels.
+        descriptor = os.pidfd_open(os.getpid())
+        os.close(descriptor)
+
     def run_encoder(self, data):
         result = subprocess.run([ENCODER], input=data, capture_output=True, timeout=5)
         frames = unpack(result.stdout)
@@ -47,6 +62,7 @@ class NativeProtocolTest(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "uses procfs to observe the codec child")
     def test_retirement_reaps_a_stopped_codec(self):
+        self.require_linux_lifetime_capability()
         with subprocess.Popen([ENCODER], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as port:
             children = Path(f"/proc/{port.pid}/task/{port.pid}/children")
             try:
@@ -69,6 +85,7 @@ class NativeProtocolTest(unittest.TestCase):
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Linux parent-death signal")
     def test_supervisor_kill_terminates_stopped_codec(self):
+        self.require_linux_lifetime_capability()
         # Adopt and reap the orphan ourselves so this also works in containers
         # whose PID 1 does not reap adopted children.
         libc = ctypes.CDLL(None)

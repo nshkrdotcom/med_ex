@@ -1,170 +1,199 @@
 defmodule MedEx.ControlInterlock do
-  @moduledoc "Pure technical command transitions. All identity and time are supplied."
+  @moduledoc "Pure technical command decisions using explicit authority and application observations."
+  alias MedEx.ContractRules, as: R
   @enforce_keys [:target, :boot_id, :current_epoch]
-  defstruct @enforce_keys ++ [pending: nil, historical_unknown: []]
+  defstruct @enforce_keys ++ [generation: 0, pending: nil, historical_unknown: [], frozen: false]
+  @type t :: %__MODULE__{}
+  @identity [:id, :fingerprint, :boot_id, :target, :generation, :expected_epoch, :value]
 
-  @type command :: %{
-          id: binary(),
-          fingerprint: binary(),
-          boot_id: binary(),
-          expected_epoch: non_neg_integer(),
-          value: term()
-        }
-  @type t :: %__MODULE__{
-          target: binary(),
-          boot_id: binary(),
-          current_epoch: non_neg_integer(),
-          pending: map() | nil,
-          historical_unknown: [map()]
-        }
+  def request(%__MODULE__{frozen: true}, _, _), do: {:error, :frozen}
 
-  @spec request(t(), command(), map()) :: {:ok, t(), [term()]} | {:error, atom()}
-  def request(%{pending: pending}, _command, _watermarks) when not is_nil(pending),
+  def request(%__MODULE__{pending: pending}, _, _) when not is_nil(pending),
     do: {:error, :mutation_in_flight}
 
-  def request(
-        %__MODULE__{} = state,
-        %{id: id, fingerprint: fp, boot_id: _, expected_epoch: e, value: _} = command,
-        watermarks
-      )
-      when is_map(watermarks) do
+  def request(%__MODULE__{} = state, command, watermarks)
+      when is_map(command) and is_map(watermarks) do
     cond do
-      not valid_request?(id, fp, e, watermarks) ->
+      not command?(command) or not watermarks?(watermarks) ->
         {:error, :invalid_command}
 
-      Map.has_key?(command, :target) and command.target != state.target ->
+      command.expired ->
+        {:error, :expired}
+
+      command.target != state.target ->
         {:error, :wrong_target}
 
       command.boot_id != state.boot_id ->
         {:error, :wrong_boot}
 
+      command.generation != state.generation ->
+        {:error, :stale_generation}
+
       command.expected_epoch != state.current_epoch ->
         {:error, :stale_configuration}
 
+      length(state.historical_unknown) >= 256 ->
+        {:error, :command_limit}
+
       true ->
-        pending = %{command: command, phase: :requested, watermarks: watermarks}
-        {:ok, %{state | pending: pending}, [{:persist_intent, command, watermarks}]}
+        pending = %{
+          command: Map.take(command, @identity),
+          phase: :requested,
+          watermarks: watermarks
+        }
+
+        {:ok, %{state | pending: pending}, [{:persist_intent, pending.command, watermarks}]}
     end
   end
 
   def request(_, _, _), do: {:error, :invalid_command}
 
-  defp valid_request?(id, fingerprint, epoch, watermarks) do
-    alias MedEx.ContractRules
+  def step(%__MODULE__{} = state, :freeze), do: {:ok, %{state | frozen: true}, []}
+  def step(%__MODULE__{frozen: true}, _), do: {:error, :frozen}
 
-    ContractRules.id?(id) and ContractRules.id?(fingerprint) and
-      ContractRules.uint?(epoch, 0xFFFFFFFD) and map_size(watermarks) <= 8 and
-      Enum.all?(watermarks, fn {key, value} ->
-        (is_atom(key) or ContractRules.id?(key)) and
-          ContractRules.uint?(value, 0xFFFFFFFFFFFFFFFF)
-      end)
-  end
-
-  @spec step(t(), term()) :: {:ok, t(), [term()]} | {:error, atom()}
   def step(
-        %{pending: %{command: %{id: id} = command, phase: :requested} = pending} = state,
+        %__MODULE__{pending: %{command: %{id: id} = command, phase: :requested} = pending} = state,
         {:intent_committed, id}
-      ) do
-    {:ok, %{state | pending: %{pending | phase: :dispatched}}, [{:dispatch, command}]}
-  end
+      ),
+      do: {:ok, %{state | pending: %{pending | phase: :dispatched}}, [{:dispatch, command}]}
 
   def step(
-        %{pending: %{command: %{id: id}, phase: :dispatched} = pending} = state,
+        %__MODULE__{pending: %{command: %{id: id}, phase: :dispatched} = pending} = state,
         {:timeout, id}
       ) do
-    uncertainty = %{command_id: id, from: pending.watermarks, until: :unknown}
-
-    next = %{
-      state
-      | pending: %{pending | phase: :outcome_unknown},
-        historical_unknown: [uncertainty | state.historical_unknown]
-    }
-
-    {:ok, next,
-     [{:persist_transition, id, :outcome_unknown}, {:query_actual_state, state.target}]}
+    {:ok, mark_unknown(state),
+     [{:persist_transition, id, :outcome_unknown}, {:query_exact_result, pending.command}]}
   end
 
   def step(
-        %{pending: %{command: command, phase: phase}} = state,
-        {:applied, id, fingerprint, boot, epoch, boundary}
+        %__MODULE__{pending: %{command: command, phase: phase}} = state,
+        {:historical_result, result}
       )
-      when phase in [:dispatched, :outcome_unknown] do
-    if {id, fingerprint, boot} == {command.id, command.fingerprint, state.boot_id} and
-         epoch == command.expected_epoch + 1 do
-      # Prior uncertainty is retained; a new factual boundary is separately recorded.
-      next = %{state | pending: nil, current_epoch: epoch}
-      {:ok, next, [{:persist_applied, id, epoch, boundary}]}
+      when phase in [:dispatched, :outcome_unknown] and is_map(result) do
+    if result?(command, result) do
+      case result.outcome do
+        :applied ->
+          {:ok, %{state | pending: nil, current_epoch: result.epoch},
+           [{:persist_applied, result}]}
+
+        :rejected ->
+          {:ok, %{state | pending: nil}, [{:persist_rejected, result}]}
+
+        :outcome_unknown ->
+          {:ok, mark_unknown(state), [{:persist_transition, command.id, :outcome_unknown}]}
+      end
     else
       {:error, :conflicting_result}
     end
   end
 
-  def step(%{pending: %{command: %{id: id}, phase: phase}} = state, {:rejected, id, reason})
-      when phase in [:dispatched, :outcome_unknown],
-      do: {:ok, %{state | pending: nil}, [{:persist_rejected, id, reason}]}
-
-  # A current state read-back establishes the present configuration. It cannot
-  # retrospectively place an unobserved transition on the waveform timeline.
   def step(
-        %{pending: %{command: cmd, phase: :outcome_unknown}} = state,
+        %__MODULE__{pending: %{phase: :outcome_unknown}} = state,
         {:actual_state, target, boot, epoch, observed}
       ) do
-    if target == state.target and boot == state.boot_id and
-         MedEx.ContractRules.uint?(epoch, 0xFFFFFFFE) and epoch >= state.current_epoch do
-      {:ok, %{state | pending: nil, current_epoch: epoch},
-       [{:persist_actual_state, cmd.id, epoch, observed, :historical_boundary_unknown}]}
+    if target == state.target and boot == state.boot_id and R.uint?(epoch, 0xFFFFFFFE) and
+         epoch >= state.current_epoch and is_map(observed) do
+      # A present setting does not settle a historical pending command.
+      {:ok, state,
+       [{:persist_actual_state, target, boot, epoch, observed, :historical_boundary_unknown}]}
     else
       {:error, :conflicting_result}
     end
   end
 
-  def step(%__MODULE__{} = state, {:boot_changed, new_boot, epoch}) do
-    if MedEx.ContractRules.id?(new_boot) and new_boot != state.boot_id and
-         MedEx.ContractRules.uint?(epoch, 0xFFFFFFFE) do
-      {unknown, effects} =
-        if state.pending do
-          fact = %{
-            command_id: state.pending.command.id,
-            from: state.pending.watermarks,
-            until: :unknown
-          }
-
-          {[fact | state.historical_unknown],
-           [{:persist_transition, fact.command_id, :outcome_unknown}]}
-        else
-          {state.historical_unknown, []}
-        end
+  def step(%__MODULE__{} = state, {:boot_changed, boot, epoch}) do
+    if R.id?(boot) and boot != state.boot_id and R.uint?(epoch, 0xFFFFFFFE) and
+         (is_nil(state.pending) or length(state.historical_unknown) < 256) do
+      facts =
+        if state.pending,
+          do: mark_unknown(state).historical_unknown,
+          else: state.historical_unknown
 
       {:ok,
-       %{
-         state
-         | boot_id: new_boot,
-           current_epoch: epoch,
-           pending: nil,
-           historical_unknown: unknown
-       }, effects ++ [{:persist_device_boot, new_boot, epoch}]}
+       %{state | boot_id: boot, current_epoch: epoch, pending: nil, historical_unknown: facts},
+       [{:persist_device_boot, boot, epoch}]}
     else
       {:error, :invalid_boot}
     end
   end
 
-  def step(_state, _event), do: {:error, :unexpected_event}
+  def step(_, _), do: {:error, :unexpected_event}
 
-  @doc "Device-side decision: durable cached identity is consulted BEFORE the expected epoch."
-  def device_decide(ledger, command, actual_epoch) do
-    case Map.fetch(ledger, command.id) do
-      {:ok, %{fingerprint: fingerprint, result: result}}
-      when fingerprint == command.fingerprint ->
-        {:cached, result}
+  defp mark_unknown(%{pending: %{phase: :outcome_unknown}} = state), do: state
 
-      {:ok, _} ->
-        {:error, :command_id_conflict}
+  defp mark_unknown(%{pending: pending} = state) do
+    fact = %{command: pending.command, from: pending.watermarks, until: :unknown}
 
-      :error when command.expected_epoch != actual_epoch ->
-        {:error, :stale_configuration}
+    %{
+      state
+      | pending: %{pending | phase: :outcome_unknown},
+        historical_unknown: [fact | state.historical_unknown]
+    }
+  end
 
-      :error ->
-        {:execute_and_persist_result, command}
+  @doc "Exact cached application is historical proof; expiry only prevents a new application."
+  def device_decide(ledger, command, actual_epoch) when is_map(ledger) and is_map(command) do
+    if map_size(ledger) <= 256 and command?(command) and R.uint?(actual_epoch, 0xFFFFFFFE) do
+      case Map.fetch(ledger, command.id) do
+        {:ok, %{fingerprint: fingerprint, command: cached, result: result}} ->
+          if fingerprint == command.fingerprint and cached == Map.take(command, @identity) and
+               result?(cached, result),
+             do: {:cached, result},
+             else: {:error, :command_id_conflict}
+
+        {:ok, _} ->
+          {:error, :invalid_command_ledger}
+
+        :error ->
+          cond do
+            command.expired -> {:error, :expired}
+            command.expected_epoch != actual_epoch -> {:error, :stale_configuration}
+            map_size(ledger) == 256 -> {:error, :command_limit}
+            true -> {:execute_and_persist_result, command}
+          end
+      end
+    else
+      {:error, :invalid_command}
     end
   end
+
+  def device_decide(_, _, _), do: {:error, :invalid_command}
+
+  defp command?(command) do
+    Enum.all?(@identity ++ [:expired], &Map.has_key?(command, &1)) and
+      R.id?(command.id) and byte_size(command.id) <= 96 and R.digest?(command.fingerprint) and
+      R.id?(command.boot_id) and R.id?(command.target) and
+      R.uint?(command.generation, 0x7FFFFFFFFFFFFFFF) and
+      R.uint?(command.expected_epoch, 0xFFFFFFFD) and R.scalar?(command.value) and
+      is_boolean(command.expired)
+  end
+
+  defp watermarks?(map),
+    do:
+      map_size(map) <= 8 and
+        Enum.all?(map, fn {k, v} ->
+          (is_atom(k) or R.id?(k)) and R.uint?(v, 0xFFFFFFFFFFFFFFFF)
+        end)
+
+  defp result?(command, result) when is_map(result) do
+    identity = [:id, :fingerprint, :boot_id, :target, :generation]
+    exact = Enum.all?(identity, &(Map.fetch(command, &1) == Map.fetch(result, &1)))
+
+    case result do
+      %{outcome: :applied, epoch: epoch, application: %{observed_at: at, first_sample: first}} ->
+        exact and epoch == command.expected_epoch + 1 and R.uint?(at, 0xFFFFFFFFFFFFFFFF) and
+          (first == :unknown or R.uint?(first, 0xFFFFFFFFFFFFFFFF))
+
+      %{outcome: :rejected, reason: reason} ->
+        exact and R.id?(reason)
+
+      %{outcome: :outcome_unknown} ->
+        exact
+
+      _ ->
+        false
+    end
+  end
+
+  defp result?(_, _), do: false
 end

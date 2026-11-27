@@ -10,8 +10,8 @@ defmodule MedEx.ConsumerCheck do
   @apps [:med_ex, :med_ex_opus, :med_ex_rtc]
   @profiles [
     base: [:med_ex],
-    opus: [:med_ex, :med_ex_opus],
-    rtc: [:med_ex, :med_ex_rtc],
+    opus: [:med_ex_opus],
+    rtc: [:med_ex_rtc],
     both: @apps
   ]
   @transports ~w(direct live full prepared git tracked archive registry)
@@ -44,7 +44,6 @@ defmodule MedEx.ConsumerCheck do
                     HEX_MIRROR_URL HEX_TRUSTED_MIRROR_URL HEX_OFFLINE
                     HEX_UNSAFE_HTTPS HEX_UNSAFE_REGISTRY HEX_NO_VERIFY_REPO_ORIGIN
                     HEX_HTTP_PROXY HEX_HTTPS_PROXY HTTP_PROXY HTTPS_PROXY http_proxy https_proxy)
-  @assets ~w(pcm_capture.js pcm_worklet.js session_hook.js)
   @usage """
   Usage: build_support/check_consumers.sh [--quick | --full | --transport TRANSPORT]
                                         [--profile base|opus|rtc|both]
@@ -55,19 +54,18 @@ defmodule MedEx.ConsumerCheck do
   Transports: #{Enum.join(@transports, ", ")}
   Quick (default): all four direct source profiles.
   Release extras: --release-extras PREVIOUS_MATRIX_EVIDENCE
-  Resume standalone suites, combined release and legacy rejection.
-  Full: all 32 transport/profile cells, plus standalone registry extension suites.
-  Full expects all three live, full, and prepared candidates, a committed source
-  checkout, and local projection/<package> trees matching the prepared projects
-  for that source revision. It does not generate views.
+  Resume standalone suites and the combined release.
+  Full: base Weld lanes and independent direct/Git/archive/registry provider suites.
+  Full expects base live/full/prepared candidates and a committed source checkout.
+  Only projection/med_ex is tracked; providers always use native Mix projects.
   --strict-full is an alias for the original exhaustive --full.
-  --optimized --evidence DIR runs the same 32 cells and release extras.
+  --optimized --evidence DIR runs the same supported lanes and release extras.
   Equivalent cells prove their own lock, installed modules and smoke behavior,
   then reuse provider tests from the direct profile. Distinct inputs run the full suite.
   --resume DIR validates retained cell receipts and reruns missing cells.
   --jobs N runs up to four isolated optimized cells at a time (default 1).
   --compatibility --transport TRANSPORT --evidence DIR compares a single transport to direct.
-  --functional runs the canonical direct profiles and the base architecture/browser checks.
+  --functional runs the canonical direct profiles and the base architecture checks.
   --affected BASE selects downstream profiles and checks. Add --plan to inspect scope.
   Registry builds direct-source packages and runs COMMAND with an isolated signed Hex repo.
   Pass --projected-packages to refresh and build full projections of the clean current
@@ -130,7 +128,7 @@ defmodule MedEx.ConsumerCheck do
             cond do
               opts[:prepared_packages] -> prepared_archives!(ctx)
               opts[:projected_packages] -> projected_archives!(ctx, opts[:weld_invoker])
-              true -> build_family!(ctx, direct(), "registry")
+              true -> projected_archives!(ctx, opts[:weld_invoker])
             end
 
           with_registry(
@@ -347,16 +345,6 @@ defmodule MedEx.ConsumerCheck do
     tracked = git_family!(ctx, :tracked)
     verify_git_checkpoint!(ctx, source_revision, prepared, tracked)
     archives = build_family!(ctx, full, "projected")
-    direct_archives = build_family!(ctx, direct(), "direct")
-
-    for app <- @apps do
-      unless archives[app].signature == direct_archives[app].signature do
-        raise "Direct and projected Hex metadata differ for #{app}"
-      end
-
-      unless runtime_payload(archives[app]) == runtime_payload(direct_archives[app]),
-        do: raise("Direct and projected runtime archives differ for #{app}")
-    end
 
     transports = [
       {"direct", direct()},
@@ -394,33 +382,12 @@ defmodule MedEx.ConsumerCheck do
       end)
     end)
 
-    extra!(
-      ctx,
-      "legacy",
-      archives,
-      nil,
-      ~w(legacy-public-resolve legacy-signed-legacy-resolve legacy-reject),
-      fn ->
-        verify_legacy_base_rejection!(ctx, archives)
-      end
-    )
-
     verify_source_revision!(ctx, source_revision, "finish")
-  end
-
-  defp runtime_payload(archive) do
-    archive.files
-    |> Enum.filter(fn {path, _bytes} ->
-      String.starts_with?(path, ["lib/", "priv/", "core/", "components/core/"])
-    end)
-    |> Map.new(fn {path, bytes} ->
-      {String.replace_prefix(path, "components/", ""), digest(bytes)}
-    end)
   end
 
   defp standalone_logs do
     for app <- @apps -- [:med_ex],
-        step <- ~w(unlock resolve test doc-deps docs),
+        step <- ~w(resolve test doc-deps docs),
         do: "#{app}-standalone-#{step}"
   end
 
@@ -469,7 +436,7 @@ defmodule MedEx.ConsumerCheck do
       end
     end
 
-    for transport <- @transports, {profile, _} <- @profiles do
+    for transport <- @transports, {profile, _} <- supported_profiles(transport, @profiles) do
       label = "#{transport}-#{profile}-test"
 
       summary =
@@ -495,7 +462,7 @@ defmodule MedEx.ConsumerCheck do
       end
     end
 
-    IO.puts("Confirmed 32 successful matrix cells and identical archives")
+    IO.puts("Confirmed supported source lanes and identical exact archives")
 
     with_registry(ctx, archives, fn env, packages ->
       standalone_extensions!(ctx, full, env, packages)
@@ -505,8 +472,6 @@ defmodule MedEx.ConsumerCheck do
 
       verify_combined_release!(ctx, env, packages)
     end)
-
-    verify_legacy_base_rejection!(ctx, archives)
   end
 
   defp verify_git_checkpoint!(ctx, revision, prepared, tracked) do
@@ -516,7 +481,7 @@ defmodule MedEx.ConsumerCheck do
       raise "The source revision changed while cloning the candidate Git snapshot"
     end
 
-    for app <- @apps do
+    for app <- [:med_ex] do
       tree =
         git!(
           ctx,
@@ -594,21 +559,17 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp projected!(ctx, kind, revision \\ nil) do
-    Map.new(@apps, fn app ->
-      {source, integrity} = projection_path!(app, kind, revision)
-      marker = read_json!(Path.join(source, "weld.provenance.json"))
-      expected = if kind == "live", do: "live", else: "full"
+    {source, integrity} = projection_path!(:med_ex, kind, revision)
+    marker = read_json!(Path.join(source, "weld.provenance.json"))
+    expected = if kind == "live", do: "live", else: "full"
 
-      unless marker["kind"] == expected and marker["artifact"] == to_string(app) do
-        raise "Unexpected Weld provenance for #{app} at #{source}"
-      end
+    unless marker["kind"] == expected and marker["artifact"] == "med_ex",
+      do: raise("Unexpected base Weld provenance")
 
-      path = if kind == "live", do: source, else: detach!(ctx, source, "#{kind}-#{app}")
-      if integrity, do: verify_prepared_tree!(path, integrity)
-      if kind == "full" and revision, do: verify_full_projection!(path, app, revision)
-
-      {app, [path: path]}
-    end)
+    path = if kind == "live", do: source, else: detach!(ctx, source, "#{kind}-med_ex")
+    if integrity, do: verify_prepared_tree!(path, integrity)
+    if kind == "full" and revision, do: verify_full_projection!(path, :med_ex, revision)
+    Map.put(direct(), :med_ex, path: path)
   end
 
   defp projection_path!(app, "live", _revision),
@@ -778,12 +739,14 @@ defmodule MedEx.ConsumerCheck do
     end
 
     Map.new(@apps, fn app ->
-      ref = if mode == :tracked, do: "refs/heads/projection/#{app}", else: "HEAD"
+      ref =
+        if mode == :tracked and app == :med_ex, do: "refs/heads/projection/med_ex", else: "HEAD"
+
       sha = git_revision!(ctx, "#{mode}-#{app}-sha", bare, ref)
       options = [git: bare, ref: sha]
 
       options =
-        if mode == :root and app != :med_ex,
+        if app != :med_ex,
           do: options ++ [subdir: "extensions/#{app}"],
           else: options
 
@@ -801,12 +764,19 @@ defmodule MedEx.ConsumerCheck do
 
   defp consumer_matrix!(ctx, name, specs, profiles, env \\ nil, archives \\ %{}) do
     env = env || official_env(ctx)
-    for {profile, apps} <- profiles, do: run_cell!(ctx, name, specs, profile, apps, env, archives)
+
+    for {profile, apps} <- supported_profiles(name, profiles),
+        do: run_cell!(ctx, name, specs, profile, apps, env, archives)
   end
+
+  defp supported_profiles(name, profiles) when name in ["live", "full", "prepared", "tracked"],
+    do: Keyword.take(profiles, [:base])
+
+  defp supported_profiles(_name, profiles), do: profiles
 
   defp optimized_cells!(ctx, transports, env, archives, profiles \\ @profiles) do
     cells =
-      for {name, specs} <- transports, {profile, apps} <- profiles do
+      for {name, specs} <- transports, {profile, apps} <- supported_profiles(name, profiles) do
         {name, specs, profile, apps, cell_input(ctx, name, specs, profile, apps, env, archives)}
       end
 
@@ -1013,6 +983,8 @@ defmodule MedEx.ConsumerCheck do
       Path.join(tests, "consumer_smoke_test.exs")
     )
 
+    File.cp!(Path.join(@repo, "tools/cli_recorder.exs"), Path.join(tests, "cli_recorder.exs"))
+
     helpers =
       for app <- apps -- [:med_ex] do
         destination = Path.join([tests, "providers", to_string(app)])
@@ -1072,7 +1044,7 @@ defmodule MedEx.ConsumerCheck do
     invoker = invoker || Path.join(@repo, "tools/maintainer")
     manifest = Path.join(@repo, "build_support/weld.exs")
 
-    for app <- @apps, do: refresh_projection!(ctx, invoker, manifest, app)
+    refresh_projection!(ctx, invoker, manifest, :med_ex)
     verify_source_revision!(ctx, revision, "projected-registry-refresh")
 
     projects = projected!(ctx, "full", revision)
@@ -1095,24 +1067,27 @@ defmodule MedEx.ConsumerCheck do
 
   defp prepared_archives!(ctx) do
     revision = clean_source_revision!(ctx, "registry")
+    {project, integrity} = projection_path!(:med_ex, "prepared", revision)
+    name = "med_ex-#{ctx.versions[:med_ex]}.tar"
+    source = Path.join(Path.dirname(project), name)
+    path = Path.join([ctx.stage, "packages", "prepared", "med_ex", name])
 
-    Map.new(@apps, fn app ->
-      {project, integrity} = projection_path!(app, "prepared", revision)
-      name = "#{app}-#{ctx.versions[app]}.tar"
-      source = Path.join(Path.dirname(project), name)
-      path = Path.join([ctx.stage, "packages", "prepared", to_string(app), name])
+    unless digest(File.read!(source)) == integrity["archive_sha256"],
+      do: raise("Invalid prepared base archive")
 
-      unless digest(File.read!(source)) == integrity["archive_sha256"],
-        do: raise("Invalid prepared archive for #{app}")
-
-      File.mkdir_p!(Path.dirname(path))
-      File.cp!(source, path)
-      {app, inspect_archive!(ctx, app, path)}
-    end)
+    File.mkdir_p!(Path.dirname(path))
+    File.cp!(source, path)
+    providers = build_family!(ctx, direct(), "direct-providers", [:med_ex_opus, :med_ex_rtc])
+    Map.put(providers, :med_ex, inspect_archive!(ctx, :med_ex, path))
   end
 
-  defp build_family!(ctx, specs, label) do
-    Map.new(@apps, fn app ->
+  defp build_family!(ctx, specs, label, apps \\ @apps) do
+    specs =
+      if :med_ex in apps and specs[:med_ex][:path] == @repo,
+        do: projected!(ctx, "full"),
+        else: specs
+
+    Map.new(apps, fn app ->
       dir = Path.join([ctx.stage, "packages", label, to_string(app)])
       File.mkdir_p!(dir)
       archive = Path.join(dir, "#{app}-#{ctx.versions[app]}.tar")
@@ -1217,31 +1192,15 @@ defmodule MedEx.ConsumerCheck do
     do:
       raise("Base package unexpectedly has Hex requirements: #{inspect(Map.keys(requirements))}")
 
-  defp verify_requirements!(app, version, requirements) do
-    base = requirements["med_ex"] || %{}
-
-    family = provider_base_requirement(version)
-
-    unless base["app"] == "med_ex" and base["requirement"] == family and
-             Version.match?(version, family) and base["optional"] == false and
-             base["repository"] in [nil, "hexpm"] do
-      raise "#{app} does not publish the ordinary required :med_ex Hex dependency"
-    end
-
-    forbidden = ~w(med_ex_opus med_ex_rtc med_core med_capture weld mix_workspace_ops)
+  defp verify_requirements!(app, _version, requirements) do
+    forbidden = ~w(med_ex med_ex_opus med_ex_rtc med_core med_capture weld mix_workspace_ops)
 
     unless Enum.all?(requirements, fn {name, opts} ->
              name not in forbidden and is_binary(opts["requirement"]) and
                opts["repository"] in [nil, "hexpm"] and
                Enum.all?(~w(path git github ref subdir), &(not Map.has_key?(opts, &1)))
-           end) do
-      raise "Unexpected or non-Hex dependency in #{app} metadata"
-    end
-  end
-
-  defp provider_base_requirement(version) do
-    %{major: major, minor: minor} = Version.parse!(version)
-    "~> #{major}.#{minor}.0"
+           end),
+           do: raise("Unexpected or non-Hex dependency in independent #{app} metadata")
   end
 
   @doc false
@@ -1264,16 +1223,12 @@ defmodule MedEx.ConsumerCheck do
 
     case app do
       :med_ex ->
-        for asset <- @assets, "priv/static/med_web/#{asset}" not in names do
-          raise "Missing browser asset: #{asset}"
-        end
-
         if Enum.any?(names, &Regex.match?(~r{(^|/)lib/med_ex/(opus|rtc)/}, &1)),
           do: raise("Native extension source in base tarball")
 
       :med_ex_opus ->
-        for input <- ~w(lib/med_ex/opus/provider.ex lib/med_ex/opus/encoder.ex Makefile
-                        c_src/opus_encoder.c c_src/vendor/SHA256SUMS),
+        for input <- ~w(lib/med_ex/opus/provider.ex Makefile
+                        c_src/opus_encoder.c c_src/build_native.sh c_src/vendor/SHA256SUMS),
             input not in names,
             do: raise("Opus build input missing: #{input}")
 
@@ -1379,7 +1334,7 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp registry_key!(ctx) do
-    retained? = ctx.optimized && Map.get(ctx, :label) != "legacy-"
+    retained? = ctx.optimized
     key = Path.join(if(retained?, do: ctx.evidence, else: ctx.stage), "registry-key.pem")
 
     case File.lstat(key) do
@@ -1410,13 +1365,14 @@ defmodule MedEx.ConsumerCheck do
 
     candidates = MapSet.new(archives, fn {app, _} -> {to_string(app), ctx.versions[app]} end)
 
-    legacy =
+    additional =
       for path <- List.wrap(extra_lock),
           {_, {:hex, package, version, _, _, _, repo, checksum}} <- read_lock(path),
-          not MapSet.member?(candidates, {to_string(package), version}),
+          to_string(package) not in Enum.map(@apps, &to_string/1) and
+            not MapSet.member?(candidates, {to_string(package), version}),
           do: {to_string(package), version, repo, checksum}
 
-    for {package, version, repo, checksum} <- Enum.uniq(packages ++ legacy) do
+    for {package, version, repo, checksum} <- Enum.uniq(packages ++ additional) do
       unless repo == "hexpm" and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, package) and
                match?({:ok, _}, Version.parse(version)) and
                Regex.match?(~r/\A[0-9a-f]{64}\z/, checksum) do
@@ -1453,52 +1409,18 @@ defmodule MedEx.ConsumerCheck do
     end
   end
 
-  defp standalone_extensions!(ctx, full, env, archives) do
+  defp standalone_extensions!(ctx, full, env, _archives) do
     for app <- @apps -- [:med_ex] do
       work = detach!(ctx, full[app][:path], "standalone-#{app}")
-      mix!(ctx, "#{app}-standalone-unlock", work, ["deps.unlock", "med_ex"], env)
       mix!(ctx, "#{app}-standalone-resolve", work, ["deps.get"], env)
-      assert_lock!(ctx, work, [:med_ex], registry_specs(), archives)
+
+      unless not Map.has_key?(read_lock(Path.join(work, "mix.lock")), :med_ex),
+        do: raise("Base dependency leaked into #{app}")
+
       mix!(ctx, "#{app}-standalone-test", work, ["test"], env)
       mix!(ctx, "#{app}-standalone-doc-deps", work, ["deps.get"], env, "dev")
       mix!(ctx, "#{app}-standalone-docs", work, ["docs", "--warnings-as-errors"], env, "dev")
     end
-  end
-
-  defp verify_legacy_base_rejection!(ctx, archives) do
-    legacy_ctx = Map.merge(ctx, %{stage: Path.join(ctx.stage, "legacy"), label: "legacy-"})
-    requirements = %{med_ex: "== 0.1.0"}
-    public = Path.join(legacy_ctx.stage, "public-legacy")
-    create_consumer!(legacy_ctx, public, [:med_ex], registry_specs(), false, requirements)
-    mix!(legacy_ctx, "public-resolve", public, ["deps.get"], official_env(legacy_ctx))
-
-    lock = Path.join(public, "mix.lock")
-    {:hex, :med_ex, "0.1.0", _, _, _, "hexpm", checksum} = read_lock(lock)[:med_ex]
-
-    with_registry(
-      legacy_ctx,
-      archives,
-      fn env, _ ->
-        available = Path.join(legacy_ctx.stage, "legacy-available")
-        create_consumer!(legacy_ctx, available, [:med_ex], registry_specs(), false, requirements)
-        mix!(legacy_ctx, "signed-legacy-resolve", available, ["deps.get"], env)
-
-        {:hex, :med_ex, "0.1.0", _, _, _, "hexpm", ^checksum} =
-          read_lock(Path.join(available, "mix.lock"))[:med_ex]
-
-        work = Path.join(legacy_ctx.stage, "reject-legacy-base")
-        create_consumer!(legacy_ctx, work, @apps, registry_specs(), false, requirements)
-        mix_env = [{"MIX_ENV", "test"} | Enum.map(@mix_paths, &{&1, nil})] ++ env
-        output = command!(legacy_ctx, "reject", "mix", ["deps.get"], work, mix_env, :failure)
-
-        unless output =~ "med_ex" and output =~ "0.1.0" and
-                 output =~ provider_base_requirement(ctx.version) and
-                 output =~ ~r/version solving failed/i do
-          raise "Expected the registry solver to reject the incompatible legacy base requirement"
-        end
-      end,
-      lock
-    )
   end
 
   defp verify_combined_release!(ctx, env, archives) do

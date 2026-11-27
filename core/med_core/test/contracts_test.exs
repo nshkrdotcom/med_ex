@@ -103,7 +103,11 @@ defmodule MedEx.ContractsTest do
       terminal: :interrupted,
       journal_generation: 1,
       journal_digest: String.duplicate("c", 64),
-      fence: "lease-1"
+      fence: "lease-1",
+      journal_id: "journal",
+      terminal_reason: "source_finished",
+      next_sequence: 2,
+      next_sample: 4
     }
 
     assert {:error, _} = MedEx.StreamIndex.validate(index)
@@ -117,7 +121,21 @@ defmodule MedEx.ContractsTest do
       end_sample: 2
     }
 
-    assert :ok = MedEx.StreamIndex.validate(%{index | spans: [gap]})
+    assert :ok =
+             MedEx.StreamIndex.validate(%{
+               index
+               | spans: [gap],
+                 gaps: [
+                   %{
+                     id: "gap",
+                     span: gap,
+                     first_sequence: 0,
+                     next_sequence: 1,
+                     irreversible: true
+                   }
+                 ]
+             })
+
     received = %{segment | first_sample: 0, end_sample: 2, first_sequence: 0, next_sequence: 1}
     assert {:error, _} = MedEx.StreamIndex.validate(%{index | segments: [received], spans: [gap]})
   end
@@ -148,7 +166,11 @@ defmodule MedEx.ContractsTest do
       terminal: :finished,
       journal_generation: 1,
       journal_digest: String.duplicate("c", 64),
-      fence: "lease-1"
+      fence: "lease-1",
+      journal_id: "journal",
+      terminal_reason: "source_finished",
+      next_sequence: 2,
+      next_sample: 26
     }
 
     assert {:error, :invalid_stream_index} = MedEx.StreamIndex.validate(index)
