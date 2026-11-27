@@ -113,10 +113,22 @@ defmodule MedEx.ArchitectureTest do
 
     assert Keyword.keys(artifacts) == [:med_ex]
     manifest_base = artifacts[:med_ex]
-    assert manifest_base[:mode] == :package_projection
+    assert manifest[:schema] == 2
+    assert manifest_base[:layout] == :components
     assert manifest_base[:roots] == composition.components
     assert manifest_base[:verify][:component_tests]
     assert manifest_base[:package][:version] == cfg[:version]
+    assert manifest_base[:package][:dev_deps] == cfg[:deps]
+    assert manifest_base[:files] == [docs: composition.documents, assets: composition.assets]
+
+    assert Enum.map(manifest_base[:inputs], & &1[:path]) == [
+             composition.version_file,
+             "mix.exs",
+             "build_support/composition.exs",
+             composition.package[:docs][:hook_file]
+           ]
+
+    assert Enum.all?(manifest_base[:inputs], &(&1[:type] == :file))
 
     expected_files =
       cfg[:elixirc_paths] ++

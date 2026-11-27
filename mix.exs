@@ -24,6 +24,10 @@ defmodule MedEx.MixProject do
       description: @package[:description],
       elixirc_paths: @sources,
       test_paths: @test_paths,
+      test_ignore_filters:
+        ~w(test/test_helper.exs test/projection/test_helper.exs) ++
+          Enum.map(@composition.components, &Path.join(&1, "test/test_helper.exs")) ++
+          ["core/med_capture/test/support/fixture_helper.exs"],
       package: Keyword.take(@package, [:licenses, :links]) ++ [files: @files]
     ]
   end
