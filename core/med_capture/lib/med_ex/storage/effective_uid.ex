@@ -2,6 +2,7 @@ defmodule MedEx.Storage.EffectiveUID do
   @moduledoc false
   @timeout 1_000
   @output_limit 32
+  @id_paths ["/usr/bin/id", "/bin/id", "/usr/lib/cargo/bin/coreutils/id"]
   @uid_line ~r/\AUid:[\t ]+([0-9]+)[\t ]+([0-9]+)[\t ]+([0-9]+)[\t ]+([0-9]+)[\t ]*\z/
 
   # Identity is resolved afresh at each ownership boundary, never cached in
@@ -58,7 +59,7 @@ defmodule MedEx.Storage.EffectiveUID do
   end
 
   defp command do
-    case Enum.find(["/usr/bin/id", "/bin/id"], &trusted_executable?/1) do
+    case Enum.find(@id_paths, &trusted_executable?/1) do
       nil ->
         {:error, :identity_command_unavailable}
 
@@ -97,11 +98,9 @@ defmodule MedEx.Storage.EffectiveUID do
 
   @doc false
   def read_port(port, timeout) when is_port(port) and timeout in 1..@timeout do
-    try do
-      collect(port, System.monotonic_time(:millisecond) + timeout, "")
-    after
-      close_port(port)
-    end
+    collect(port, System.monotonic_time(:millisecond) + timeout, "")
+  after
+    close_port(port)
   end
 
   defp collect(port, deadline, output) do

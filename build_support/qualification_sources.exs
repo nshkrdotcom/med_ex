@@ -60,27 +60,29 @@ defmodule MedEx.Build.QualificationSources do
         {:default, %{}}
 
       {:ok, %{type: :regular}} ->
-        bytes = File.read!(selector)
-
-        decoders = [
-          object_start: fn _ -> %{} end,
-          object_push: &unique_key!/3,
-          object_finish: fn object, parent -> {object, parent} end
-        ]
-
-        case JSON.decode(bytes, nil, decoders) do
-          {choices, nil, rest} when is_map(choices) ->
-            unless String.trim(rest) == "" and Enum.all?(Map.keys(choices), &(&1 in @apps)),
-              do: raise(ArgumentError, "Invalid selected source inventory")
-
-            {Receipt.sha256(bytes), choices}
-
-          _ ->
-            raise ArgumentError, "Source selector must contain one JSON object"
-        end
+        selector |> File.read!() |> decode_choices()
 
       _ ->
         raise ArgumentError, "Source selector must be a regular file"
+    end
+  end
+
+  defp decode_choices(bytes) do
+    decoders = [
+      object_start: fn _ -> %{} end,
+      object_push: &unique_key!/3,
+      object_finish: fn object, parent -> {object, parent} end
+    ]
+
+    case JSON.decode(bytes, nil, decoders) do
+      {choices, nil, rest} when is_map(choices) ->
+        unless String.trim(rest) == "" and Enum.all?(Map.keys(choices), &(&1 in @apps)),
+          do: raise(ArgumentError, "Invalid selected source inventory")
+
+        {Receipt.sha256(bytes), choices}
+
+      _ ->
+        raise ArgumentError, "Source selector must contain one JSON object"
     end
   end
 
@@ -90,7 +92,8 @@ defmodule MedEx.Build.QualificationSources do
   end
 
   defp valid_path?(path),
-    do: path != "" and String.trim(path) == path and not String.contains?(path, [<<0>>, "\n", "\r"])
+    do:
+      path != "" and String.trim(path) == path and not String.contains?(path, [<<0>>, "\n", "\r"])
 
   defp entry(path, ancestors) do
     case File.lstat!(path) do
@@ -151,7 +154,8 @@ defmodule MedEx.Build.QualificationSources do
         path when is_binary(path) ->
           unless Path.type(path) == :absolute and
                    match?({:ok, %{type: :regular}}, File.lstat(path)),
-            do: raise(ArgumentError, "Native source archive must be an absolute regular file")
+                 do:
+                   raise(ArgumentError, "Native source archive must be an absolute regular file")
 
           {path, Receipt.sha256(File.read!(path))}
       end

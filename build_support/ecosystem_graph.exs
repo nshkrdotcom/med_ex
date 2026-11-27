@@ -15,23 +15,20 @@ defmodule MedEx.Build.EcosystemGraph do
       failed = Enum.reject(parents, &match?({:ok, _}, Map.get(results, &1)))
 
       result =
-        if failed == [] do
-          previous = Map.new(parents, fn parent -> {parent, elem(results[parent], 1)} end)
-
-          try do
-            {:ok, callback.(node, previous)}
-          rescue
-            exception -> {:failed, Exception.message(exception)}
-          catch
-            kind, reason -> {:failed, "#{kind}: #{inspect(reason)}"}
-          end
-        else
-          {:blocked, failed}
-        end
+        if failed == [], do: execute(callback, node, results, parents), else: {:blocked, failed}
 
       report(id, result)
       Map.put(results, id, result)
     end)
+  end
+
+  defp execute(callback, node, results, parents) do
+    previous = Map.new(parents, fn parent -> {parent, elem(results[parent], 1)} end)
+    {:ok, callback.(node, previous)}
+  rescue
+    exception -> {:failed, Exception.message(exception)}
+  catch
+    kind, reason -> {:failed, "#{kind}: #{inspect(reason)}"}
   end
 
   def successful?(results), do: Enum.all?(results, fn {_, result} -> match?({:ok, _}, result) end)

@@ -68,7 +68,7 @@ defmodule MedExCLI.RootOwner do
   end
 end
 
-alias MedEx.{SampleFrame, StreamSpec, StreamWriter, Receipt}
+alias MedEx.{Receipt, SampleFrame, StreamSpec, StreamWriter}
 alias MedEx.Storage.File, as: Store
 
 {dir, count} =

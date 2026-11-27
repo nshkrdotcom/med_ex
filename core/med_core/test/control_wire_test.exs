@@ -84,20 +84,26 @@ defmodule MedEx.ControlWireTest do
     receipt = receipt()
     common = %{"binding" => test_binding(), "operation_id" => "op"}
     waveform = Map.put(common, "receipt", receipt)
-    event = Map.merge(common, %{"event_id" => "event", "fingerprint" => String.duplicate("b", 64)})
+
+    event =
+      Map.merge(common, %{"event_id" => "event", "fingerprint" => String.duplicate("b", 64)})
+
     assert_valid("durable", waveform)
     assert_valid("durable", event)
 
-    assert_valid("durable", Map.merge(waveform, %{
-      "handoff" => %{
-        "asserted_by" => "authenticated_host",
-        "previous" => receipt,
-        "successor" => receipt,
-        "imported" => receipt
-      },
-      "credit_frames" => 15,
-      "credit_bytes" => 262_144
-    }))
+    assert_valid(
+      "durable",
+      Map.merge(waveform, %{
+        "handoff" => %{
+          "asserted_by" => "authenticated_host",
+          "previous" => receipt,
+          "successor" => receipt,
+          "imported" => receipt
+        },
+        "credit_frames" => 15,
+        "credit_bytes" => 262_144
+      })
+    )
 
     for fields <- [
           common,

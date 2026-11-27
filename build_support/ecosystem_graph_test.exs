@@ -35,7 +35,10 @@ defmodule MedEx.EcosystemGraphTest do
       |> EcosystemGraph.select(nil)
       |> EcosystemGraph.run(fn {id, _, _, _}, dependencies ->
         send(parent, {:ran, id, dependencies})
-        {_, status} = System.cmd("sh", ["-c", if(id == "medex-core", do: "exit 7", else: "exit 0")])
+
+        {_, status} =
+          System.cmd("sh", ["-c", if(id == "medex-core", do: "exit 7", else: "exit 0")])
+
         if status != 0, do: raise("command exited #{status}")
         "receipt-#{id}"
       end)
@@ -62,8 +65,14 @@ defmodule MedEx.EcosystemGraphTest do
     assert {:ok, _} = QualificationReceipt.read(receipt, input, %{"log" => log})
 
     for changed <- ["source", "lock", "tool", "fixture"] do
-      refute match?({:ok, _}, QualificationReceipt.read(receipt,
-        QualificationReceipt.fingerprint({input, changed}), %{"log" => log}))
+      refute match?(
+               {:ok, _},
+               QualificationReceipt.read(
+                 receipt,
+                 QualificationReceipt.fingerprint({input, changed}),
+                 %{"log" => log}
+               )
+             )
     end
 
     File.write!(log, "changed output\n")

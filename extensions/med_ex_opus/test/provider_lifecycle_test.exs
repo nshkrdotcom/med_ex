@@ -65,11 +65,13 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
     tmp_dir: dir
   } do
     sentinel = "opus-private-startup-sentinel"
+
     path =
       fixture(dir, """
       while not os.path.exists('#{dir}/reject'): time.sleep(0.001)
       emit(b'wrong');time.sleep(30)
       """)
+
     test = self()
 
     log =

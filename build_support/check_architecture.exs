@@ -3,7 +3,7 @@ Code.require_file("public_api.exs", __DIR__)
 
 defmodule MedEx.Build.Architecture do
   @moduledoc false
-  alias MedEx.Build.{Boundaries, Ownership}
+  alias MedEx.Build.{Boundaries, Ownership, PublicAPI}
 
   def check!(root, projection, report) do
     {composition, _} = Code.eval_file(Path.join(root, "build_support/composition.exs"))
@@ -27,7 +27,7 @@ defmodule MedEx.Build.Architecture do
     unless Ownership.beam_inventory!(direct, source_roots) == expected,
       do: raise("direct/component BEAM inventories differ")
 
-    MedEx.Build.PublicAPI.check!()
+    PublicAPI.check!()
     trace!(expected, source_roots, Map.keys(Map.fetch!(proofs, :med_core)))
 
     if projection,
@@ -76,20 +76,10 @@ defmodule MedEx.Build.Architecture do
     %{"schema" => "weld.result/2", "ok" => true, "data" => data} =
       report |> File.read!() |> JSON.decode!()
 
-    kind =
-      cond do
-        projection == Path.join(root, ".weld/v2/live/med_ex") -> "live"
-        projection == Path.join(root, ".weld/v2/full/med_ex/project") -> "full"
-        true -> raise("Use the managed Weld v2 live or full projection")
-      end
+    kind = projection_kind!(projection, root)
 
-    components = Enum.sort(composition.components)
     artifact = data["artifact"]
-
-    unless data["artifact_id"] == "med_ex" and data["layout"] == "components" and
-             Enum.sort(artifact["dependency_projects"]) == components and
-             Enum.sort(artifact["selected_projects"]) == components,
-           do: raise("Weld closure differs from the declared base composition")
+    verify_closure!(data, artifact, composition)
 
     files = artifact["source_inventory"]
     compile_sources = index(files, "compiled")
@@ -100,22 +90,17 @@ defmodule MedEx.Build.Architecture do
     projected_roots =
       for project <- composition.components do
         app = component_app(project)
-        source_lib = Keyword.fetch!(source_roots, app)
-        expected_root = Path.relative_to(source_lib, root)
+        expected_root = source_roots |> Keyword.fetch!(app) |> Path.relative_to(root)
+
+        inputs =
+          for {^app, relative} <- Map.values(expected),
+              do: {Path.join(expected_root, relative), relative}
 
         lib_paths =
-          for {owner, relative} <- Map.values(expected), owner == app do
-            source = Path.join(expected_root, relative)
+          Enum.map(inputs, fn {source, relative} ->
             target = compare_input!(compile_sources, source, root, projection, project)
-
-            unless covered?(target, package_files),
-              do: raise("compiler source missing from the Hex allowlist: #{target}")
-
-            if not String.ends_with?(target, "/" <> relative),
-              do: raise("projected source moved out of its owning compiler root: #{target}")
-
-            String.replace_suffix(target, "/" <> relative, "")
-          end
+            projected_lib!(target, relative, package_files)
+          end)
 
         [lib_path] = Enum.uniq(lib_paths)
         {app, Path.join(projection, lib_path)}
@@ -137,6 +122,33 @@ defmodule MedEx.Build.Architecture do
     IO.puts("Verified the #{kind} base closure, module ownership, tests and assets")
   end
 
+  defp projection_kind!(projection, root) do
+    cond do
+      projection == Path.join(root, ".weld/v2/live/med_ex") -> "live"
+      projection == Path.join(root, ".weld/v2/full/med_ex/project") -> "full"
+      true -> raise("Use the managed Weld v2 live or full projection")
+    end
+  end
+
+  defp verify_closure!(data, artifact, composition) do
+    components = Enum.sort(composition.components)
+
+    unless data["artifact_id"] == "med_ex" and data["layout"] == "components" and
+             Enum.sort(artifact["dependency_projects"]) == components and
+             Enum.sort(artifact["selected_projects"]) == components,
+           do: raise("Weld closure differs from the declared base composition")
+  end
+
+  defp projected_lib!(target, relative, package_files) do
+    unless covered?(target, package_files),
+      do: raise("compiler source missing from the Hex allowlist: #{target}")
+
+    unless String.ends_with?(target, "/" <> relative),
+      do: raise("projected source moved out of its owning compiler root: #{target}")
+
+    String.replace_suffix(target, "/" <> relative, "")
+  end
+
   defp verify_test_inputs!(files, root, projection, composition, package_files) do
     test_sources = Map.merge(index(files, "test"), index(files, "artifact_test"))
 
@@ -154,14 +166,19 @@ defmodule MedEx.Build.Architecture do
 
       if paths == [], do: raise("missing verification files for #{suite}")
 
-      for file <- paths do
-        source = Path.relative_to(file, root)
-        target = compare_input!(test_sources, source, root, projection, owner)
-
-        if covered?(target, package_files),
-          do: raise("verification input reached the published allowlist: #{target}")
-      end
+      Enum.each(
+        paths,
+        &verify_test_input!(&1, test_sources, root, projection, owner, package_files)
+      )
     end
+  end
+
+  defp verify_test_input!(file, test_sources, root, projection, owner, package_files) do
+    source = Path.relative_to(file, root)
+    target = compare_input!(test_sources, source, root, projection, owner)
+
+    if covered?(target, package_files),
+      do: raise("verification input reached the published allowlist: #{target}")
   end
 
   defp compare_input!(index, source, root, projection, owner) do

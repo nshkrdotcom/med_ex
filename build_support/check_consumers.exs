@@ -122,117 +122,133 @@ defmodule MedEx.ConsumerCheck do
         optimized: opts[:optimized] || opts[:resume] != nil
       }
 
-      cond do
-        opts[:registry] ->
-          archives =
-            cond do
-              opts[:prepared_packages] -> prepared_archives!(ctx)
-              opts[:projected_packages] -> projected_archives!(ctx, opts[:weld_invoker])
-              true -> projected_archives!(ctx, opts[:weld_invoker])
-            end
-
-          with_registry(
-            ctx,
-            archives,
-            fn env, _packages ->
-              [program | args] = command
-              IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
-            end,
-            Keyword.get_values(opts, :registry_lock)
-          )
-
-        opts[:release_extras] ->
-          release_extras!(ctx, opts[:release_extras])
-
-        ctx.optimized ->
-          run_optimized!(ctx)
-
-        opts[:full] || opts[:strict_full] ->
-          full_matrix!(ctx)
-
-        opts[:compatibility] ->
-          input = source_input()
-          ctx = Map.merge(ctx, %{optimized: true, source_input: input})
-          selected = Keyword.take(@profiles, matching_profiles(opts))
-          optimized_cells!(ctx, [{"direct", direct()}], nil, %{}, selected)
-          compatibility!(ctx, opts[:transport], selected)
-
-          unless source_input() == input,
-            do: raise("Source or toolchain drifted during compatibility checks")
-
-        opts[:functional] ->
-          canonical!(ctx, @profiles, true)
-
-        opts[:affected] ->
-          affected!(ctx, opts[:affected])
-
-        true ->
-          name = opts[:transport] || "direct"
-
-          profiles =
-            Enum.filter(@profiles, fn {id, _} ->
-              !opts[:profile] or to_string(id) == opts[:profile]
-            end)
-
-          single_transport!(ctx, name, profiles)
-      end
+      execute_checks(ctx, opts, command)
     after
       File.rm_rf!(stage)
     end
   end
 
+  defp execute_checks(ctx, opts, command) do
+    cond do
+      opts[:registry] -> run_registry_command(ctx, opts, command)
+      opts[:release_extras] -> release_extras!(ctx, opts[:release_extras])
+      ctx.optimized -> run_optimized!(ctx)
+      opts[:full] || opts[:strict_full] -> full_matrix!(ctx)
+      true -> execute_selected(ctx, opts)
+    end
+  end
+
+  defp execute_selected(ctx, opts) do
+    cond do
+      opts[:compatibility] ->
+        run_compatibility(ctx, opts)
+
+      opts[:functional] ->
+        canonical!(ctx, @profiles, true)
+
+      opts[:affected] ->
+        affected!(ctx, opts[:affected])
+
+      true ->
+        name = opts[:transport] || "direct"
+
+        profiles =
+          Enum.filter(@profiles, fn {id, _} ->
+            !opts[:profile] or to_string(id) == opts[:profile]
+          end)
+
+        single_transport!(ctx, name, profiles)
+    end
+  end
+
+  defp run_registry_command(ctx, opts, [program | args]) do
+    archives =
+      if opts[:prepared_packages],
+        do: prepared_archives!(ctx),
+        else: projected_archives!(ctx, opts[:weld_invoker])
+
+    with_registry(
+      ctx,
+      archives,
+      fn env, _packages ->
+        IO.write(command!(ctx, "registry-command", program, args, File.cwd!(), env))
+      end,
+      Keyword.get_values(opts, :registry_lock)
+    )
+  end
+
+  defp run_compatibility(ctx, opts) do
+    input = source_input()
+    ctx = Map.merge(ctx, %{optimized: true, source_input: input})
+    selected = Keyword.take(@profiles, matching_profiles(opts))
+    optimized_cells!(ctx, [{"direct", direct()}], nil, %{}, selected)
+    compatibility!(ctx, opts[:transport], selected)
+
+    unless source_input() == input,
+      do: raise("Source or toolchain drifted during compatibility checks")
+  end
+
   @doc false
   def validate_options!(opts, command) do
     modes =
-      Enum.count(
-        [
-          opts[:quick],
-          opts[:full],
-          opts[:strict_full],
-          opts[:optimized],
-          opts[:functional],
-          opts[:affected],
-          opts[:transport],
-          opts[:registry],
-          opts[:release_extras],
-          opts[:resume]
-        ],
-        & &1
-      )
+      ~w(quick full strict_full optimized functional affected transport registry release_extras resume)a
 
-    unless modes <= 1 and (opts[:transport] || "direct") in @transports and
-             (!opts[:profile] or opts[:profile] in Enum.map(Keyword.keys(@profiles), &to_string/1)) and
-             (!opts[:profile] or
-                !(opts[:full] || opts[:strict_full] || opts[:optimized] ||
-                    opts[:resume] || opts[:registry] || opts[:release_extras] || opts[:functional] ||
-                    opts[:affected])) and
-             (!opts[:jobs] or
-                (opts[:jobs] in 1..4 and (opts[:optimized] || not is_nil(opts[:resume])))) and
-             ((!(opts[:optimized] || opts[:compatibility]) or opts[:plan]) ||
-                not is_nil(opts[:evidence])) and
-             (!opts[:compatibility] or
-                (is_binary(opts[:transport]) and opts[:transport] != "direct")) and
-             (!opts[:resume] or (is_nil(opts[:evidence]) and File.dir?(opts[:resume]))) and
-             (!opts[:plan] or
-                Enum.any?(
-                  Keyword.take(opts, [:affected, :optimized, :full, :strict_full, :resume]),
-                  &elem(&1, 1)
-                )) and
-             (!(opts[:prepared_packages] || opts[:projected_packages] || opts[:registry_lock]) or
-                opts[:registry] == true) and
-             !(opts[:prepared_packages] && opts[:projected_packages]) and
-             (is_nil(opts[:weld_invoker]) or
-                (opts[:projected_packages] == true and
-                   Path.type(opts[:weld_invoker]) == :absolute and
-                   File.dir?(opts[:weld_invoker]) and
-                   File.regular?(Path.join(opts[:weld_invoker], "mix.exs")))) and
-             opts[:registry] == true == (command != []) and
-             is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
-             (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref])) do
-      raise ArgumentError, @usage
-    end
+    unless Enum.count(modes, &opts[&1]) <= 1 and transport_options?(opts) and
+             evidence_options?(opts) and registry_options?(opts, command) and git_options?(opts),
+           do: raise(ArgumentError, @usage)
 
     :ok
+  end
+
+  defp transport_options?(opts) do
+    (opts[:transport] || "direct") in @transports and profile_options?(opts) and
+      (!opts[:compatibility] or (is_binary(opts[:transport]) and opts[:transport] != "direct"))
+  end
+
+  defp profile_options?(opts) do
+    disabled = ~w(full strict_full optimized resume registry release_extras functional affected)a
+
+    !opts[:profile] or
+      (opts[:profile] in Enum.map(Keyword.keys(@profiles), &to_string/1) and
+         not Enum.any?(disabled, &opts[&1]))
+  end
+
+  defp evidence_options?(opts) do
+    jobs_options?(opts) and
+      evidence_required?(opts) and
+      (!opts[:resume] or (is_nil(opts[:evidence]) and File.dir?(opts[:resume]))) and
+      (!opts[:plan] or Enum.any?(~w(affected optimized full strict_full resume)a, &opts[&1]))
+  end
+
+  defp jobs_options?(opts) do
+    !opts[:jobs] or (opts[:jobs] in 1..4 and (opts[:optimized] || not is_nil(opts[:resume])))
+  end
+
+  defp evidence_required?(opts) do
+    (!(opts[:optimized] || opts[:compatibility]) or opts[:plan]) || not is_nil(opts[:evidence])
+  end
+
+  defp registry_options?(opts, command) do
+    needs_registry = Enum.any?(~w(prepared_packages projected_packages registry_lock)a, &opts[&1])
+
+    (!needs_registry or opts[:registry] == true) and
+      !(opts[:prepared_packages] && opts[:projected_packages]) and
+      valid_invoker?(opts[:weld_invoker], opts[:projected_packages]) and
+      opts[:registry] == true == (command != [])
+  end
+
+  defp valid_invoker?(nil, _), do: true
+
+  defp valid_invoker?(path, true),
+    do:
+      Path.type(path) == :absolute and File.dir?(path) and
+        File.regular?(Path.join(path, "mix.exs"))
+
+  defp valid_invoker?(_, _), do: false
+
+  defp git_options?(opts) do
+    is_nil(opts[:git_url]) == is_nil(opts[:git_ref]) and
+      (!opts[:git_ref] or Regex.match?(~r/\A[0-9a-f]{40}\z/, opts[:git_ref]))
   end
 
   defp plan(opts) do
@@ -252,8 +268,13 @@ defmodule MedEx.ConsumerCheck do
       # The canonical root quality gate already compiled/tested the independent
       # components. Check their actual ownership here without repeating suites.
       # A cold/missing proof build fails explicitly; run mix quality first.
-      mix!(ctx, "architecture", @repo,
-        ["run", "--no-compile", "--no-start", Path.join(__DIR__, "check_architecture.exs")], [])
+      mix!(
+        ctx,
+        "architecture",
+        @repo,
+        ["run", "--no-compile", "--no-start", Path.join(__DIR__, "check_architecture.exs")],
+        []
+      )
     end
 
     consumer_matrix!(ctx, "direct", direct(), profiles)
@@ -792,21 +813,15 @@ defmodule MedEx.ConsumerCheck do
         files = cell_outputs(ctx, label)
         canonical = canonical_proof(ctx, name, profile)
 
-        case Receipt.read(receipt, input, files) do
-          {:ok, %{"functional_source" => "own"} = details} ->
-            IO.puts("REUSED #{label} (#{details["tests"]} tests, verified inputs and outputs)")
+        result = Receipt.read(receipt, input, files)
 
-          {:ok, %{"functional_source" => ^canonical} = details} when not is_nil(canonical) ->
-            IO.puts("REUSED #{label} (#{details["tests"]} tests, verified canonical evidence)")
-
-          _ ->
-            private_env = private_hex!(ctx, label, env)
-            details = run_cell!(ctx, name, specs, profile, apps, private_env, archives)
-
-            unless input == cell_input(ctx, name, specs, profile, apps, env, archives),
-              do: raise("Input changed during #{label}")
-
-            Receipt.write!(receipt, input, files, details)
+        if reusable_cell?(result, canonical, label) do
+          :ok
+        else
+          private_env = private_hex!(ctx, label, env)
+          details = run_cell!(ctx, name, specs, profile, apps, private_env, archives)
+          same_input!(input, cell_input(ctx, name, specs, profile, apps, env, archives), label)
+          Receipt.write!(receipt, input, files, details)
         end
       end,
       max_concurrency: ctx.jobs,
@@ -815,6 +830,22 @@ defmodule MedEx.ConsumerCheck do
     )
     |> Enum.each(fn {:ok, _result} -> :ok end)
   end
+
+  defp same_input!(input, input, _label), do: :ok
+  defp same_input!(_, _, label), do: raise("Input changed during #{label}")
+
+  defp reusable_cell?({:ok, %{"functional_source" => "own"} = details}, _, label) do
+    IO.puts("REUSED #{label} (#{details["tests"]} tests, verified inputs and outputs)")
+    true
+  end
+
+  defp reusable_cell?({:ok, %{"functional_source" => canonical} = details}, canonical, label)
+       when not is_nil(canonical) do
+    IO.puts("REUSED #{label} (#{details["tests"]} tests, verified canonical evidence)")
+    true
+  end
+
+  defp reusable_cell?(_, _, _), do: false
 
   defp private_hex!(ctx, label, nil) do
     copy = Path.join(ctx.stage, "hex-#{label}")
@@ -1018,29 +1049,35 @@ defmodule MedEx.ConsumerCheck do
     lock = read_lock(Path.join(work, "mix.lock"))
 
     for app <- apps do
-      case {Map.fetch!(specs, app), Map.get(lock, app)} do
-        {[], {:hex, ^app, version, _, _, _, "hexpm", checksum}} ->
-          unless version == ctx.versions[app] and checksum == archives[app].sha256 do
-            raise "Registry resolution differs from the candidate tarball for #{app}"
-          end
-
-        {options, {:git, origin, rev, locked_options}} ->
-          unless options[:git] == origin and options[:ref] == rev and
-                   options[:subdir] == locked_options[:subdir] do
-            raise "Git resolution differs from the selected revision or subdir for #{app}"
-          end
-
-        {[path: _], nil} ->
-          :ok
-
-        {options, nil} when is_list(options) ->
-          unless Keyword.has_key?(options, :path), do: raise("Git/Hex lock missing for #{app}")
-
-        _ ->
-          raise "Unexpected Mix source in lock for #{app} at #{work}"
-      end
+      options = Map.fetch!(specs, app)
+      assert_dependency_lock!(ctx, app, options, Map.get(lock, app), archives, work)
     end
   end
+
+  defp assert_dependency_lock!(
+         ctx,
+         app,
+         [],
+         {:hex, app, version, _, _, _, "hexpm", checksum},
+         archives,
+         _
+       ) do
+    unless version == ctx.versions[app] and checksum == archives[app].sha256,
+      do: raise("Registry resolution differs from the candidate tarball for #{app}")
+  end
+
+  defp assert_dependency_lock!(_, app, options, {:git, origin, rev, locked_options}, _, _) do
+    unless options[:git] == origin and options[:ref] == rev and
+             options[:subdir] == locked_options[:subdir],
+           do: raise("Git resolution differs from the selected revision or subdir for #{app}")
+  end
+
+  defp assert_dependency_lock!(_, app, options, nil, _, _) when is_list(options) do
+    unless Keyword.has_key?(options, :path), do: raise("Git/Hex lock missing for #{app}")
+  end
+
+  defp assert_dependency_lock!(_, app, _, _, _, work),
+    do: raise("Unexpected Mix source in lock for #{app} at #{work}")
 
   defp projected_archives!(ctx, invoker) do
     revision = clean_source_revision!(ctx, "projected-registry")
@@ -1199,18 +1236,7 @@ defmodule MedEx.ConsumerCheck do
   def verify_package_files!(app, files) do
     names = Enum.map(files, &elem(&1, 0))
 
-    for path <- names do
-      segments = path_segments!(path)
-
-      if Enum.any?(
-           segments,
-           &(&1 in ~w(.git .weld deps _build test tools extensions .mix_sources.json))
-         ) or
-           (Path.basename(path) == "mix.exs" and path != "mix.exs") do
-        raise "Unexpected source or working file in #{app} Hex contents: #{path}"
-      end
-    end
-
+    Enum.each(names, &verify_package_path!(app, &1))
     unless "mix.exs" in names, do: raise("Hex contents for #{app} lack mix.exs")
 
     case app do
@@ -1229,6 +1255,18 @@ defmodule MedEx.ConsumerCheck do
     end
 
     :ok
+  end
+
+  defp verify_package_path!(app, path) do
+    segments = path_segments!(path)
+
+    if Enum.any?(
+         segments,
+         &(&1 in ~w(.git .weld deps _build test tools extensions .mix_sources.json))
+       ) or
+         (Path.basename(path) == "mix.exs" and path != "mix.exs") do
+      raise "Unexpected source or working file in #{app} Hex contents: #{path}"
+    end
   end
 
   defp archive_paths(ctx, archives) do
@@ -1364,40 +1402,40 @@ defmodule MedEx.ConsumerCheck do
             not MapSet.member?(candidates, {to_string(package), version}),
           do: {to_string(package), version, repo, checksum}
 
-    for {package, version, repo, checksum} <- Enum.uniq(packages ++ additional) do
-      unless repo == "hexpm" and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, package) and
-               match?({:ok, _}, Version.parse(version)) and
-               Regex.match?(~r/\A[0-9a-f]{64}\z/, checksum) do
-        raise "Unsupported or unchecked official dependency #{package} #{version}"
-      end
+    for package <- Enum.uniq(packages ++ additional),
+        do: fetch_official_tar!(ctx, tarballs, package)
+  end
 
-      target = Path.join(tarballs, "#{package}-#{version}.tar")
+  defp fetch_official_tar!(ctx, tarballs, {package, version, repo, checksum}) do
+    unless repo == "hexpm" and Regex.match?(~r/\A[a-z][a-z0-9_]*\z/, package) and
+             match?({:ok, _}, Version.parse(version)) and
+             Regex.match?(~r/\A[0-9a-f]{64}\z/, checksum),
+           do: raise("Unsupported or unchecked official dependency #{package} #{version}")
 
-      unless File.exists?(target) do
-        cached =
-          Path.join([
-            ctx.hex_home,
-            "packages",
-            repo,
-            "#{package}-#{version}.tar"
-          ])
+    name = "#{package}-#{version}.tar"
+    target = Path.join(tarballs, name)
 
-        if File.regular?(cached) do
-          File.cp!(cached, target)
-          IO.puts("Reusing official tarball: #{package}-#{version}")
-        else
-          mix!(
-            ctx,
-            "fetch-#{package}-#{version}",
-            tarballs,
-            ["hex.package", "fetch", package, version, "--repo", repo],
-            official_env(ctx),
-            "dev"
-          )
-        end
-      end
+    unless File.exists?(target),
+      do: fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo)
 
-      unless digest(File.read!(target)) == checksum, do: raise("Checksum mismatch for #{target}")
+    unless digest(File.read!(target)) == checksum, do: raise("Checksum mismatch for #{target}")
+  end
+
+  defp fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo) do
+    cached = Path.join([ctx.hex_home, "packages", repo, name])
+
+    if File.regular?(cached) do
+      File.cp!(cached, target)
+      IO.puts("Reusing official tarball: #{package}-#{version}")
+    else
+      mix!(
+        ctx,
+        "fetch-#{package}-#{version}",
+        tarballs,
+        ["hex.package", "fetch", package, version, "--repo", repo],
+        official_env(ctx),
+        "dev"
+      )
     end
   end
 
@@ -1406,7 +1444,7 @@ defmodule MedEx.ConsumerCheck do
       work = detach!(ctx, full[app][:path], "standalone-#{app}")
       mix!(ctx, "#{app}-standalone-resolve", work, ["deps.get"], env)
 
-      unless not Map.has_key?(read_lock(Path.join(work, "mix.lock")), :med_ex),
+      if Map.has_key?(read_lock(Path.join(work, "mix.lock")), :med_ex),
         do: raise("Base dependency leaked into #{app}")
 
       mix!(ctx, "#{app}-standalone-test", work, ["test"], env)

@@ -138,36 +138,35 @@ defmodule MedEx.RTC.Provider do
       ]
 
       case PeerConnection.start_link(options, timeout: @operation_ms) do
-        {:ok, pc} ->
-          result = negotiate(pc, initial, owner_ref, caller_ref)
-
-          case result do
-            {:ok, track_id, answer} ->
-              {:ok,
-               %{
-                 owner: initial.owner,
-                 owner_ref: owner_ref,
-                 caller: initial.caller,
-                 caller_ref: caller_ref,
-                 ref: initial.ref,
-                 pc: pc,
-                 track_id: track_id,
-                 answer: answer,
-                 state: :connecting,
-                 expiry: nil
-               }}
-
-            {:error, reason} ->
-              stop_pc(pc)
-              {:stop, reason}
-          end
-
-        _ ->
-          {:stop, :peer_start_failed}
+        {:ok, pc} -> initialize_peer(pc, initial, owner_ref, caller_ref)
+        _ -> {:stop, :peer_start_failed}
       end
     end
   rescue
     _ -> {:stop, :negotiation_failed}
+  end
+
+  defp initialize_peer(pc, initial, owner_ref, caller_ref) do
+    case negotiate(pc, initial, owner_ref, caller_ref) do
+      {:ok, track_id, answer} ->
+        {:ok,
+         %{
+           owner: initial.owner,
+           owner_ref: owner_ref,
+           caller: initial.caller,
+           caller_ref: caller_ref,
+           ref: initial.ref,
+           pc: pc,
+           track_id: track_id,
+           answer: answer,
+           state: :connecting,
+           expiry: nil
+         }}
+
+      {:error, reason} ->
+        stop_pc(pc)
+        {:stop, reason}
+    end
   end
 
   defp negotiate(pc, initial, owner_ref, caller_ref) do
@@ -369,27 +368,31 @@ defmodule MedEx.RTC.Provider do
 
   @doc "Validate owner and bounded ICE configuration before opening a signaling listener or peer."
   def validate_options(opts) when is_list(opts) do
-    if not Keyword.keyword?(opts), do: throw(:invalid_options)
-    owner = opts[:owner]
-    servers = Keyword.get(opts, :ice_servers, [])
-    policy = Keyword.get(opts, :ice_transport_policy, :all)
-
-    valid =
-      Keyword.keyword?(opts) and
-        length(Keyword.keys(opts)) == length(Enum.uniq(Keyword.keys(opts))) and
-        Enum.all?(Keyword.keys(opts), &(&1 in [:owner, :ice_servers, :ice_transport_policy])) and
-        is_pid(owner) and node(owner) == node() and Process.alive?(owner) and
-        policy in [:all, :relay] and
-        is_list(servers) and length(servers) <= 8 and Enum.all?(servers, &ice_server?/1)
-
-    if valid and (policy == :all or Enum.any?(servers, &turn?/1)),
-      do: :ok,
-      else: {:error, :invalid_owner_or_options}
-  catch
-    :invalid_options -> {:error, :invalid_owner_or_options}
+    if Keyword.keyword?(opts) and option_keys?(Keyword.keys(opts)) and
+         local_owner?(opts[:owner]) and
+         ice_policy?(
+           Keyword.get(opts, :ice_servers, []),
+           Keyword.get(opts, :ice_transport_policy, :all)
+         ),
+       do: :ok,
+       else: {:error, :invalid_owner_or_options}
   end
 
   def validate_options(_), do: {:error, :invalid_owner_or_options}
+
+  defp option_keys?(keys) do
+    length(keys) == length(Enum.uniq(keys)) and
+      Enum.all?(keys, &(&1 in [:owner, :ice_servers, :ice_transport_policy]))
+  end
+
+  defp local_owner?(owner), do: is_pid(owner) and node(owner) == node() and Process.alive?(owner)
+
+  defp ice_policy?(servers, policy)
+       when is_list(servers) and length(servers) <= 8 and policy in [:all, :relay] do
+    Enum.all?(servers, &ice_server?/1) and (policy == :all or Enum.any?(servers, &turn?/1))
+  end
+
+  defp ice_policy?(_, _), do: false
 
   defp ice_server?(server) when is_map(server) do
     urls = Map.get(server, :urls, Map.get(server, "urls"))
@@ -401,13 +404,15 @@ defmodule MedEx.RTC.Provider do
     ) and
       length(Enum.map(Map.keys(server), &to_string/1) |> Enum.uniq()) == map_size(server) and
       is_list(urls) and length(urls) in 1..8 and Enum.all?(urls, &ice_url?/1) and
-      Enum.all?(Map.drop(server, [:urls, "urls"]), fn {_, v} ->
-        is_binary(v) and byte_size(v) <= 1024 and String.valid?(v) and
-          not String.contains?(v, <<0>>)
-      end)
+      Enum.all?(Map.drop(server, [:urls, "urls"]), &ice_credential?/1)
   end
 
   defp ice_server?(_), do: false
+
+  defp ice_credential?({_, value}) do
+    is_binary(value) and byte_size(value) <= 1024 and String.valid?(value) and
+      not String.contains?(value, <<0>>)
+  end
 
   defp ice_url?(value) when is_binary(value) and byte_size(value) in 1..2048 do
     with true <- String.valid?(value),

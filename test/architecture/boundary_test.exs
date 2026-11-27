@@ -120,16 +120,25 @@ defmodule MedEx.ArchitectureTest do
     assert manifest_base[:package][:version] == cfg[:version]
     projected_deps = composition.package[:development_dependencies]
     assert manifest_base[:package][:dev_deps] == projected_deps
-    assert cfg[:deps] == projected_deps ++
-             [{:blitz, "0.4.1", only: [:dev, :test], runtime: false}]
+
+    assert cfg[:deps] ==
+             projected_deps ++
+               [{:blitz, "0.4.1", only: [:dev, :test], runtime: false}]
+
     refute Enum.any?(projected_deps, &(elem(&1, 0) == :blitz))
+
     assert_raise RuntimeError, ~r/undeclared dependency/, fn ->
       Boundaries.dependencies!(:med_ex, cfg[:deps])
     end
+
     assert_raise RuntimeError, ~r/development tooling leaked/, fn ->
-      Boundaries.dependencies!(:med_ex,
-        projected_deps ++ [{:blitz, "0.4.1", only: [:dev, :test]}], :workspace)
+      Boundaries.dependencies!(
+        :med_ex,
+        projected_deps ++ [{:blitz, "0.4.1", only: [:dev, :test]}],
+        :workspace
+      )
     end
+
     assert manifest_base[:files] == [docs: composition.documents, assets: composition.assets]
 
     assert Enum.map(manifest_base[:inputs], & &1[:path]) == [

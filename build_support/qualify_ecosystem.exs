@@ -7,6 +7,7 @@ defmodule MedEx.Build.EcosystemQC do
   alias MedEx.Build.EcosystemGraph, as: Graph
   alias MedEx.Build.QualificationReceipt, as: Receipt
   alias MedEx.Build.QualificationScope, as: Scope
+  alias MedEx.Build.QualificationSources, as: Sources
 
   @default_root Path.expand("../..", __DIR__)
   @switches [
@@ -73,10 +74,7 @@ defmodule MedEx.Build.EcosystemQC do
   defp configuration(mode, opts) do
     root = Path.expand(opts[:repos] || @default_root)
     jobs = opts[:jobs] || 2
-    unless jobs in 1..4, do: raise("--jobs must be between 1 and 4")
-    if mode in ~w(status resume) and is_nil(opts[:evidence]), do: raise("--evidence is required")
-    if mode in ~w(fast dev status) and opts[:gate],
-      do: raise("--gate is supported by plan, full and resume; #{mode} has a fixed scope")
+    validate_options!(mode, opts, jobs)
 
     evidence =
       opts[:evidence] ||
@@ -105,6 +103,14 @@ defmodule MedEx.Build.EcosystemQC do
     end)
 
     config
+  end
+
+  defp validate_options!(mode, opts, jobs) do
+    unless jobs in 1..4, do: raise("--jobs must be between 1 and 4")
+    if mode in ~w(status resume) and is_nil(opts[:evidence]), do: raise("--evidence is required")
+
+    if mode in ~w(fast dev status) and opts[:gate],
+      do: raise("--gate is supported by plan, full and resume; #{mode} has a fixed scope")
   end
 
   defp print_plan(config, opts) do
@@ -156,7 +162,10 @@ defmodule MedEx.Build.EcosystemQC do
 
       validate_native_inputs!(config, nodes)
       results = Graph.run(nodes, &run_gate(config, &1, &2))
-      unless Graph.successful?(results), do: raise("Qualification failed; independent results retained")
+
+      unless Graph.successful?(results),
+        do: raise("Qualification failed; independent results retained")
+
       IO.puts("Verified #{length(nodes)} gates")
     else
       root = Map.fetch!(config.repos, "med_ex")
@@ -228,38 +237,8 @@ defmodule MedEx.Build.EcosystemQC do
   defp graph(config) do
     evidence = config.evidence
 
-    matrix =
-      if config.opts[:no_cache] or config.opts[:strict],
-        do: Path.join(evidence, "medex-cells-" <> run_token()),
-        else: Path.join(evidence, "medex-cells")
-
     prepare = Path.join(evidence, "candidate-prepare-" <> run_token())
-
-    matrix_args =
-      cond do
-        config.opts[:strict] ->
-          ["./build_support/check_consumers.sh", "--strict-full", "--evidence", matrix]
-
-        File.dir?(matrix) and !config.opts[:no_cache] ->
-          [
-            "./build_support/check_consumers.sh",
-            "--resume",
-            matrix,
-            "--jobs",
-            to_string(config.jobs)
-          ]
-
-        true ->
-          [
-            "./build_support/check_consumers.sh",
-            "--optimized",
-            "--evidence",
-            matrix,
-            "--jobs",
-            to_string(config.jobs)
-          ]
-      end
-
+    matrix_args = matrix_command(config, evidence)
     project_script = Path.join(config.repos["med_ex"], "build_support/qualify_projects.sh")
 
     [
@@ -278,7 +257,8 @@ defmodule MedEx.Build.EcosystemQC do
          "enospc",
          config.opts[:enospc_root] || ""
        ]},
-      {"medex-prepare", "med_ex", ~w(medex-core), ["./build_support/prepare_qualification.sh", prepare]},
+      {"medex-prepare", "med_ex", ~w(medex-core),
+       ["./build_support/prepare_qualification.sh", prepare]},
       {"medex-matrix", "med_ex", ~w(medex-core medex-prepare), matrix_args},
       {"medex-remote", "med_ex", ~w(medex-prepare),
        [
@@ -303,47 +283,63 @@ defmodule MedEx.Build.EcosystemQC do
          "remote"
        ]},
       {"fabric-native", "med_fabric", ~w(medex-core fabric-projects),
-       [
-         "./ops/qc_native.sh",
-         "--evidence",
-         Path.join(evidence, "native-" <> run_token()),
-         "--artifacts",
-         config.opts[:artifacts] || ""
-       ] ++
-         if(config.opts[:keep_failure], do: ["--keep-failure"], else: [])},
+       native_command(config, "native", [])},
       {"fabric-soak-off", "med_fabric", ~w(fabric-native medex-enospc),
-       [
-         "./ops/qc_native.sh",
-         "--evidence",
-         Path.join(evidence, "soak-off-" <> run_token()),
-         "--suite",
-         "soak",
-         "--preview",
-         "off",
-         "--seconds",
-         "1740",
-         "--volume",
-         config.opts[:volume] || "",
-         "--artifacts",
-         config.opts[:artifacts] || ""
-       ] ++ if(config.opts[:keep_failure], do: ["--keep-failure"], else: [])},
+       soak_command(config, "off")},
       {"fabric-soak-isolated", "med_fabric", ~w(fabric-soak-off),
-       [
-         "./ops/qc_native.sh",
-         "--evidence",
-         Path.join(evidence, "soak-isolated-" <> run_token()),
-         "--suite",
-         "soak",
-         "--preview",
-         "isolated",
-         "--seconds",
-         "1740",
-         "--volume",
-         config.opts[:volume] || "",
-         "--artifacts",
-         config.opts[:artifacts] || ""
-       ] ++ if(config.opts[:keep_failure], do: ["--keep-failure"], else: [])}
+       soak_command(config, "isolated")}
     ]
+  end
+
+  defp native_command(config, label, args) do
+    keep = if config.opts[:keep_failure], do: ["--keep-failure"], else: []
+
+    ["./ops/qc_native.sh", "--evidence", Path.join(config.evidence, label <> "-" <> run_token())] ++
+      args ++ ["--artifacts", config.opts[:artifacts] || ""] ++ keep
+  end
+
+  defp soak_command(config, preview) do
+    native_command(config, "soak-" <> preview, [
+      "--suite",
+      "soak",
+      "--preview",
+      preview,
+      "--seconds",
+      "1740",
+      "--volume",
+      config.opts[:volume] || ""
+    ])
+  end
+
+  defp matrix_command(config, evidence) do
+    matrix =
+      if config.opts[:no_cache] || config.opts[:strict],
+        do: Path.join(evidence, "medex-cells-" <> run_token()),
+        else: Path.join(evidence, "medex-cells")
+
+    cond do
+      config.opts[:strict] ->
+        ["./build_support/check_consumers.sh", "--strict-full", "--evidence", matrix]
+
+      File.dir?(matrix) and !config.opts[:no_cache] ->
+        [
+          "./build_support/check_consumers.sh",
+          "--resume",
+          matrix,
+          "--jobs",
+          to_string(config.jobs)
+        ]
+
+      true ->
+        [
+          "./build_support/check_consumers.sh",
+          "--optimized",
+          "--evidence",
+          matrix,
+          "--jobs",
+          to_string(config.jobs)
+        ]
+    end
   end
 
   defp validate_native_inputs!(config, nodes) do
@@ -381,13 +377,18 @@ defmodule MedEx.Build.EcosystemQC do
 
     files =
       for {name, entry} <- Enum.sort(packages) do
-        repository = if name in ~w(med_ex med_ex_opus med_ex_rtc), do: "med_ex", else: "med_fabric"
+        repository =
+          if name in ~w(med_ex med_ex_opus med_ex_rtc), do: "med_ex", else: "med_fabric"
+
         checkout = config.repos[repository]
         revision = checkout |> Receipt.git!(["rev-parse", "HEAD"]) |> String.trim()
+
         unless entry["source_revision"] == revision,
           do: raise("Archive source differs from frozen #{repository} HEAD")
+
         unless String.trim(Receipt.git!(checkout, ["status", "--porcelain"])) == "",
           do: raise("Archive qualification requires a clean #{repository} checkout")
+
         archive = Path.expand(Map.fetch!(entry, "archive"), Path.dirname(manifest))
         hash = archive |> File.read!() |> Receipt.sha256()
         unless hash == entry["sha256"], do: raise("Detached archive digest differs for #{name}")
@@ -473,50 +474,54 @@ defmodule MedEx.Build.EcosystemQC do
     log = log_path(config, id)
     outputs = gate_outputs(config, root, id, log)
 
-    reuse = if config.opts[:no_cache], do: :miss, else: Receipt.read(receipt, input, outputs)
-    reuse =
-      case reuse do
-        {:ok, details} ->
-          if details["generated_inputs"] == generated_inputs(config, id), do: reuse, else: :miss
-        :miss -> :miss
-      end
-
-    case reuse do
+    case reusable_gate(config, id, receipt, input, outputs) do
       {:ok, details} ->
         IO.puts("REUSED #{id} (#{details["duration_ms"]} ms, matching input and outputs)")
 
       :miss ->
-        IO.puts("RUN #{id}")
-        archive_attempt(config, id)
-        started = System.monotonic_time(:millisecond)
-        output_directory = output_directory(id, args)
-        duration = run_command!(config, id, args, root, log, started)
-
-        if gate_input(config, root, id, args, dependencies) != input do
-          raise "Input drifted during #{id}; see #{log}"
-        end
-
-        output = File.read!(log)
-        tests = test_count(output)
-
-        details = %{
-          "duration_ms" => duration,
-          "tests" => tests,
-          "wall_time_limit_seconds" => wall_time_limit(id),
-          "generated_inputs" => generated_inputs(config, id)
-        }
-        if Enum.any?(details["generated_inputs"], fn {_, value} -> value == "missing" end),
-          do: raise("Required generated proof inputs are missing for #{id}")
-
-        if output_directory do
-          File.write!(Path.join(config.evidence, id <> ".output"), output_directory)
-        end
-
-        Receipt.write!(receipt, input, gate_outputs(config, root, id, log), details)
-        IO.puts("PASS #{id} (#{duration} ms, #{tests} reported tests)")
+        execute_gate!(config, id, root, args, dependencies, input, log, receipt)
     end
 
     receipt |> File.read!() |> Receipt.sha256()
+  end
+
+  defp reusable_gate(%{opts: opts} = config, id, receipt, input, outputs) do
+    with false <- opts[:no_cache] == true,
+         {:ok, details} = hit <- Receipt.read(receipt, input, outputs),
+         true <- details["generated_inputs"] == generated_inputs(config, id) do
+      hit
+    else
+      _ -> :miss
+    end
+  end
+
+  defp execute_gate!(config, id, root, args, dependencies, input, log, receipt) do
+    IO.puts("RUN #{id}")
+    archive_attempt(config, id)
+    started = System.monotonic_time(:millisecond)
+    duration = run_command!(config, id, args, root, log, started)
+
+    unless gate_input(config, root, id, args, dependencies) == input,
+      do: raise("Input drifted during #{id}; see #{log}")
+
+    tests = log |> File.read!() |> test_count()
+    generated = generated_inputs(config, id)
+
+    if "missing" in Map.values(generated),
+      do: raise("Required generated proof inputs are missing for #{id}")
+
+    if directory = output_directory(id, args),
+      do: File.write!(Path.join(config.evidence, id <> ".output"), directory)
+
+    details = %{
+      "duration_ms" => duration,
+      "tests" => tests,
+      "wall_time_limit_seconds" => wall_time_limit(id),
+      "generated_inputs" => generated
+    }
+
+    Receipt.write!(receipt, input, gate_outputs(config, root, id, log), details)
+    IO.puts("PASS #{id} (#{duration} ms, #{tests} reported tests)")
   end
 
   defp output_directory(id, [_, "--evidence", directory | _])
@@ -534,28 +539,50 @@ defmodule MedEx.Build.EcosystemQC do
   defp output_directory(_, _), do: nil
 
   defp test_count(output) do
-    ~r/^Result: (\d+) passed$/m
+    ~r/^(?:[^|\n]+ \| )?Result: (\d+)(?:\/\d+)? passed(?:, \d+ excluded)?$/m
     |> Regex.scan(output)
     |> Enum.map(fn [_, count] -> String.to_integer(count) end)
     |> Enum.sum()
   end
 
   defp gate_input(config, root, id, args, parents) do
-    stable_args =
-      case id do
-        "medex-matrix" ->
-          [id, config.opts[:strict] == true]
+    stable_args = stable_args(config, id, args)
 
-        id when id in ~w(medex-prepare medex-remote) ->
-          Enum.take(args, 1)
+    Receipt.fingerprint({
+      2,
+      id,
+      source_scope(config, root, id, args),
+      Receipt.toolchain(),
+      source_dependencies(config, root, id),
+      native_identity(config, id),
+      official_registry(System.get_env("HEX_HOME") || Path.join(System.user_home!(), ".hex")),
+      fixture_identity(config),
+      fabric_selection(config, id),
+      executable_identity(id),
+      native_inputs(),
+      stable_args,
+      parents,
+      Receipt.source(config.repos["med_ex"], ["build_support"])
+    })
+  end
 
-        id when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated) ->
-          stable_native_args(args)
+  defp stable_args(config, id, args) do
+    case id do
+      "medex-matrix" ->
+        [id, config.opts[:strict] == true]
 
-        _ ->
-          args
-      end
+      id when id in ~w(medex-prepare medex-remote) ->
+        Enum.take(args, 1)
 
+      id when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated) ->
+        stable_native_args(args)
+
+      _ ->
+        args
+    end
+  end
+
+  defp source_dependencies(config, root, id) do
     revision =
       if id in ~w(medex-prepare medex-matrix medex-remote),
         do: Receipt.git!(root, ["rev-parse", "HEAD"])
@@ -566,33 +593,21 @@ defmodule MedEx.Build.EcosystemQC do
       if String.starts_with?(id, "fabric-"),
         do: Receipt.source(config.repos["med_ex"])
 
-    hex = System.get_env("HEX_HOME") || Path.join(System.user_home!(), ".hex")
-    registry = official_registry(hex)
-
-    Receipt.fingerprint({
-      2,
-      id,
-      source_scope(config, root, id, args),
-      Receipt.toolchain(),
-      revision,
-      remote,
-      dependent_sdk,
-      if(id in ~w(fabric-native fabric-soak-off fabric-soak-isolated),
-        do: artifact_identity(config)
-      ),
-      registry,
-      fixture_identity(config),
-      if(String.starts_with?(id, "fabric-"), do: selector_identity(config)),
-      if(String.starts_with?(id, "fabric-"),
-        do: MedEx.Build.QualificationSources.selected(config.repos["med_fabric"])),
-      if(id == "fabric-projects", do: fabric_context_locks(config)),
-      executable_identity(id),
-      native_inputs(),
-      stable_args,
-      parents,
-      Receipt.source(config.repos["med_ex"], ["build_support"])
-    })
+    {revision, remote, dependent_sdk}
   end
+
+  defp native_identity(config, id)
+       when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated),
+       do: artifact_identity(config)
+
+  defp native_identity(_, _), do: nil
+
+  defp fabric_selection(config, "fabric-" <> _ = id) do
+    {selector_identity(config), Sources.selected(config.repos["med_fabric"]),
+     if(id == "fabric-projects", do: fabric_context_locks(config))}
+  end
+
+  defp fabric_selection(_, _), do: nil
 
   defp source_scope(config, root, id, args) do
     if String.starts_with?(id, "fabric-") and config.mode not in ["fast", "dev"] do
@@ -689,30 +704,7 @@ defmodule MedEx.Build.EcosystemQC do
           pointer_outputs(config, id, "*.{json,log,pem}")
 
         "medex-prepare" ->
-          Enum.flat_map(["med_ex"], fn app ->
-            state = Path.join([root, ".weld", "v2"])
-            current = Path.join([state, "current", app])
-
-            case File.read(current) do
-              {:ok, bytes} ->
-                %{"schema" => "weld.current/2", "artifact" => ^app, "bundle_id" => identity} =
-                  JSON.decode!(bytes)
-
-                unless Regex.match?(~r/\A[0-9a-f]{64}\z/, identity),
-                  do: raise("Invalid Weld current bundle identity")
-
-                bundle = Path.join([state, "bundles", app, identity])
-
-                [
-                  current
-                  | Path.wildcard(Path.join(bundle, "**/*"), match_dot: true)
-                    |> Enum.filter(&File.regular?/1)
-                ]
-
-              _ ->
-                [current]
-            end
-          end)
+          prepared_outputs(root, "med_ex")
 
         id when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated medex-remote) ->
           pointer_outputs(config, id, "**/*.{json,log}")
@@ -722,6 +714,31 @@ defmodule MedEx.Build.EcosystemQC do
       end
 
     Map.new([log | extras], &{&1, &1})
+  end
+
+  defp prepared_outputs(root, app) do
+    state = Path.join([root, ".weld", "v2"])
+    current = Path.join([state, "current", app])
+
+    case File.read(current) do
+      {:ok, bytes} ->
+        %{"schema" => "weld.current/2", "artifact" => ^app, "bundle_id" => identity} =
+          JSON.decode!(bytes)
+
+        unless Regex.match?(~r/\A[0-9a-f]{64}\z/, identity),
+          do: raise("Invalid Weld current bundle identity")
+
+        bundle = Path.join([state, "bundles", app, identity])
+
+        [
+          current
+          | Path.wildcard(Path.join(bundle, "**/*"), match_dot: true)
+            |> Enum.filter(&File.regular?/1)
+        ]
+
+      _ ->
+        [current]
+    end
   end
 
   defp pointer_outputs(config, id, pattern) do
@@ -802,7 +819,9 @@ defmodule MedEx.Build.EcosystemQC do
     path = System.fetch_env!("PATH")
 
     case System.find_executable("pg_config") do
-      nil -> path
+      nil ->
+        path
+
       executable ->
         case System.cmd(executable, ["--bindir"]) do
           {bin, 0} -> String.trim(bin) <> ":" <> path
@@ -826,14 +845,21 @@ defmodule MedEx.Build.EcosystemQC do
   defp fabric_context_locks(config) do
     Mix.start()
     previous = Mix.env()
-    projects = [mf_domain: "core/domain", mf_store: "core/store",
-      mf_interop: "core/interop", mf_exam: "apps/exam",
-      mf_handheld: "apps/handheld", mf_preview: "apps/preview"]
+
+    projects = [
+      mf_domain: "core/domain",
+      mf_store: "core/store",
+      mf_interop: "core/interop",
+      mf_exam: "apps/exam",
+      mf_handheld: "apps/handheld",
+      mf_preview: "apps/preview"
+    ]
 
     try do
       for environment <- [:dev, :test, :prod], {app, project} <- projects do
         Mix.env(environment)
         directory = Path.join(config.repos["med_fabric"], project)
+
         Mix.Project.in_project(app, directory, fn _ ->
           path = Path.expand(Mix.Project.config()[:lockfile] || "mix.lock")
           {project, environment, path, File.read(path)}
@@ -854,14 +880,17 @@ defmodule MedEx.Build.EcosystemQC do
 
     Map.new(paths, fn relative ->
       path = Path.join(config.repos["med_ex"], relative)
-      digest = if File.dir?(path),
-        do: MedEx.Build.QualificationSources.path(path), else: "missing"
+
+      digest =
+        if File.dir?(path), do: Sources.path(path), else: "missing"
+
       {relative, digest}
     end)
   end
 
   defp selector_identity(config) do
     path = Path.join(config.repos["med_fabric"], ".mix_sources.json")
+
     case File.lstat(path) do
       {:error, :enoent} -> :default
       {:ok, %{type: :regular}} -> path |> File.read!() |> Receipt.sha256()
@@ -870,13 +899,17 @@ defmodule MedEx.Build.EcosystemQC do
   end
 
   defp fixture_identity(config) do
-    path = System.get_env("MEDEX_RECEIPT_VECTORS") ||
-      Path.join(config.repos["med_ex"], "core/med_core/test/fixtures/receipt_vectors_v2.json")
+    path =
+      System.get_env("MEDEX_RECEIPT_VECTORS") ||
+        Path.join(config.repos["med_ex"], "core/med_core/test/fixtures/receipt_vectors_v2.json")
+
     {:ok, %{type: :regular}} = File.lstat(path)
     bytes = File.read!(path)
     hash = Receipt.sha256(bytes)
+
     unless hash == "00e4b87285b26e995f5f0e3bff01c3cce5a8f3c4701e41d9f3981b73a197901b",
       do: raise("Receipt fixture hash differs")
+
     {Path.expand(path), hash}
   end
 
@@ -885,15 +918,18 @@ defmodule MedEx.Build.EcosystemQC do
       MAKEFLAGS MIX_REBAR3 CMAKE_TOOLCHAIN_FILE PKG_CONFIG_PATH MED_EX_OPUS_TARBALL
       AR RANLIB MED_EX_OPUS_CONFIGURE_FLAGS)
     archive = System.get_env("MED_EX_OPUS_TARBALL")
+
     {Enum.map(settings, &{&1, System.get_env(&1)}),
-      if(archive, do: {archive, File.read(archive)})}
+     if(archive, do: {archive, File.read(archive)})}
   end
 
   defp executable_identity(id) do
     tools = ~w(git bash python3 node cc pkg-config mix elixir)
-    tools = if String.starts_with?(id, "fabric-"),
-      do: tools ++ ~w(pg_config initdb postgres psql chromium chromium-browser turnserver java),
-      else: tools
+
+    tools =
+      if String.starts_with?(id, "fabric-"),
+        do: tools ++ ~w(pg_config initdb postgres psql chromium chromium-browser turnserver java),
+        else: tools
 
     Enum.map(tools, fn name ->
       case System.find_executable(name) do

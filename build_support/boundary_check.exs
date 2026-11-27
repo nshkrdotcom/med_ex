@@ -125,24 +125,31 @@ defmodule MedEx.Build.Boundaries do
       if Enum.any?(@media, &(name == &1 or String.starts_with?(name, &1 <> "."))),
         do: raise("external dependency in #{file}: #{mod}")
 
-      if owner == :med_core do
-        if mod in @effects or
-             (mod in [Date, Time, NaiveDateTime, DateTime] and
-                fun in [:utc_today, :utc_now, :local_now, :now, :now!]) or
-             (mod == :calendar and
-                fun in [:local_time, :universal_time, :system_time_to_local_time]) or
-             (mod in [Kernel, :erlang] and fun in @builtins) or
-             (mod == IO and fun != :iodata_to_binary) or (mod == :crypto and fun != :hash),
-           do: raise("core effect in #{file}: #{mod}.#{fun}")
-
-        if String.starts_with?(Atom.to_string(mod), "Elixir.MedEx.") and
-             not MapSet.member?(core_modules, mod),
-           do: raise("reverse dependency in #{file}: #{mod}")
-      end
+      if owner == :med_core, do: check_core_edge!(file, mod, fun, name, core_modules)
     end
 
     :ok
   end
+
+  defp check_core_edge!(file, mod, fun, name, core_modules) do
+    if effect?(mod, fun), do: raise("core effect in #{file}: #{mod}.#{fun}")
+
+    if String.starts_with?(name, "Elixir.MedEx.") and not MapSet.member?(core_modules, mod),
+      do: raise("reverse dependency in #{file}: #{mod}")
+  end
+
+  defp effect?(mod, _) when mod in @effects, do: true
+
+  defp effect?(mod, fun) when mod in [Date, Time, NaiveDateTime, DateTime],
+    do: fun in [:utc_today, :utc_now, :local_now, :now, :now!]
+
+  defp effect?(:calendar, fun),
+    do: fun in [:local_time, :universal_time, :system_time_to_local_time]
+
+  defp effect?(mod, fun) when mod in [Kernel, :erlang], do: fun in @builtins
+  defp effect?(IO, fun), do: fun != :iodata_to_binary
+  defp effect?(:crypto, fun), do: fun != :hash
+  defp effect?(_, _), do: false
 
   def ast!(file, text) do
     {roots, _} = :persistent_term.get(__MODULE__)
@@ -154,12 +161,7 @@ defmodule MedEx.Build.Boundaries do
         raise "core effect in #{file}: #{elem(ast, 0)}"
 
       {{:., _, [receiver, method]}, meta, args} = ast when is_list(args) and is_atom(method) ->
-        dynamic =
-          not is_atom(receiver) and not match?({:__aliases__, _, _}, receiver) and
-            not match?({:__MODULE__, _, _}, receiver)
-
-        # A no-parentheses map/struct field access does not dispatch a module.
-        if dynamic and (args != [] or not meta[:no_parens]) and
+        if dynamic_receiver?(receiver) and call?(args, meta) and
              (core? or relative not in @dispatch),
            do: raise("dynamic module dispatch in #{file}: #{method}")
 
@@ -171,6 +173,14 @@ defmodule MedEx.Build.Boundaries do
 
     :ok
   end
+
+  defp dynamic_receiver?(receiver) do
+    not is_atom(receiver) and not match?({:__aliases__, _, _}, receiver) and
+      not match?({:__MODULE__, _, _}, receiver)
+  end
+
+  # A no-parentheses map/struct field access does not dispatch a module.
+  defp call?(args, meta), do: args != [] or not meta[:no_parens]
 
   def dependencies!(app, deps, scope \\ :package) do
     expected = %{

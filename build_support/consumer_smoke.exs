@@ -1,5 +1,6 @@
 defmodule ExternalDeviceDriverTest do
   use ExUnit.Case
+  alias Mix.Dep.Lock
 
   setup context do
     if dir = context[:tmp_dir], do: on_exit(fn -> File.rm_rf!(dir) end)
@@ -82,7 +83,7 @@ defmodule ExternalDeviceDriverTest do
   end
 
   defp effective_inputs(modules, paths, source) do
-    lock = Mix.Dep.Lock.read()
+    lock = Lock.read()
 
     for {app, {:git, _url, revision, _opts}} <- Map.take(lock, Map.keys(modules)) do
       assert {^revision, 0} =

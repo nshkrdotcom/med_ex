@@ -21,7 +21,8 @@ defmodule MedEx.QualificationSourcesTest do
     %{root: root, repo: repo}
   end
 
-  test "external direct source, assets, locks and executable modes invalidate actual receipts", c do
+  test "external direct source, assets, locks and executable modes invalidate actual receipts",
+       c do
     source = project(c.root, "alternate-sdk")
     select(c.repo, source)
     {receipt, log, input} = passing_receipt(c)
@@ -60,7 +61,11 @@ defmodule MedEx.QualificationSourcesTest do
     {receipt, log, input} = passing_receipt(c)
     live_input = QualificationSources.path(live)
 
-    File.write!(Path.join(source, "lib/source.ex"), "defmodule Source, do: def(value, do: :edited)\n")
+    File.write!(
+      Path.join(source, "lib/source.ex"),
+      "defmodule Source, do: def(value, do: :edited)\n"
+    )
+
     changed = QualificationSources.selected(c.repo, %{})
     refute changed == input
     refute QualificationSources.path(live) == live_input
@@ -72,7 +77,8 @@ defmodule MedEx.QualificationSourcesTest do
     refute QualificationSources.selected(c.repo, %{}) == input
   end
 
-  test "new source under an ordinary directory is covered; generated project outputs are not", c do
+  test "new source under an ordinary directory is covered; generated project outputs are not",
+       c do
     source = project(c.root, "source")
     select(c.repo, source)
     input = QualificationSources.selected(c.repo, %{})
@@ -104,7 +110,11 @@ defmodule MedEx.QualificationSourcesTest do
           {"RANLIB", "custom-ranlib"},
           {"MED_EX_OPUS_CONFIGURE_FLAGS", "--disable-tests"}
         ] do
-      refute reusable?(receipt, log, QualificationSources.selected(c.repo, Map.put(env, setting, value)))
+      refute reusable?(
+               receipt,
+               log,
+               QualificationSources.selected(c.repo, Map.put(env, setting, value))
+             )
     end
 
     target = Path.join(c.root, "native-archive")
@@ -143,7 +153,11 @@ defmodule MedEx.QualificationSourcesTest do
     select(c.repo, Path.join(c.root, "missing-project"))
     assert_raise ArgumentError, fn -> QualificationSources.selected(c.repo, %{}) end
 
-    File.write!(Path.join(c.repo, ".mix_sources.json"), ~s({"med_ex":{"path":"one","path":"two"}}))
+    File.write!(
+      Path.join(c.repo, ".mix_sources.json"),
+      ~s({"med_ex":{"path":"one","path":"two"}})
+    )
+
     assert_raise ArgumentError, fn -> QualificationSources.selected(c.repo, %{}) end
   end
 
@@ -151,15 +165,28 @@ defmodule MedEx.QualificationSourcesTest do
     path = Path.join(root, name)
     File.mkdir_p!(Path.join(path, "lib"))
     File.mkdir!(Path.join(path, "priv"))
-    File.write!(Path.join(path, "mix.exs"), "defmodule Source.MixProject, do: def(project, do: [])\n")
+
+    File.write!(
+      Path.join(path, "mix.exs"),
+      "defmodule Source.MixProject, do: def(project, do: [])\n"
+    )
+
     File.write!(Path.join(path, "mix.lock"), "%{}\n")
-    File.write!(Path.join(path, "lib/source.ex"), "defmodule Source, do: def(value, do: :original)\n")
+
+    File.write!(
+      Path.join(path, "lib/source.ex"),
+      "defmodule Source, do: def(value, do: :original)\n"
+    )
+
     File.write!(Path.join(path, "priv/asset.bin"), <<1, 2, 3>>)
     path
   end
 
   defp select(repo, source) do
-    File.write!(Path.join(repo, ".mix_sources.json"), JSON.encode!(%{"med_ex" => %{"path" => source}}))
+    File.write!(
+      Path.join(repo, ".mix_sources.json"),
+      JSON.encode!(%{"med_ex" => %{"path" => source}})
+    )
   end
 
   defp passing_receipt(c, env \\ %{}) do

@@ -15,19 +15,12 @@ defmodule MedEx.Opus.Provider do
   @call_timeout 1_000
   @hello "med_ex_opus/1 "
 
-  def start_link(opts) when is_list(opts) do
-    if Keyword.keyword?(opts) and Keyword.keys(opts) == [:owner] and
-         is_pid(opts[:owner]) and node(opts[:owner]) == node() and Process.alive?(opts[:owner]) do
-      executable =
-        if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :executable}), else: nil
-
-      executable =
-        executable || Path.join(to_string(:code.priv_dir(:med_ex_opus)), "opus_encoder")
-
+  def start_link(owner: owner) when is_pid(owner) and node(owner) == node() do
+    if Process.alive?(owner) do
       initial = %{
-        owner: opts[:owner],
+        owner: owner,
         caller: self(),
-        executable: executable,
+        executable: executable(),
         deadline: now() + @hello_timeout
       }
 
@@ -42,9 +35,13 @@ defmodule MedEx.Opus.Provider do
 
   def start_link(_), do: {:error, :invalid_owner_or_options}
 
+  defp executable do
+    override = if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :executable})
+    override || Path.join(to_string(:code.priv_dir(:med_ex_opus)), "opus_encoder")
+  end
+
   def offer(pid, id, sample, pcm) when is_pid(pid) do
-    if operation_id?(id) and is_integer(sample) and sample in 0..0xFFFFFFFFFFFFFFFF and
-         is_binary(pcm) and byte_size(pcm) == 1920 do
+    if frame?(id, sample, pcm) do
       owned_call(pid, fn deadline -> {:offer, id, sample, pcm, deadline} end)
     else
       {:error, :invalid_frame}
@@ -52,6 +49,11 @@ defmodule MedEx.Opus.Provider do
   end
 
   def offer(_, _, _, _), do: {:error, :invalid_frame}
+
+  defp frame?(id, sample, pcm) do
+    operation_id?(id) and is_integer(sample) and sample in 0..0xFFFFFFFFFFFFFFFF and
+      is_binary(pcm) and byte_size(pcm) == 1920
+  end
 
   def stop(pid) when is_pid(pid) and node(pid) == node() do
     # The live server checks ownership atomically with stop. Unlike an offer,
@@ -194,8 +196,7 @@ defmodule MedEx.Opus.Provider do
 
   def handle_call({:offer, id, sample, pcm, deadline}, _, s) do
     cond do
-      not operation_id?(id) or not is_integer(sample) or sample < 0 or sample > 0xFFFFFFFFFFFFFFFF or
-        not is_binary(pcm) or byte_size(pcm) != 1920 ->
+      not frame?(id, sample, pcm) ->
         {:reply, {:error, :invalid_frame}, s}
 
       not is_nil(s.pending) ->
@@ -211,28 +212,32 @@ defmodule MedEx.Opus.Provider do
         {:stop, :normal, {:error, :operation_limit}, s}
 
       true ->
-        case command(s.port, pcm) do
-          :ok ->
-            token = make_ref()
-            timer = Process.send_after(self(), {:encode_timeout, token}, @encode_timeout)
-
-            pending = %{
-              id: id,
-              sample: sample,
-              token: token,
-              timer: timer,
-              deadline: now() + @encode_timeout
-            }
-
-            {:reply, :ok, %{s | pending: pending, used: MapSet.put(s.used, id)}}
-
-          {:error, reason} ->
-            {:stop, :normal, {:error, {:outcome_unknown, reason}}, s}
-        end
+        encode(s, id, sample, pcm)
     end
   end
 
   def handle_call(_, _, s), do: {:reply, {:error, :invalid_operation}, s}
+
+  defp encode(s, id, sample, pcm) do
+    case command(s.port, pcm) do
+      :ok ->
+        token = make_ref()
+        timer = Process.send_after(self(), {:encode_timeout, token}, @encode_timeout)
+
+        pending = %{
+          id: id,
+          sample: sample,
+          token: token,
+          timer: timer,
+          deadline: now() + @encode_timeout
+        }
+
+        {:reply, :ok, %{s | pending: pending, used: MapSet.put(s.used, id)}}
+
+      {:error, reason} ->
+        {:stop, :normal, {:error, {:outcome_unknown, reason}}, s}
+    end
+  end
 
   @impl true
   def handle_info({port, {:data, packet}}, %{port: port, pending: pending} = s)
