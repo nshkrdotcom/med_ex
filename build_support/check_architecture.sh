@@ -29,9 +29,10 @@ for project in $components .; do
       version = File.read!(Path.join(root, "VERSION")) |> String.trim()
       unless Atom.to_string(config[:app]) == expected and config[:version] == version,
         do: Mix.raise("unexpected component app or version: #{inspect(config[:app])}")
-      MedEx.Build.Boundaries.dependencies!(config[:app], config[:deps])
+      scope = if cwd == root, do: :workspace, else: :package
+      MedEx.Build.Boundaries.dependencies!(config[:app], config[:deps], scope)
     '
-    mix test
+    elixir "$MEDEX_BUILD_ROOT/build_support/run_project_qc.exs" native_test
   )
 done
 

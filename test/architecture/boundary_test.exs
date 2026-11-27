@@ -109,7 +109,7 @@ defmodule MedEx.ArchitectureTest do
     assert cfg[:app] == :med_ex
     assert cfg[:elixirc_paths] == Enum.map(composition.components, &Path.join(&1, "lib"))
     assert cfg[:test_paths] == ["test" | Enum.map(composition.components, &Path.join(&1, "test"))]
-    assert :ok == Boundaries.dependencies!(:med_ex, cfg[:deps])
+    assert :ok == Boundaries.dependencies!(:med_ex, cfg[:deps], :workspace)
 
     assert Keyword.keys(artifacts) == [:med_ex]
     manifest_base = artifacts[:med_ex]
@@ -118,7 +118,18 @@ defmodule MedEx.ArchitectureTest do
     assert manifest_base[:roots] == composition.components
     assert manifest_base[:verify][:component_tests]
     assert manifest_base[:package][:version] == cfg[:version]
-    assert manifest_base[:package][:dev_deps] == cfg[:deps]
+    projected_deps = composition.package[:development_dependencies]
+    assert manifest_base[:package][:dev_deps] == projected_deps
+    assert cfg[:deps] == projected_deps ++
+             [{:blitz, "0.4.1", only: [:dev, :test], runtime: false}]
+    refute Enum.any?(projected_deps, &(elem(&1, 0) == :blitz))
+    assert_raise RuntimeError, ~r/undeclared dependency/, fn ->
+      Boundaries.dependencies!(:med_ex, cfg[:deps])
+    end
+    assert_raise RuntimeError, ~r/development tooling leaked/, fn ->
+      Boundaries.dependencies!(:med_ex,
+        projected_deps ++ [{:blitz, "0.4.1", only: [:dev, :test]}], :workspace)
+    end
     assert manifest_base[:files] == [docs: composition.documents, assets: composition.assets]
 
     assert Enum.map(manifest_base[:inputs], & &1[:path]) == [

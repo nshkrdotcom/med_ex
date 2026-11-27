@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Bound gap identifiers so canonical credit identities fit unchanged wire limits;
+  reject mixed waveform/event durable state.
+- Normalize expected startup failures without OTP argument dumps, make provider
+  stop one owner-checked call, and preserve in-flight work across expired calls.
+- Check effective OS ownership freshly without global identity caching; retain
+  final storage path/owner/symlink fences.
+- Handle native Opus partial/EINTR I/O, exact signed PCM and normal cleanup.
+- Add bounded root Mix/Blitz orchestration, real static coverage guards and
+  resumable consumer qualification independent of Weld's own CI/remote Git proof.
+- Add C I/O, lifecycle, ownership, wire and tooling regressions. Elixir/runtime
+  and release qualification remain pending; source changes are not release proof.
+
 ## [0.4.0] - 2026-11-26
 
 ### Breaking changes

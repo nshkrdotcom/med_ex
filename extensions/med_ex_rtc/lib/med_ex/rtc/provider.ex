@@ -24,18 +24,14 @@ defmodule MedEx.RTC.Provider do
          owner = opts[:owner],
          ref = make_ref(),
          {:ok, pid} <-
-           GenServer.start_link(
-             __MODULE__,
-             %{
-               owner: owner,
-               caller: self(),
-               ref: ref,
-               offer: offer,
-               options: opts,
-               deadline: now() + @negotiation_ms
-             },
-             timeout: @negotiation_ms + 1_000
-           ) do
+           start_peer(%{
+             owner: owner,
+             caller: self(),
+             ref: ref,
+             offer: offer,
+             options: opts,
+             deadline: now() + @negotiation_ms
+           }) do
       handle = %__MODULE__{pid: pid, ref: ref, owner: owner}
 
       try do
@@ -56,6 +52,7 @@ defmodule MedEx.RTC.Provider do
   end
 
   def answer(_, _), do: {:error, :invalid_offer_or_options}
+
   def peer_ref(%__MODULE__{ref: ref}), do: ref
 
   def send_opus(%__MODULE__{owner: owner} = peer, packet, sequence, media_tick, deadline)
@@ -103,13 +100,20 @@ defmodule MedEx.RTC.Provider do
   def close(%__MODULE__{}), do: {:error, :not_owner}
   def close(_), do: {:error, :invalid_peer}
 
+  defp start_peer(initial) do
+    case GenServer.start_link(__MODULE__, initial, timeout: @negotiation_ms + 1_000) do
+      {:error, {:shutdown, reason}} -> {:error, reason}
+      result -> result
+    end
+  end
+
   @impl true
   def init(initial) do
     case initialize(initial) do
-      {:stop, _} = failure ->
+      {:stop, reason} ->
         # Failed startup must return the refusal without sending the caller an exit.
         Process.unlink(initial.caller)
-        failure
+        {:stop, {:shutdown, reason}}
 
       success ->
         success
@@ -343,7 +347,8 @@ defmodule MedEx.RTC.Provider do
 
   defp stop_pc(pc) do
     monitor = Process.monitor(pc)
-    Process.unlink(pc)
+    # Keep the child linked while cleanup is pending: the outer startup timeout
+    # must still retire it if this initializer dies before the kill fallback.
     if Process.alive?(pc), do: Process.exit(pc, :shutdown)
 
     receive do

@@ -2,8 +2,13 @@
 
 `build_support/composition.exs` declares the base membership, version, docs and
 assets once. The root Mix project is a development consumer of that declaration.
-Run core/capture tests independently and compare compiled ownership with the
-base projection using `build_support/check_architecture.sh`.
+Run `mix setup` and `mix quality` for combined SDK/providers plus independent
+Core/Capture boundaries, tooling regressions and compiled ownership. The root
+commands and precise scopes are documented in README. A focused standalone
+architecture rebuild is available as `build_support/check_architecture.sh`;
+consumer matrices use the already-built proof inventories from root quality
+and fail if they are absent. They do not repeat the ordinary source suites.
+Browser acquisition assets/tests live in Fabric; the SDK has no empty Node gate.
 
 Only `med_ex` is projected/prepared/tracked by Weld. `extensions/med_ex_opus` and
 `extensions/med_ex_rtc` use their own `mix.exs`, package inventory, locks and

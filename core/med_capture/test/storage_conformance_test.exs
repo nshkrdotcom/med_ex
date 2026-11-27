@@ -225,6 +225,96 @@ defmodule MedEx.StorageConformanceTest do
     assert {:error, {:outcome_unknown, _}} = StreamWriter.checkpoint(writer, "f1", 1000)
   end
 
+  test "permissions changed after object installation are rechecked before journal append", f do
+    changed = :atomics.new(1, [])
+
+    Process.put({StreamWriter, :fault_hook}, fn
+      :after_object_install ->
+        if :atomics.add_get(changed, 1, 1) == 1, do: File.chmod!(f.root, 0o777)
+        :ok
+
+      _ ->
+        :ok
+    end)
+
+    {:ok, writer} = F.start(f)
+    {:ok, original} = StreamWriter.receipt(writer, "f1", 1000)
+    journal = Path.join(f.dir, "stream.mejournal")
+    before = File.read!(journal)
+    {:ok, _} = StreamWriter.push(writer, "f1", F.frame(0), 1000)
+
+    assert {:error, {:not_committed, :ownership_lost_or_sealed}} =
+             StreamWriter.checkpoint(writer, "f1", 1000)
+
+    assert File.read!(journal) == before
+    assert {:ok, observed} = StreamWriter.receipt(writer, "f1", 1000)
+    assert MedEx.Receipt.durable_prefix(observed) == original
+    File.chmod!(f.root, 0o700)
+    assert {:ok, committed} = StreamWriter.checkpoint(writer, "f1", 1000)
+    assert committed.durable_sample == 960
+    F.retire(writer)
+    assert {:ok, %{receipt: ^committed}} = F.recover(f)
+  end
+
+  test "owner revocation after object installation cannot create a durable journal record", f do
+    Process.put({StreamWriter, :fault_hook}, fn
+      :after_object_install -> GenServer.stop(f.root_owner)
+      _ -> :ok
+    end)
+
+    {:ok, writer} = F.start(f)
+    journal = Path.join(f.dir, "stream.mejournal")
+    before = File.read!(journal)
+    {:ok, _} = StreamWriter.push(writer, "f1", F.frame(0), 1000)
+
+    assert {:error, {:not_committed, :ownership_lost_or_sealed}} =
+             StreamWriter.checkpoint(writer, "f1", 1000)
+
+    assert File.read!(journal) == before
+    F.retire(writer)
+    {:ok, replacement} = MedEx.TestRootOwner.start(f.root)
+    on_exit(fn -> if Process.alive?(replacement), do: GenServer.stop(replacement) end)
+    assert {:ok, recovered} = F.recover(%{f | root_owner: replacement})
+    assert recovered.receipt.durable_sequence == 0
+    assert recovered.receipt.durable_sample == 0
+  end
+
+  test "a post-install symlink replacement is denied despite the live owner token", f do
+    moved = f.root <> "-moved"
+
+    on_exit(fn ->
+      if File.exists?(moved) do
+        File.rm!(f.root)
+        File.rename!(moved, f.root)
+      end
+    end)
+
+    Process.put({StreamWriter, :fault_hook}, fn
+      :after_object_install ->
+        File.rename!(f.root, moved)
+        File.ln_s!(moved, f.root)
+
+      _ ->
+        :ok
+    end)
+
+    {:ok, writer} = F.start(f)
+    journal = Path.join(f.dir, "stream.mejournal")
+    before = File.read!(journal)
+    {:ok, _} = StreamWriter.push(writer, "f1", F.frame(0), 1000)
+
+    assert {:error, {:not_committed, :ownership_lost_or_sealed}} =
+             StreamWriter.checkpoint(writer, "f1", 1000)
+
+    assert Process.alive?(f.root_owner)
+    assert File.read!(journal) == before
+    F.retire(writer)
+    File.rm!(f.root)
+    File.rename!(moved, f.root)
+    assert {:ok, recovered} = F.recover(f)
+    assert recovered.receipt.durable_sample == 0
+  end
+
   test "recovery timeout retains the actual lock until its worker quiesces", f do
     {:ok, writer} = F.start(f)
     {:ok, _} = StreamWriter.push(writer, "f1", F.frame(0), 1000)

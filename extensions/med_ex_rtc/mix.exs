@@ -9,6 +9,16 @@ defmodule MedExRTC.MixProject do
       app: :med_ex_rtc,
       version: @version,
       elixir: "~> 1.20",
+      aliases: [
+        quality: [
+          "format --check-formatted",
+          "compile --warnings-as-errors",
+          "cmd env MIX_ENV=test mix test --warnings-as-errors",
+          "credo --strict",
+          "dialyzer",
+          "docs --warnings-as-errors"
+        ]
+      ],
       deps: [
         {:ex_webrtc, "~> 0.18.0"},
         {:ex_rtp, "~> 0.4"},

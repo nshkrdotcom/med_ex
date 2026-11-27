@@ -10,3 +10,5 @@ deps/
 doc/
 
 erl_crash.dump
+
+.blitz/

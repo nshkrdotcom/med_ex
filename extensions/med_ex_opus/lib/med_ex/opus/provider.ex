@@ -24,16 +24,17 @@ defmodule MedEx.Opus.Provider do
       executable =
         executable || Path.join(to_string(:code.priv_dir(:med_ex_opus)), "opus_encoder")
 
-      GenServer.start_link(
-        __MODULE__,
-        %{
-          owner: opts[:owner],
-          caller: self(),
-          executable: executable,
-          deadline: now() + @hello_timeout
-        },
-        timeout: @start_timeout
-      )
+      initial = %{
+        owner: opts[:owner],
+        caller: self(),
+        executable: executable,
+        deadline: now() + @hello_timeout
+      }
+
+      case GenServer.start_link(__MODULE__, initial, timeout: @start_timeout) do
+        {:error, {:shutdown, reason}} -> {:error, reason}
+        result -> result
+      end
     else
       {:error, :invalid_owner_or_options}
     end
@@ -52,8 +53,19 @@ defmodule MedEx.Opus.Provider do
 
   def offer(_, _, _, _), do: {:error, :invalid_frame}
 
-  def stop(pid) when is_pid(pid) do
-    if Process.alive?(pid), do: owned_call(pid, fn _ -> :stop end), else: :ok
+  def stop(pid) when is_pid(pid) and node(pid) == node() do
+    # The live server checks ownership atomically with stop. Unlike an offer,
+    # this call needs no authorization round trip and may never kill a PID on
+    # timeout: the caller has no proof that an unresponsive process admitted it.
+    GenServer.call(pid, :stop, @call_timeout)
+  catch
+    :exit, {reason, _} when reason in [:noproc, :normal] ->
+      if Process.alive?(pid),
+        do: {:error, {:outcome_unknown, :encoder_call_failed}},
+        else: :ok
+
+    :exit, _ ->
+      {:error, {:outcome_unknown, :encoder_call_failed}}
   end
 
   def stop(_), do: {:error, :invalid_encoder}
@@ -94,10 +106,10 @@ defmodule MedEx.Opus.Provider do
   @impl true
   def init(initial) do
     case initialize(initial) do
-      {:stop, _} = failure ->
+      {:stop, reason} ->
         # Failed startup must return the refusal without sending the caller an exit.
         Process.unlink(initial.caller)
-        failure
+        {:stop, {:shutdown, reason}}
 
       success ->
         success
@@ -186,11 +198,11 @@ defmodule MedEx.Opus.Provider do
         not is_binary(pcm) or byte_size(pcm) != 1920 ->
         {:reply, {:error, :invalid_frame}, s}
 
-      now() >= deadline ->
-        {:stop, :normal, {:error, {:not_committed, :expired}}, s}
-
       not is_nil(s.pending) ->
         {:reply, {:error, :busy}, s}
+
+      not is_integer(deadline) or now() >= deadline ->
+        {:reply, {:error, {:not_committed, :expired}}, s}
 
       MapSet.member?(s.used, id) ->
         {:reply, {:error, :operation_id_reused}, s}

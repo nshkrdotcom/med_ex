@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 sdk=${1:?Provide the MedEx checkout}
+mode=${3:-local}
+case "$mode" in
+  local) transports=(direct live full prepared registry) ;;
+  remote) transports=(git) ;;
+  *) echo 'Source mode must be local or remote' >&2; exit 2 ;;
+esac
+source "$sdk/build_support/receipt_fixture.sh"
+medex_receipt_fixture "$sdk/core/med_core/test/fixtures/receipt_vectors_v2.json"
 fabric=$(pwd -P)
 sha=$(git -C "$sdk" rev-parse HEAD)
 apps=(med_ex med_ex_opus med_ex_rtc)
@@ -10,7 +18,7 @@ registry_locks=()
 for lock in "$fabric"/apps/*/mix.lock "$fabric"/core/*/mix.lock; do
   registry_locks+=(--registry-lock "$lock")
 done
-for transport in direct live full prepared git registry; do
+for transport in "${transports[@]}"; do
   entries='{}'
   for app in "${apps[@]}"; do
     project_source=$sdk

@@ -175,10 +175,18 @@ The guard answers only while its actual lock is live and the requested path is
 within its root. File checks a real service-uid-owned root directory, no group
 or other write permissions on that root, no symlink ancestors, and trusted
 uid/root-owned ancestors. Sticky writable ancestors such as `/tmp` are allowed
-because they protect the owned next directory from replacement. The concrete
-ownership check currently uses Linux procfs; other platforms fail closed pending
-qualification. Ownership tokens are rechecked before mutations and verified
-reads. Root ownership does not replace the host authority/effect gate.
+because they protect the owned next directory from replacement. Each ownership
+check resolves the effective UID afresh: Linux reads the effective field of
+`/proc/self/status`; POSIX systems without procfs use a trusted, absolute system
+`id -u` executable with a one-second deadline and bounded, strictly parsed output.
+Missing or malformed identity fails closed. Identity and path trust are never
+cached globally. Ownership tokens, paths and retirement fences are rechecked
+before mutations and verified reads, including after object installation and
+before journal append. This identity fallback does not make `flock`, ext4 tests
+or other Linux-specific qualification portable; macOS/BSD execution requires
+its own qualification. Root ownership does not replace the host authority/effect
+gate, and credential changes during an individual filesystem effect are outside
+the supported service model.
 
 `Storage.File.recover(dir, opts)` is read-only: it never truncates, appends or
 installs an index. Options are `stream:`, `fence:`, `root_owner:`, optional fully

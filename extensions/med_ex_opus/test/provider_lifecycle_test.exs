@@ -1,5 +1,6 @@
 defmodule MedEx.Opus.ProviderLifecycleTest do
   use ExUnit.Case, async: false
+  require Logger
   alias MedEx.Opus.Provider
   @moduletag :tmp_dir
   setup do
@@ -57,6 +58,135 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
     start = System.monotonic_time(:millisecond)
     assert {:error, :startup_timeout} = Provider.start_link(owner: self())
     assert System.monotonic_time(:millisecond) - start < 6500
+    dead_native(dir)
+  end
+
+  test "expected startup refusal has no private crash report and preserves caller lifetime", %{
+    tmp_dir: dir
+  } do
+    sentinel = "opus-private-startup-sentinel"
+    path =
+      fixture(dir, """
+      while not os.path.exists('#{dir}/reject'): time.sleep(0.001)
+      emit(b'wrong');time.sleep(30)
+      """)
+    test = self()
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        {caller, monitor} =
+          spawn_monitor(fn ->
+            Process.put({Provider, :executable}, path)
+            send(test, {:refusal, self(), Provider.start_link(owner: self())})
+            send(test, {:caller_flags, Process.info(self(), :trap_exit)})
+
+            receive do
+              :done -> :ok
+            end
+          end)
+
+        assert_eventually(fn -> File.exists?(Path.join(dir, "native.pid")) end, 100)
+        {:links, links} = Process.info(caller, :links)
+        [initializer] = Enum.filter(links, &is_pid/1)
+        send(initializer, {:private_startup_message, sentinel})
+        File.write!(Path.join(dir, "reject"), "ready")
+        assert_receive {:refusal, ^caller, {:error, :invalid_hello}}, 2000
+        assert_receive {:caller_flags, {:trap_exit, false}}
+        assert Process.alive?(caller)
+        send(caller, :done)
+        assert_receive {:DOWN, ^monitor, :process, ^caller, :normal}
+        dead_native(dir)
+        Logger.warning("safe_opus_refusal_diagnostic")
+      end)
+
+    assert log =~ "safe_opus_refusal_diagnostic"
+    refute log =~ sentinel
+    refute log =~ "CRASH REPORT"
+    refute log =~ "crasher:"
+  end
+
+  test "stop recognizes only normal dead races and never kills an unresponsive PID" do
+    for {reason, expected} <- [
+          {:normal, :ok},
+          {:shutdown, {:error, {:outcome_unknown, :encoder_call_failed}}}
+        ] do
+      {pid, monitor} =
+        spawn_monitor(fn ->
+          receive do
+            {:"$gen_call", _, :stop} -> exit(reason)
+          end
+        end)
+
+      assert Provider.stop(pid) == expected
+      assert_receive {:DOWN, ^monitor, :process, ^pid, ^reason}
+      assert :ok = Provider.stop(pid)
+    end
+
+    test = self()
+
+    {pid, monitor} =
+      spawn_monitor(fn ->
+        receive do
+          {:"$gen_call", _, :stop} -> send(test, :stop_submitted)
+        end
+
+        receive do
+          :done -> :ok
+        end
+      end)
+
+    started = System.monotonic_time(:millisecond)
+    assert {:error, {:outcome_unknown, :encoder_call_failed}} = Provider.stop(pid)
+    assert System.monotonic_time(:millisecond) - started < 1500
+    assert_received :stop_submitted
+    assert Process.alive?(pid)
+    send(pid, :done)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :normal}
+  end
+
+  test "expired overlapping offer preserves pending encode; idle expiry sends no bytes", %{
+    tmp_dir: dir
+  } do
+    fixture(dir, """
+    emit(b'med_ex_opus/1 fixture')
+    count=0
+    while True:
+     header=sys.stdin.buffer.read(4)
+     if len(header)!=4: break
+     size=struct.unpack('>I',header)[0]
+     data=sys.stdin.buffer.read(size)
+     if len(data)!=size: break
+     count+=1
+     open('#{dir}/requests','w').write(str(count))
+     while count==1 and not os.path.exists('#{dir}/release'): time.sleep(0.001)
+     emit(b'encoded')
+    """)
+
+    {:ok, provider} = Provider.start_link(owner: self())
+    assert provider in elem(Process.info(self(), :links), 1)
+    pcm = :binary.copy(<<0>>, 1920)
+    assert :ok = Provider.offer(provider, "one", 0, pcm)
+    state = :sys.get_state(provider)
+    expired = System.monotonic_time(:millisecond) - 1
+
+    assert {:error, :busy} =
+             GenServer.call(provider, {:offer, "two", 960, pcm, expired})
+
+    assert :sys.get_state(provider) == state
+    File.write!(Path.join(dir, "release"), "ready")
+    assert_receive {:med_ex_encoded, "one", 0, "encoded"}, 1000
+
+    assert {:error, {:not_committed, :expired}} =
+             GenServer.call(provider, {:offer, "two", 960, pcm, expired})
+
+    assert Process.alive?(provider)
+    assert :sys.get_state(provider).port == state.port
+    assert :ok = Provider.offer(provider, "two", 960, pcm)
+    assert_receive {:med_ex_encoded, "two", 960, "encoded"}, 1000
+    refute_receive {:med_ex_encoded, "one", _, _}
+    refute_receive {:med_ex_encode_failed, _, _}
+    assert File.read!(Path.join(dir, "requests")) == "2"
+    assert :ok = Provider.stop(provider)
     dead_native(dir)
   end
 

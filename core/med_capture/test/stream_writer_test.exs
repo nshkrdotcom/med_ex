@@ -12,6 +12,7 @@ defmodule MedEx.StreamWriterTest do
 
   test "owner and explicit fence precede every effect; durable vs volatile and replay", f do
     {:ok, writer} = F.start(f)
+    assert writer in elem(Process.info(self(), :links), 1)
 
     assert {:error, :not_owner} =
              Task.async(fn -> StreamWriter.push(writer, "f1", F.frame(0), 1000) end)

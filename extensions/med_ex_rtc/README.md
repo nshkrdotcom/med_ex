@@ -59,7 +59,15 @@ behavior. There is no hard-coded public STUN service or implicit environment
 lookup in the provider.
 
 Build tools, pkg-config and OpenSSL headers are needed for the ExWebRTC native
-DTLS/SRTP dependencies. Run `mix test` for actual negotiation, receive-side RTP
+DTLS/SRTP dependencies. ExWebRTC's transitive `ex_dtls`, `ex_libsrtp` and `shmex`
+NIFs load into the BEAM running `med_ex_rtc`. The base SDK, Opus Port, Exam and
+Handheld intended authoritative dependency closures contain no application-owned
+or third-party NIF extensions; OTP itself can use native implementations.
+Production `mf_preview` therefore runs in a separate OS BEAM with no clinical
+database or raw-record authority. The combined six-package `hex_smoke` example
+proves dependency resolution and installation, not safe production co-hosting.
+
+Run `mix test` for actual negotiation, receive-side RTP
 payload/sequence/timestamp checks, malformed input, owner/caller lifetimes,
 queued deadline expiry and cleanup. Tests supply an independently known Opus
 silence packet; they do not install an encoder or base SDK. To include the

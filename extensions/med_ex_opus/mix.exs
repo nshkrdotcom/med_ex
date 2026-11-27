@@ -10,6 +10,16 @@ defmodule MedExOpus.MixProject do
       version: @version,
       elixir: "~> 1.20",
       compilers: [:elixir_make | Mix.compilers()],
+      aliases: [
+        quality: [
+          "format --check-formatted",
+          "compile --warnings-as-errors",
+          "cmd env MIX_ENV=test mix test --warnings-as-errors",
+          "credo --strict",
+          "dialyzer",
+          "docs --warnings-as-errors"
+        ]
+      ],
       deps: [
         {:elixir_make, "~> 0.9", runtime: false},
         {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

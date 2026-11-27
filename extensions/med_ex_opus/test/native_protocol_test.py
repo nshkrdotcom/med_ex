@@ -9,6 +9,7 @@ import signal
 import struct
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from pathlib import Path
 ENCODER = str(Path(sys.argv.pop(1)).resolve()) if len(sys.argv) > 1 else None
 
 TONE = b"".join(struct.pack("<h", int(12000 * math.sin(i / 20))) for i in range(960))
+EXTREMES = b"".join(struct.pack("<h", value) * 240 for value in (-32768, -1, 0, 32767))
 
 
 def packet(payload):
@@ -33,6 +35,27 @@ def unpack(data):
         frames.append(data[4:4 + size])
         data = data[4 + size:]
     return frames
+
+
+def read_packet(stream):
+    deadline = time.monotonic() + 3
+
+    def exact(size):
+        data = b""
+        while len(data) < size:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([stream], [], [], remaining)[0]:
+                raise AssertionError("native packet deadline expired")
+            chunk = os.read(stream.fileno(), size - len(data))
+            if not chunk:
+                raise AssertionError("truncated native packet")
+            data += chunk
+        return data
+
+    size, = struct.unpack(">I", exact(4))
+    if size > 1275:
+        raise AssertionError("native output exceeded the packet bound")
+    return exact(size)
 
 
 class NativeProtocolTest(unittest.TestCase):
@@ -130,6 +153,10 @@ class NativeProtocolTest(unittest.TestCase):
         self.assertEqual(status, 0)
         encoded, = packets
 
+        samples = self.decode_packet(encoded)
+        self.assertGreater(sum(s * s for s in samples) / len(samples), 1000 ** 2)
+
+    def decode_packet(self, encoded):
         library = ctypes.util.find_library("opus")
         self.assertIsNotNone(library, "codec qualification requires the libopus shared library")
         opus = ctypes.CDLL(library)
@@ -148,7 +175,39 @@ class NativeProtocolTest(unittest.TestCase):
         samples = (ctypes.c_int16 * 960)()
         self.assertTrue(encoded)
         self.assertEqual(opus.opus_decode(decoder, encoded, len(encoded), samples, 960, 0), 960)
-        self.assertGreater(sum(s * s for s in samples) / len(samples), 1000 ** 2)
+        return samples
+
+    def test_signed_pcm_extremes_form_one_decodable_frame(self):
+        status, packets = self.run_encoder(packet(EXTREMES))
+        self.assertEqual(status, 0)
+        encoded, = packets
+        self.assertEqual(len(self.decode_packet(encoded)), 960)
+
+    def test_fragmented_header_and_payload_preserve_two_frame_boundaries(self):
+        with subprocess.Popen([ENCODER], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as port:
+            try:
+                self.assertTrue(read_packet(port.stdout).startswith(b"med_ex_opus/1 libopus "))
+                data = packet(TONE) + packet(EXTREMES)
+                for offset in range(0, len(data), 7):
+                    port.stdin.write(data[offset:offset + 7])
+                    port.stdin.flush()
+                port.stdin.close()
+                frames = [read_packet(port.stdout), read_packet(port.stdout)]
+                self.assertEqual(port.wait(timeout=3), 0)
+                self.assertEqual(port.stdout.read(), b"")
+                self.assertTrue(all(0 < len(frame) <= 1275 for frame in frames))
+            finally:
+                if port.poll() is None:
+                    port.stdout.close()
+                    port.wait(timeout=3)
+
+    def test_closed_output_exits_without_a_hung_codec(self):
+        with subprocess.Popen([ENCODER], stdin=subprocess.PIPE, stdout=subprocess.PIPE) as port:
+            try:
+                self.assertTrue(read_packet(port.stdout).startswith(b"med_ex_opus/1 libopus "))
+            finally:
+                port.stdout.close()
+            self.assertNotEqual(port.wait(timeout=3), 0)
 
     def test_one_opus_packet_is_returned_per_pcm_frame(self):
         pcm = TONE

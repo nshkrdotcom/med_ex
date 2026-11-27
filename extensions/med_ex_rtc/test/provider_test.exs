@@ -1,5 +1,6 @@
 defmodule MedEx.RTC.ProviderTest do
   use ExUnit.Case, async: false
+  require Logger
   alias ExWebRTC.{PeerConnection, SessionDescription}
   alias MedEx.RTC.Provider
 
@@ -39,6 +40,7 @@ defmodule MedEx.RTC.ProviderTest do
   defp connected(opts \\ []) do
     {receiver, offer} = receiver(opts)
     assert {:ok, peer, answer} = Provider.answer(offer, Keyword.put(opts, :owner, self()))
+    assert peer.pid in elem(Process.info(self(), :links), 1)
     ref = Provider.peer_ref(peer)
     assert is_reference(ref)
     assert Regex.scan(~r/^m=/m, answer) |> length() == 1
@@ -165,6 +167,43 @@ defmodule MedEx.RTC.ProviderTest do
 
     assert {:error, _} = Provider.answer(malformed, owner: self(), ice_servers: [])
     assert MapSet.new(PeerConnection.get_all_running()) == before
+  end
+
+  test "expected negotiation refusal preserves its public reason and omits private crash reports" do
+    before = MapSet.new(PeerConnection.get_all_running())
+    sentinel = "rtc-private-startup-sentinel"
+
+    malformed =
+      "v=0\r\ns=#{sentinel}\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n" <>
+        "a=recvonly\r\na=rtpmap:111 opus/48000/2\r\n"
+
+    test = self()
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        {caller, monitor} =
+          spawn_monitor(fn ->
+            send(test, {:refusal, self(), Provider.answer(malformed, owner: self())})
+            send(test, {:caller_flags, Process.info(self(), :trap_exit)})
+
+            receive do
+              :done -> :ok
+            end
+          end)
+
+        assert_receive {:refusal, ^caller, {:error, :negotiation_failed}}, 12_000
+        assert_receive {:caller_flags, {:trap_exit, false}}
+        assert Process.alive?(caller)
+        send(caller, :done)
+        assert_receive {:DOWN, ^monitor, :process, ^caller, :normal}
+        Logger.warning("safe_rtc_refusal_diagnostic")
+      end)
+
+    assert MapSet.new(PeerConnection.get_all_running()) == before
+    assert log =~ "safe_rtc_refusal_diagnostic"
+    refute log =~ sentinel
+    refute log =~ "CRASH REPORT"
+    refute log =~ "crasher:"
   end
 
   test "SDP and ICE configuration reject invalid surfaces before opening a peer" do

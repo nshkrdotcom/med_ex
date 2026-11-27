@@ -4,6 +4,8 @@ umask 077
 root=$(cd "$(dirname "$0")/.." && pwd -P)
 evidence=${1:?Supply a new private preparation evidence directory}
 cd "$root"
+source "$root/build_support/receipt_fixture.sh"
+medex_receipt_fixture "$root/core/med_core/test/fixtures/receipt_vectors_v2.json"
 test -z "$(git status --porcelain)"
 unset MIX_ENV MIX_EXS MIX_TARGET MIX_DEPS_PATH MIX_LOCKFILE MIX_BUILD_PATH MIX_BUILD_ROOT
 invoker="$root/tools/maintainer"

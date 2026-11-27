@@ -208,12 +208,13 @@ defmodule MedEx.Wire.Control do
 
   defp special?("durable", m),
     do:
-      (Map.has_key?(m, "receipt") and Receipt.durable?(elem(Receipt.parse(m["receipt"]), 1))) or
+      (Map.has_key?(m, "receipt") and not Map.has_key?(m, "event_id") and
+         not Map.has_key?(m, "fingerprint") and Receipt.durable?(m["receipt"])) or
         (identifier?(m["event_id"]) and ContractRules.digest?(m["fingerprint"]) and
            not Map.has_key?(m, "receipt"))
 
-  defp special?("stream_finished", m), do: Receipt.durable?(elem(Receipt.parse(m["receipt"]), 1))
-  defp special?("gap", m), do: m["irreversible"] == true
+  defp special?("stream_finished", m), do: Receipt.durable?(m["receipt"])
+  defp special?("gap", m), do: m["irreversible"] == true and byte_size(m["id"]) <= 92
 
   defp special?(type, m) when type in ~w(open_stream open_monitor) do
     Enum.all?(~w(acquisition generation), fn key ->

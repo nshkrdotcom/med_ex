@@ -17,6 +17,7 @@ defmodule MedEx.Storage.File do
   }
 
   alias MedEx.Storage.{
+    EffectiveUID,
     Journal,
     Objects,
     Records,
@@ -796,8 +797,9 @@ defmodule MedEx.Storage.File do
            GenServer.call(owner, {:med_ex_root_ownership, Path.expand(dir)}, 1_000),
          true <- is_binary(root) and Path.type(root) == :absolute and is_reference(token),
          true <- within_root?(Path.expand(dir), Path.expand(root)),
-         :ok <- trusted_root(root),
-         :ok <- trusted_ancestors(Path.expand(dir)) do
+         {:ok, uid} <- EffectiveUID.resolve(),
+         :ok <- trusted_root(root, uid),
+         :ok <- check_ancestors(Path.expand(dir), uid) do
       {:ok, %{root: Path.expand(root), owner: owner, token: token}}
     else
       _ -> {:error, :untrusted_root}
@@ -810,20 +812,12 @@ defmodule MedEx.Storage.File do
 
   defp within_root?(path, root), do: path == root or String.starts_with?(path, root <> "/")
 
-  defp trusted_root(root) do
-    with {:ok, %{uid: uid}} <- File.stat("/proc/self"),
-         {:ok, %{type: :directory, uid: ^uid, mode: mode}} <- File.lstat(root),
+  defp trusted_root(root, uid) do
+    with {:ok, %{type: :directory, uid: ^uid, mode: mode}} <- File.lstat(root),
          true <- Bitwise.band(mode, 0o022) == 0 do
       :ok
     else
       _ -> {:error, :untrusted_root}
-    end
-  end
-
-  defp trusted_ancestors(path) do
-    case File.stat("/proc/self") do
-      {:ok, %{uid: uid}} -> check_ancestors(path, uid)
-      _ -> {:error, :unsupported_root_ownership_platform}
     end
   end
 

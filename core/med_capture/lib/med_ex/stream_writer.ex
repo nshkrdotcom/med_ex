@@ -33,7 +33,11 @@ defmodule MedEx.StreamWriter do
           else: File
 
       hook = if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :fault_hook}), else: nil
-      GenServer.start_link(__MODULE__, {opts, storage, hook, self()}, timeout: @open_timeout)
+
+      case GenServer.start_link(__MODULE__, {opts, storage, hook, self()}, timeout: @open_timeout) do
+        {:error, {:shutdown, reason}} -> {:error, reason}
+        result -> result
+      end
     else
       {:error, :invalid_options}
     end
@@ -89,9 +93,9 @@ defmodule MedEx.StreamWriter do
   @impl true
   def init({opts, storage, hook, caller}) do
     case initialize(opts, storage, hook) do
-      {:stop, _} = failure ->
+      {:stop, reason} ->
         Process.unlink(caller)
-        failure
+        {:stop, {:shutdown, reason}}
 
       success ->
         success

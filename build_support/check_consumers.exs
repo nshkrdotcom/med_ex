@@ -249,15 +249,11 @@ defmodule MedEx.ConsumerCheck do
 
   defp canonical!(ctx, profiles, architecture?) do
     if architecture? do
-      command!(ctx, "architecture", Path.join(__DIR__, "check_architecture.sh"), [], @repo)
-
-      command!(
-        ctx,
-        "browser-assets",
-        "node",
-        ["--test" | Path.wildcard(Path.join(@repo, "test/*.mjs"))],
-        @repo
-      )
+      # The canonical root quality gate already compiled/tested the independent
+      # components. Check their actual ownership here without repeating suites.
+      # A cold/missing proof build fails explicitly; run mix quality first.
+      mix!(ctx, "architecture", @repo,
+        ["run", "--no-compile", "--no-start", Path.join(__DIR__, "check_architecture.exs")], [])
     end
 
     consumer_matrix!(ctx, "direct", direct(), profiles)

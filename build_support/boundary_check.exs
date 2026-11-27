@@ -172,7 +172,7 @@ defmodule MedEx.Build.Boundaries do
     :ok
   end
 
-  def dependencies!(app, deps) do
+  def dependencies!(app, deps, scope \\ :package) do
     expected = %{
       med_ex: [:credo, :dialyxir, :ex_doc],
       med_core: [],
@@ -186,12 +186,17 @@ defmodule MedEx.Build.Boundaries do
       med_ex_rtc: [:ex_webrtc, :ex_rtp, :credo, :dialyxir, :ex_doc]
     }
 
+    expected =
+      if app == :med_ex and scope == :workspace,
+        do: Map.update!(expected, :med_ex, &[:blitz | &1]),
+        else: expected
+
     names = Enum.map(deps, &elem(&1, 0)) |> Enum.sort()
 
     unless names == Enum.sort(Map.fetch!(expected, app)),
       do: raise("undeclared dependency in #{app}: #{inspect(names)}")
 
-    for tool <- [:credo, :dialyxir], tool in names do
+    for tool <- [:blitz, :credo, :dialyxir], tool in names do
       {^tool, _, opts} = List.keyfind(deps, tool, 0)
 
       unless opts[:runtime] == false and

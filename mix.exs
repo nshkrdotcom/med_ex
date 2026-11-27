@@ -1,5 +1,9 @@
+workspace = Path.join(__DIR__, "build_support/workspace.exs")
+if File.regular?(workspace), do: Code.require_file(workspace)
+
 defmodule MedEx.MixProject do
   use Mix.Project
+  @workspace File.regular?(Path.join(__DIR__, "build_support/workspace.exs"))
   @composition elem(Code.eval_file("build_support/composition.exs", __DIR__), 0)
   @package @composition.package
   @sources Enum.map(@composition.components, &Path.join(&1, "lib"))
@@ -19,7 +23,8 @@ defmodule MedEx.MixProject do
       app: :med_ex,
       version: @package[:version],
       elixir: @package[:elixir],
-      deps: @package[:development_dependencies],
+      deps: @package[:development_dependencies] ++ workspace_dependencies(),
+      aliases: if(@workspace, do: apply(MedEx.Build.Workspace, :aliases, []), else: []),
       docs: docs(),
       description: @package[:description],
       elixirc_paths: @sources,
@@ -30,6 +35,12 @@ defmodule MedEx.MixProject do
           ["core/med_capture/test/support/fixture_helper.exs"],
       package: Keyword.take(@package, [:licenses, :links]) ++ [files: @files]
     ]
+  end
+
+  def cli, do: [preferred_envs: [setup: :dev, test: :dev, credo: :dev, dialyzer: :dev, quality: :dev, docs: :dev]]
+
+  defp workspace_dependencies do
+    if @workspace, do: [{:blitz, "0.4.1", only: [:dev, :test], runtime: false}], else: []
   end
 
   def application, do: [extra_applications: [:logger, :crypto]]
