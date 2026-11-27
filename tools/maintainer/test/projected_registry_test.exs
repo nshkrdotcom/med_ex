@@ -26,14 +26,15 @@ defmodule MedEx.ProjectedRegistryTest do
 
     File.write!(manifest, """
     [
-      workspace: [root: "..", project_globs: []],
+      schema: 2,
+      workspace: [root: "..", projects: ["."]],
       artifacts: [
         registry_freshness: [
-          mode: :package_projection,
+          layout: :components,
           roots: ["."],
           package: [name: "registry_freshness", otp_app: :registry_freshness,
                     version: "0.1.0", description: "Registry freshness fixture"],
-          verify: [hex_build: false, hex_publish: false]
+          verify: [hex_build: false, hex_publish_check: false]
         ]
       ]
     ]
@@ -60,7 +61,8 @@ defmodule MedEx.ProjectedRegistryTest do
 
     revision = git!(root, ["rev-parse", "HEAD"]) |> String.trim()
     File.write!(source, changed)
-    projection = Weld.project!(manifest, artifact: :registry_freshness)
+    Weld.Output.setup!(root)
+    projection = Weld.Commands.project!(manifest, artifact: "registry_freshness")
 
     [projected_source] =
       Path.wildcard(Path.join(projection.build_path, "**/lib/registry_freshness.ex"))
@@ -69,28 +71,31 @@ defmodule MedEx.ProjectedRegistryTest do
     File.write!(source, original)
     assert git!(root, ["status", "--porcelain"]) == ""
 
-    # Both the commit and self-reported projection digest remain valid here.
-    assert :ok =
-             MedEx.ConsumerCheck.verify_full_projection!(
-               projection.build_path,
-               :registry_freshness,
-               revision
-             )
-
+    # A dirty-source view can still report the same Git revision. Refresh must
+    # validate current input facts, not trust that revision alone.
+    assert projection.git_revision == revision
     invoker = Mix.Project.project_file() |> Path.dirname() |> Path.expand()
     context = %{evidence: nil, hex_home: Path.join(root, "_build/test-hex")}
 
-    MedEx.ConsumerCheck.refresh_projection!(context, invoker, manifest, :registry_freshness)
+    refreshed =
+      MedEx.ConsumerCheck.refresh_projection!(context, invoker, manifest, :registry_freshness)
 
     assert File.read!(projected_source) == original
     assert String.trim(git!(root, ["rev-parse", "HEAD"])) == revision
     assert git!(root, ["status", "--porcelain"]) == ""
 
     assert :ok =
-             MedEx.ConsumerCheck.verify_full_projection!(
-               projection.build_path,
+             MedEx.ConsumerCheck.check_projection_identity!(
+               refreshed,
                :registry_freshness,
+               "full",
                revision
+             )
+
+    assert :ok =
+             MedEx.ConsumerCheck.verify_prepared_tree!(
+               refreshed["build_path"],
+               refreshed["observation"]
              )
   end
 

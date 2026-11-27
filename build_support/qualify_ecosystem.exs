@@ -639,7 +639,7 @@ defmodule MedEx.Build.EcosystemQC do
         "--exit-code",
         "https://github.com/nshkrdotcom/med_ex.git",
         "refs/heads/main",
-        "refs/heads/projection/med_ex"
+        "refs/heads/projection/v2/med_ex"
       ])
 
     rows = remote |> String.split("\n", trim: true) |> Enum.map(&String.split(&1, "\t"))
@@ -649,7 +649,7 @@ defmodule MedEx.Build.EcosystemQC do
       do: raise("Remote MedEx source differs from local HEAD")
 
     for app <- ["med_ex"] do
-      ref = "refs/heads/projection/#{app}"
+      ref = "refs/heads/projection/v2/#{app}"
       local = root |> Receipt.git!(["rev-parse", ref]) |> String.trim()
       unless refs[ref] == local, do: raise("Remote projection differs: #{ref}")
     end
@@ -665,12 +665,18 @@ defmodule MedEx.Build.EcosystemQC do
 
         "medex-prepare" ->
           Enum.flat_map(["med_ex"], fn app ->
-            folder = Path.join([root, ".weld", "releases", app])
-            current = Path.join(folder, "CURRENT")
+            state = Path.join([root, ".weld", "v2"])
+            current = Path.join([state, "current", app])
 
             case File.read(current) do
-              {:ok, "weld.release/v1 " <> identity} ->
-                bundle = Path.join(folder, String.trim(identity))
+              {:ok, bytes} ->
+                %{"schema" => "weld.current/2", "artifact" => ^app, "bundle_id" => identity} =
+                  JSON.decode!(bytes)
+
+                unless Regex.match?(~r/\A[0-9a-f]{64}\z/, identity),
+                  do: raise("Invalid Weld current bundle identity")
+
+                bundle = Path.join([state, "bundles", app, identity])
 
                 [
                   current

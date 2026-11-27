@@ -103,12 +103,12 @@ defmodule MedEx.StreamWriter do
     stream = opts[:stream]
     fence = opts[:fence]
 
-    with true <- is_pid(owner) and node(owner) == node() and Process.alive?(owner),
+    with true <- local_owner?(owner),
          true <- ContractRules.id?(fence) and is_binary(opts[:artifact_dir]),
          {:ok, limits} <- RecordingLimits.new(opts[:limits] || %{}),
          {:ok, cursor} <- StreamCursor.new(stream),
          true <- stream.descriptor_ref == Serialization.descriptor_ref(stream),
-         true <- is_nil(opts[:predecessor]) or is_struct(opts[:predecessor], RecoveredPrefix) do
+         true <- predecessor?(opts[:predecessor]) do
       monitor = Process.monitor(owner)
       storage_opts = opts |> Keyword.put(:limits, limits)
 
@@ -118,63 +118,76 @@ defmodule MedEx.StreamWriter do
           else: storage_opts
 
       open_result = safely(fn -> storage.open(storage_opts) end)
-
-      case open_result do
-        %Transfer{handle: handle, result: {:ok, raw}} ->
-          with {:ok, r} <- Receipt.parse(raw),
-               :ok <-
-                 Receipt.validate_identity(r, %{
-                   stream_id: stream.stream_id,
-                   source_epoch: stream.source_epoch,
-                   descriptor_ref: stream.descriptor_ref,
-                   fence: fence
-                 }),
-               true <- Receipt.durable?(r),
-               :ok <- initial_prefix(r, opts[:predecessor]),
-               true <- Process.alive?(owner) do
-            {:ok,
-             %{
-               owner: owner,
-               monitor: monitor,
-               fence: fence,
-               cursor: %{
-                 cursor
-                 | next_sequence: r.durable_sequence,
-                   next_sample: r.durable_sample
-               },
-               limits: limits,
-               storage: storage,
-               adapter: handle,
-               durable: r,
-               pending: [],
-               bytes: 0,
-               count: 0,
-               peak_count: 0,
-               peak_bytes: 0,
-               timer: nil,
-               terminal: nil
-             }}
-          else
-            _ ->
-              safely(fn -> storage.close(handle) end)
-              {:stop, :invalid_storage_open}
-          end
-
-        %Transfer{handle: handle} ->
-          safely(fn -> storage.close(handle) end)
-          {:stop, :invalid_storage_open}
-
-        {:error, reason} ->
-          {:stop, reason}
-
-        _ ->
-          {:stop, {:outcome_unknown, :invalid_storage_open}}
-      end
+      initialize_open(open_result, storage, opts, cursor, monitor, limits)
     else
       {:error, reason} -> {:stop, reason}
       false -> {:stop, :invalid_writer_options}
     end
   end
+
+  defp local_owner?(owner), do: is_pid(owner) and node(owner) == node() and Process.alive?(owner)
+  defp predecessor?(prefix), do: is_nil(prefix) or is_struct(prefix, RecoveredPrefix)
+
+  defp initialize_open(
+         %Transfer{handle: handle, result: {:ok, raw}},
+         storage,
+         opts,
+         cursor,
+         monitor,
+         limits
+       ) do
+    owner = opts[:owner]
+    stream = opts[:stream]
+    fence = opts[:fence]
+
+    with {:ok, r} <- Receipt.parse(raw),
+         :ok <-
+           Receipt.validate_identity(r, %{
+             stream_id: stream.stream_id,
+             source_epoch: stream.source_epoch,
+             descriptor_ref: stream.descriptor_ref,
+             fence: fence
+           }),
+         true <- Receipt.durable?(r),
+         :ok <- initial_prefix(r, opts[:predecessor]),
+         true <- Process.alive?(owner) do
+      {:ok,
+       %{
+         owner: owner,
+         monitor: monitor,
+         fence: fence,
+         cursor: %{
+           cursor
+           | next_sequence: r.durable_sequence,
+             next_sample: r.durable_sample
+         },
+         limits: limits,
+         storage: storage,
+         adapter: handle,
+         durable: r,
+         pending: [],
+         bytes: 0,
+         count: 0,
+         peak_count: 0,
+         peak_bytes: 0,
+         timer: nil,
+         terminal: nil
+       }}
+    else
+      _ ->
+        safely(fn -> storage.close(handle) end)
+        {:stop, :invalid_storage_open}
+    end
+  end
+
+  defp initialize_open(%Transfer{handle: handle}, storage, _, _, _, _) do
+    safely(fn -> storage.close(handle) end)
+    {:stop, :invalid_storage_open}
+  end
+
+  defp initialize_open({:error, reason}, _, _, _, _, _), do: {:stop, reason}
+
+  defp initialize_open(_, _, _, _, _, _), do: {:stop, {:outcome_unknown, :invalid_storage_open}}
 
   defp initial_prefix(r, nil) do
     if r.journal_generation == 1 and r.durable_sequence == 0 and r.durable_sample == 0,
@@ -284,33 +297,33 @@ defmodule MedEx.StreamWriter do
         pending -> {:ok, FrameFingerprint.of(pending)}
       end
 
-    case found do
+    reconcile_found(s, frame, found)
+  end
+
+  defp reconcile_found(s, _, {:error, reason}), do: {:stop, :normal, {:error, reason}, s}
+
+  defp reconcile_found(s, frame, found) do
+    case StreamCursor.plan(s.cursor, {:frame_replay, frame, found}) do
+      :duplicate ->
+        reply_receipt(s)
+
+      {:error, :duplicate_conflict} ->
+        previous =
+          case found do
+            {:ok, fp} -> fp
+            :missing -> nil
+          end
+
+        quarantine(
+          s,
+          "frame",
+          Integer.to_string(frame.sequence),
+          FrameFingerprint.of(frame),
+          previous
+        )
+
       {:error, reason} ->
-        {:stop, :normal, {:error, reason}, s}
-
-      _ ->
-        case StreamCursor.plan(s.cursor, {:frame_replay, frame, found}) do
-          :duplicate ->
-            reply_receipt(s)
-
-          {:error, :duplicate_conflict} ->
-            previous =
-              case found do
-                {:ok, fp} -> fp
-                :missing -> nil
-              end
-
-            quarantine(
-              s,
-              "frame",
-              Integer.to_string(frame.sequence),
-              FrameFingerprint.of(frame),
-              previous
-            )
-
-          {:error, reason} ->
-            {:reply, {:error, reason}, s}
-        end
+        {:reply, {:error, reason}, s}
     end
   end
 
@@ -321,48 +334,60 @@ defmodule MedEx.StreamWriter do
       size > s.limits.pending_bytes ->
         {:reply, {:error, {:not_committed, :credit_limit}}, s}
 
-      s.count > 0 and
-          (s.bytes + size > s.limits.pending_bytes or s.count >= s.limits.pending_frames or
-             hd(s.pending).config_epoch != frame.config_epoch) ->
+      flush_before_frame?(s, frame, size) ->
         case flush(s) do
           {:ok, ready} -> accept_frame(ready, frame, cursor)
           failure -> answer_flush(failure)
         end
 
       true ->
-        {record, _, _} = Records.chunk_record(Enum.reverse([frame | s.pending]))
-
-        extra = %{
-          bytes: size,
-          frames: 1,
-          spans: if(frame.config_epoch == :unknown, do: 1, else: 0),
-          commits: 1,
-          encoded_bytes: RecordingLimits.encoded_record_bytes(record)
-        }
-
-        case capacity(s, cursor, extra, false) do
-          :ok ->
-            next = %{
-              s
-              | cursor: cursor,
-                pending: [frame | s.pending],
-                count: s.count + 1,
-                bytes: s.bytes + size,
-                peak_count: max(s.peak_count, s.count + 1),
-                peak_bytes: max(s.peak_bytes, s.bytes + size)
-            }
-
-            if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
-              do: answer_flush(flush(next)),
-              else: reply_receipt(arm_timer(next))
-
-          {:error, {:outcome_unknown, _} = reason} ->
-            {:stop, :normal, {:error, reason}, s}
-
-          {:error, reason} ->
-            {:reply, {:error, {:not_committed, {:capacity, reason}}}, s}
-        end
+        admit_frame(s, frame, cursor, size)
     end
+  end
+
+  defp flush_before_frame?(s, frame, size) do
+    s.count > 0 and
+      (s.bytes + size > s.limits.pending_bytes or s.count >= s.limits.pending_frames or
+         hd(s.pending).config_epoch != frame.config_epoch)
+  end
+
+  defp admit_frame(s, frame, cursor, size) do
+    {record, _, _} = Records.chunk_record(Enum.reverse([frame | s.pending]))
+
+    extra = %{
+      bytes: size,
+      frames: 1,
+      spans: if(frame.config_epoch == :unknown, do: 1, else: 0),
+      commits: 1,
+      encoded_bytes: RecordingLimits.encoded_record_bytes(record)
+    }
+
+    case capacity(s, cursor, extra, false) do
+      :ok ->
+        stage_frame(s, frame, cursor, size)
+
+      {:error, {:outcome_unknown, _} = reason} ->
+        {:stop, :normal, {:error, reason}, s}
+
+      {:error, reason} ->
+        {:reply, {:error, {:not_committed, {:capacity, reason}}}, s}
+    end
+  end
+
+  defp stage_frame(s, frame, cursor, size) do
+    next = %{
+      s
+      | cursor: cursor,
+        pending: [frame | s.pending],
+        count: s.count + 1,
+        bytes: s.bytes + size,
+        peak_count: max(s.peak_count, s.count + 1),
+        peak_bytes: max(s.peak_bytes, s.bytes + size)
+    }
+
+    if next.count == s.limits.pending_frames or next.bytes == s.limits.pending_bytes,
+      do: answer_flush(flush(next)),
+      else: reply_receipt(arm_timer(next))
   end
 
   defp accept_gap(s, gap, cursor) do
@@ -428,16 +453,22 @@ defmodule MedEx.StreamWriter do
       %Usage{} = usage ->
         values = Map.from_struct(usage)
 
-        if Enum.all?(values, fn {_, n} -> is_integer(n) and n >= 0 end) and
+        if Enum.all?(values, &nonnegative_usage_value?/1) and
              usage.journal_generation == s.durable.journal_generation and
-             usage.raw_bytes <= s.limits.artifact_bytes and usage.frame_count <= s.limits.frames and
-             usage.span_count <= s.limits.spans and usage.journal_bytes <= s.limits.journal_bytes,
+             within_limits?(usage, s.limits),
            do: {:ok, usage},
            else: {:error, {:outcome_unknown, :invalid_storage_usage}}
 
       _ ->
         {:error, {:outcome_unknown, :invalid_storage_usage}}
     end
+  end
+
+  defp nonnegative_usage_value?({_, n}), do: is_integer(n) and n >= 0
+
+  defp within_limits?(usage, limits) do
+    usage.raw_bytes <= limits.artifact_bytes and usage.frame_count <= limits.frames and
+      usage.span_count <= limits.spans and usage.journal_bytes <= limits.journal_bytes
   end
 
   defp lookup(s, family, key) do

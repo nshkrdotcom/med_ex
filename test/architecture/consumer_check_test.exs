@@ -32,52 +32,28 @@ defmodule MedEx.ConsumerCheckTest do
     end
   end
 
-  @tag :tmp_dir
-  test "projected registry input must match its reported source revision and portable bytes", %{
-    tmp_dir: root
-  } do
-    on_exit(fn -> File.rm_rf!(root) end)
+  test "projected evidence must match the selected artifact, kind and source revision" do
     revision = String.duplicate("a", 40)
-    File.write!(Path.join(root, "mix.exs"), "project\n")
-    File.chmod!(Path.join(root, "mix.exs"), 0o644)
-    identity = digest(:erlang.term_to_binary({"mix.exs", 0, digest("project\n")}))
+    evidence = %{"artifact" => "med_ex", "kind" => "full", "source_revision" => revision}
 
-    File.write!(
-      Path.join(root, "weld.provenance.json"),
-      JSON.encode!(%{
-        schema: "weld.projection/v1",
-        artifact: "med_ex",
-        kind: "full",
-        artifact_id: identity
-      })
-    )
-
-    File.write!(
-      Path.join(root, "projection.lock.json"),
-      JSON.encode!(%{artifact: %{id: "med_ex"}, projection: %{git_revision: revision}})
-    )
-
-    assert :ok = MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
+    assert :ok =
+             MedEx.ConsumerCheck.check_projection_identity!(evidence, :med_ex, "full", revision)
 
     assert_raise RuntimeError, ~r/source revision/, fn ->
-      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, String.duplicate("b", 40))
+      MedEx.ConsumerCheck.check_projection_identity!(
+        evidence,
+        :med_ex,
+        "full",
+        String.duplicate("b", 40)
+      )
     end
 
-    assert_raise RuntimeError, ~r/provenance/, fn ->
-      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex_opus, revision)
+    assert_raise RuntimeError, ~r/projection identity/, fn ->
+      MedEx.ConsumerCheck.check_projection_identity!(evidence, :med_ex_opus, "full", revision)
     end
 
-    File.chmod!(Path.join(root, "mix.exs"), 0o744)
-
-    assert_raise RuntimeError, ~r/portable content/, fn ->
-      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
-    end
-
-    File.chmod!(Path.join(root, "mix.exs"), 0o644)
-    File.write!(Path.join(root, "mix.exs"), "changed project\n")
-
-    assert_raise RuntimeError, ~r/portable content/, fn ->
-      MedEx.ConsumerCheck.verify_full_projection!(root, :med_ex, revision)
+    assert_raise RuntimeError, ~r/projection identity/, fn ->
+      MedEx.ConsumerCheck.check_projection_identity!(evidence, :med_ex, "live", revision)
     end
   end
 
@@ -152,9 +128,9 @@ defmodule MedEx.ConsumerCheckTest do
   } do
     files = [
       {"mix.exs", "project\n", 0},
-      {"projection.lock.json", "{}\n", 0},
+      {"package.json", "{}\n", 0},
       {"script", "#!/bin/sh\n", 0o100},
-      {"weld.provenance.json", "{}\n", 0}
+      {"verification.json", "{}\n", 0}
     ]
 
     for {path, bytes, executable} <- files do
@@ -163,16 +139,26 @@ defmodule MedEx.ConsumerCheckTest do
     end
 
     entries =
-      Enum.map(files, fn {path, bytes, executable} -> {path, executable, digest(bytes)} end)
+      Enum.map(files, fn {path, bytes, executable} ->
+        %{
+          "path" => path,
+          "sha256" => digest(bytes),
+          "size" => byte_size(bytes),
+          "executable" => executable != 0
+        }
+      end)
 
-    tree = Enum.map_join(entries, "\n", fn {path, _, hash} -> path <> ":" <> hash end)
-
-    expected = %{
-      "project_sha256" => digest(tree),
-      "project_identity" => digest(Enum.map(entries, &:erlang.term_to_binary/1))
-    }
+    File.mkdir!(Path.join(root, "empty"))
+    expected = %{"entries" => entries, "empty_dirs" => ["empty"]}
 
     assert :ok = MedEx.ConsumerCheck.verify_prepared_tree!(root, expected)
+    File.mkdir!(Path.join(root, "unexpected"))
+
+    assert_raise RuntimeError, ~r/prepared project integrity/, fn ->
+      MedEx.ConsumerCheck.verify_prepared_tree!(root, expected)
+    end
+
+    File.rmdir!(Path.join(root, "unexpected"))
     File.chmod!(Path.join(root, "script"), 0o644)
 
     assert_raise RuntimeError, ~r/prepared project integrity/, fn ->
@@ -180,7 +166,7 @@ defmodule MedEx.ConsumerCheckTest do
     end
 
     File.chmod!(Path.join(root, "script"), 0o744)
-    File.write!(Path.join(root, "projection.lock.json"), "{\"changed\":true}\n")
+    File.write!(Path.join(root, "package.json"), "{\"changed\":true}\n")
 
     assert_raise RuntimeError, ~r/prepared project integrity/, fn ->
       MedEx.ConsumerCheck.verify_prepared_tree!(root, expected)
@@ -201,7 +187,7 @@ defmodule MedEx.ConsumerCheckTest do
 
     for directory <- [checkout, prepared] do
       File.write!(Path.join(directory, ".formatter.exs"), "[]\n")
-      File.write!(Path.join(directory, "projection.lock.json"), "{}\n")
+      File.write!(Path.join(directory, "package.json"), "{}\n")
       File.mkdir!(Path.join(directory, "test"))
       script = Path.join(directory, "test/probe\t.sh")
       File.write!(script, "#!/bin/sh\n")
@@ -224,13 +210,13 @@ defmodule MedEx.ConsumerCheckTest do
     end
 
     File.chmod!(script, 0o744)
-    File.write!(Path.join(prepared, "projection.lock.json"), "{\"changed\":true}\n")
+    File.write!(Path.join(prepared, "package.json"), "{\"changed\":true}\n")
 
     assert_raise RuntimeError, ~r/Tracked projection tree/, fn ->
       MedEx.ConsumerCheck.verify_tracked_tree!(prepared, tracked)
     end
 
-    File.write!(Path.join(prepared, "projection.lock.json"), "{}\n")
+    File.write!(Path.join(prepared, "package.json"), "{}\n")
     File.write!(Path.join(prepared, "extra"), "extra\n")
 
     assert_raise RuntimeError, ~r/Tracked projection tree/, fn ->

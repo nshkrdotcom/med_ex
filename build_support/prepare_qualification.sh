@@ -11,13 +11,12 @@ manifest="$root/build_support/weld.exs"
 (
   cd "$invoker"
   mix deps.get --check-locked
-  mix help weld.project
-  mix help release.prepare
-  mix weld.setup "$manifest"
+  mix weld help project
+  mix weld help prepare
+  mix weld setup --manifest "$manifest"
   for app in med_ex; do
-    mix weld.inspect "$manifest" --artifact "$app" --format json >/dev/null
-    mix weld.project "$manifest" --artifact "$app" --live
-    mix weld.project "$manifest" --artifact "$app"
+    mix weld plan --manifest "$manifest" --artifact "$app" --format json >/dev/null
+    mix weld project --manifest "$manifest" --artifact "$app" --kind live
   done
 )
 ./build_support/check_consumers.sh --registry --projected-packages --evidence "$evidence" \
@@ -26,9 +25,11 @@ manifest="$root/build_support/weld.exs"
     unset MIX_ENV MIX_TARGET MIX_EXS MIX_DEPS_PATH MIX_LOCKFILE MIX_BUILD_PATH MIX_BUILD_ROOT
     cd "$1"
     for app in med_ex; do
-      mix weld.verify "$2" --artifact "$app"
-      mix release.prepare "$2" --artifact "$app"
-      mix release.track "$2" --artifact "$app"
+      mix weld prepare --manifest "$2" --artifact "$app"
+      bundle=$(mix weld path --manifest "$2" --artifact "$app" --kind bundle)
+      id=${bundle##*/}
+      [[ "$id" =~ ^[0-9a-f]{64}$ ]]
+      mix weld track --manifest "$2" --artifact "$app" --identity "$id" --branch "projection/v2/$app"
     done
   ' registry "$invoker" "$manifest"
 test -z "$(git status --porcelain)"

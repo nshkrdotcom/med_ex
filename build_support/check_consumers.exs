@@ -57,7 +57,7 @@ defmodule MedEx.ConsumerCheck do
   Resume standalone suites and the combined release.
   Full: base Weld lanes and independent direct/Git/archive/registry provider suites.
   Full expects base live/full/prepared candidates and a committed source checkout.
-  Only projection/med_ex is tracked; providers always use native Mix projects.
+  Only projection/v2/med_ex is tracked; providers always use native Mix projects.
   --strict-full is an alias for the original exhaustive --full.
   --optimized --evidence DIR runs the same supported lanes and release extras.
   Equivalent cells prove their own lock, installed modules and smoke behavior,
@@ -491,6 +491,21 @@ defmodule MedEx.ConsumerCheck do
         )
 
       verify_tracked_tree!(prepared[app][:path], tree)
+      proof = projection_evidence!(ctx, "prepared", Path.join(@repo, "tools/maintainer"))
+      check_projection_identity!(proof, app, "prepared", revision)
+
+      message =
+        git!(
+          ctx,
+          "tracked-#{app}-receipt",
+          ["log", "-1", "--format=%B", tracked[app][:ref]],
+          bare
+        )
+
+      trailers = Enum.filter(String.split(message, "\n"), &String.starts_with?(&1, "Weld-"))
+
+      unless trailers == [proof["receipt"]],
+        do: raise("Tracked projection receipt differs from the prepared bundle")
     end
 
     verify_source_revision!(ctx, revision, "checkpoint")
@@ -558,94 +573,104 @@ defmodule MedEx.ConsumerCheck do
     end)
   end
 
-  defp projected!(ctx, kind, revision \\ nil) do
-    {source, integrity} = projection_path!(:med_ex, kind, revision)
-    marker = read_json!(Path.join(source, "weld.provenance.json"))
-    expected = if kind == "live", do: "live", else: "full"
+  defp projected!(ctx, kind, revision \\ nil, invoker \\ nil) do
+    evidence = projection_evidence!(ctx, kind, invoker || Path.join(@repo, "tools/maintainer"))
+    source = evidence["build_path"]
+    check_projection_identity!(evidence, :med_ex, kind, revision)
 
-    unless marker["kind"] == expected and marker["artifact"] == "med_ex",
-      do: raise("Unexpected base Weld provenance")
+    path =
+      if kind == "live" do
+        source
+      else
+        verify_prepared_tree!(source, evidence["observation"])
+        target = Path.join([ctx.stage, "detached", "#{kind}-med_ex"])
+        copy_observation!(source, target, evidence["observation"])
+        verify_prepared_tree!(target, evidence["observation"])
+        target
+      end
 
-    path = if kind == "live", do: source, else: detach!(ctx, source, "#{kind}-med_ex")
-    if integrity, do: verify_prepared_tree!(path, integrity)
-    if kind == "full" and revision, do: verify_full_projection!(path, :med_ex, revision)
     Map.put(direct(), :med_ex, path: path)
   end
 
-  defp projection_path!(app, "live", _revision),
-    do: {Path.join([@repo, ".weld", "live", to_string(app)]), nil}
+  defp projection_evidence!(ctx, kind, invoker) do
+    weld_evidence!(ctx, invoker, @repo, :med_ex, kind)
+  end
 
-  defp projection_path!(app, "full", _revision),
-    do: {Path.join([@repo, ".weld", "full", to_string(app), "project"]), nil}
+  defp weld_evidence!(ctx, invoker, root, app, kind) do
+    helper = Path.join([@repo, "tools", "maintainer", "weld_evidence.exs"])
 
-  defp projection_path!(app, "prepared", revision) do
-    releases = Path.join([@repo, ".weld", "releases", to_string(app)])
-    pointer = File.read!(Path.join(releases, "CURRENT"))
+    output =
+      mix!(
+        ctx,
+        "weld-#{kind}-#{app}",
+        invoker,
+        ["run", "--no-start", helper, kind, root, to_string(app)],
+        official_env(ctx),
+        "dev"
+      )
 
-    [_, identity] =
-      Regex.run(~r/\Aweld\.release\/v1 ([0-9a-f]{64})\n?\z/, pointer) ||
-        raise("Invalid prepared pointer for #{app}")
+    [record] =
+      for "MEDEX_WELD_EVIDENCE " <> record <- String.split(output, "\n"), do: record
 
-    bundle = Path.join(releases, identity)
-    metadata = read_json!(Path.join(bundle, "release.json"))
-    path = Path.join(bundle, "project")
-
-    unless metadata["identity"] == identity and metadata["artifact"] == to_string(app) and
-             is_map(metadata["integrity"]),
-           do: raise("Invalid prepared identity for #{app}")
-
-    if revision && metadata["source_revision"] != revision do
-      raise "Prepared release for #{app} does not match source revision #{revision}"
-    end
-
-    verify_prepared_tree!(path, metadata["integrity"])
-    {path, metadata["integrity"]}
+    JSON.decode!(record)
   end
 
   @doc false
-  def verify_full_projection!(root, app, revision) do
-    marker = read_json!(Path.join(root, "weld.provenance.json"))
-    lock = read_json!(Path.join(root, "projection.lock.json"))
-    artifact = to_string(app)
+  def check_projection_identity!(evidence, app, kind, revision) do
+    unless evidence["artifact"] == to_string(app) and evidence["kind"] == kind,
+      do: raise("Unexpected Weld projection identity for #{app}")
 
-    unless marker["schema"] == "weld.projection/v1" and marker["kind"] == "full" and
-             marker["artifact"] == artifact and get_in(lock, ["artifact", "id"]) == artifact do
-      raise "Unexpected full projection provenance for #{app}"
-    end
-
-    unless get_in(lock, ["projection", "git_revision"]) == revision,
-      do:
-        raise("Full projection for #{app} does not match the current source revision; refresh it")
-
-    content =
-      for {relative, path, mode} <- project_files!(root),
-          relative not in ~w(weld.provenance.json projection.lock.json),
-          do:
-            :erlang.term_to_binary(
-              {relative, Bitwise.band(mode, 0o111), digest(File.read!(path))}
-            )
-
-    unless marker["artifact_id"] == digest(content),
-      do: raise("Full projection portable content changed for #{app}; refresh it")
+    if revision && evidence["source_revision"] != revision,
+      do: raise("Weld #{kind} for #{app} does not match source revision #{revision}")
 
     :ok
   end
 
   @doc false
-  def verify_prepared_tree!(root, integrity) do
+  def verify_prepared_tree!(root, observation) do
     entries =
       Enum.map(project_files!(root), fn {relative, path, mode} ->
-        {relative, Bitwise.band(mode, 0o111), digest(File.read!(path))}
+        %{
+          "path" => relative,
+          "sha256" => digest(File.read!(path)),
+          "size" => File.stat!(path).size,
+          "executable" => Bitwise.band(mode, 0o111) != 0
+        }
       end)
 
-    tree = Enum.map_join(entries, "\n", fn {relative, _mode, hash} -> "#{relative}:#{hash}" end)
-    content = Enum.map(entries, &:erlang.term_to_binary/1)
+    empty_dirs =
+      root
+      |> Path.join("**/*")
+      |> Path.wildcard(match_dot: true)
+      |> Enum.filter(&(File.lstat!(&1).type == :directory and File.ls!(&1) == []))
+      |> Enum.map(&Path.relative_to(&1, root))
+      |> Enum.sort()
 
-    unless integrity["project_sha256"] == digest(tree) and
-             integrity["project_identity"] == digest(content),
-           do: raise("Invalid prepared project integrity at #{root}")
+    unless observation == %{"entries" => entries, "empty_dirs" => empty_dirs},
+      do: raise("Invalid prepared project integrity at #{root}")
 
     :ok
+  end
+
+  defp copy_observation!(source, target, observation) do
+    File.mkdir_p!(target)
+
+    for directory <- observation["empty_dirs"] do
+      _ = path_segments!(directory)
+      File.mkdir_p!(Path.join(target, directory))
+    end
+
+    for %{"path" => relative} <- observation["entries"] do
+      copy_regular!(source, target, relative)
+    end
+  end
+
+  defp copy_regular!(source, target, relative) do
+    original = regular_file!(source, relative)
+    destination = Path.join(target, relative)
+    File.mkdir_p!(Path.dirname(destination))
+    File.cp!(original, destination)
+    File.chmod!(destination, Bitwise.band(File.stat!(original).mode, 0o777))
   end
 
   @doc false
@@ -695,30 +720,11 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp detach!(ctx, source, label) do
-    unless File.lstat!(source).type == :directory,
-      do: raise("Expected regular project at #{source}")
-
     target = Path.join([ctx.stage, "detached", label])
-    reports = ~w(weld.provenance.json projection.lock.json)
-    lock = read_json!(Path.join(source, "projection.lock.json"))
-    inventory = get_in(lock, ["projection", "verification_files"])
-
-    unless is_list(inventory) and "mix.exs" in inventory do
-      raise "Missing verification inventory at #{source}"
-    end
-
-    # The verification result owns these files. Build caches and unrelated
-    # generated outputs are outside this copy, even if present in the source.
-    lockfile = if File.regular?(Path.join(source, "mix.lock")), do: ["mix.lock"], else: []
-
-    for relative <- Enum.uniq(inventory ++ reports ++ lockfile) do
-      original = regular_file!(source, relative)
-      destination = Path.join(target, relative)
-      File.mkdir_p!(Path.dirname(destination))
-      File.cp!(original, destination)
-      File.chmod!(destination, Bitwise.band(File.stat!(original).mode, 0o777))
-    end
-
+    files = git!(ctx, "#{label}-tracked-inputs", ["ls-files", "-z", "--", "."], source)
+    paths = :binary.split(files, <<0>>, [:global, :trim])
+    unless "mix.exs" in paths, do: raise("Missing tracked Mix project at #{source}")
+    for relative <- paths, do: copy_regular!(source, target, relative)
     target
   end
 
@@ -740,7 +746,9 @@ defmodule MedEx.ConsumerCheck do
 
     Map.new(@apps, fn app ->
       ref =
-        if mode == :tracked and app == :med_ex, do: "refs/heads/projection/med_ex", else: "HEAD"
+        if mode == :tracked and app == :med_ex,
+          do: "refs/heads/projection/v2/med_ex",
+          else: "HEAD"
 
       sha = git_revision!(ctx, "#{mode}-#{app}-sha", bare, ref)
       options = [git: bare, ref: sha]
@@ -863,8 +871,7 @@ defmodule MedEx.ConsumerCheck do
   def path_fingerprint(path) do
     patterns =
       ~w(mix.exs mix.lock VERSION Makefile c_src/**/* lib/**/* components/**/* core/**/lib/**/*
-                  config/**/* priv/**/* build_support/composition.exs projection.lock.json
-                  weld.provenance.json)
+                  config/**/* priv/**/* build_support/composition.exs)
 
     for pattern <- patterns,
         file <- Path.wildcard(Path.join(path, pattern), match_dot: true),
@@ -1041,13 +1048,7 @@ defmodule MedEx.ConsumerCheck do
 
   defp projected_archives!(ctx, invoker) do
     revision = clean_source_revision!(ctx, "projected-registry")
-    invoker = invoker || Path.join(@repo, "tools/maintainer")
-    manifest = Path.join(@repo, "build_support/weld.exs")
-
-    refresh_projection!(ctx, invoker, manifest, :med_ex)
-    verify_source_revision!(ctx, revision, "projected-registry-refresh")
-
-    projects = projected!(ctx, "full", revision)
+    projects = projected!(ctx, "full", revision, invoker)
     archives = build_family!(ctx, projects, "projected")
     verify_source_revision!(ctx, revision, "projected-registry-finish")
     archives
@@ -1055,24 +1056,19 @@ defmodule MedEx.ConsumerCheck do
 
   @doc false
   def refresh_projection!(ctx, invoker, manifest, app) do
-    mix!(
-      ctx,
-      "projected-refresh-#{app}",
-      invoker,
-      ["weld.project", manifest, "--artifact", to_string(app)],
-      official_env(ctx),
-      "dev"
-    )
+    root = manifest |> Path.dirname() |> Path.dirname()
+    weld_evidence!(ctx, invoker, root, app, "full")
   end
 
   defp prepared_archives!(ctx) do
     revision = clean_source_revision!(ctx, "registry")
-    {project, integrity} = projection_path!(:med_ex, "prepared", revision)
+    evidence = projection_evidence!(ctx, "prepared", Path.join(@repo, "tools/maintainer"))
+    check_projection_identity!(evidence, :med_ex, "prepared", revision)
     name = "med_ex-#{ctx.versions[:med_ex]}.tar"
-    source = Path.join(Path.dirname(project), name)
+    source = Path.join(Path.dirname(evidence["build_path"]), "package.tar")
     path = Path.join([ctx.stage, "packages", "prepared", "med_ex", name])
 
-    unless digest(File.read!(source)) == integrity["archive_sha256"],
+    unless digest(File.read!(source)) == evidence["archive_sha256"],
       do: raise("Invalid prepared base archive")
 
     File.mkdir_p!(Path.dirname(path))

@@ -34,21 +34,28 @@ defmodule MedEx.Storage.File do
   def open(opts) do
     dir = Keyword.fetch!(opts, :artifact_dir)
 
-    with {:ok, ownership} <- root_ownership(dir, opts[:root_owner]) do
-      if acquire(dir) do
-        case open_locked(Keyword.put(opts, :ownership, ownership)) do
-          {:ok, handle, receipt} ->
-            %Transfer{handle: handle, result: {:ok, receipt}}
-
-          error ->
-            release(dir)
-            error
-        end
-      else
-        {:error, {:not_committed, :writer_active}}
-      end
-    else
+    case root_ownership(dir, opts[:root_owner]) do
+      {:ok, ownership} -> open_owned(dir, Keyword.put(opts, :ownership, ownership))
       {:error, reason} -> {:error, {:not_committed, reason}}
+    end
+  end
+
+  defp open_owned(dir, opts) do
+    if acquire(dir) do
+      open_acquired(dir, opts)
+    else
+      {:error, {:not_committed, :writer_active}}
+    end
+  end
+
+  defp open_acquired(dir, opts) do
+    case open_locked(opts) do
+      {:ok, handle, receipt} ->
+        %Transfer{handle: handle, result: {:ok, receipt}}
+
+      error ->
+        release(dir)
+        error
     end
   end
 
@@ -337,9 +344,8 @@ defmodule MedEx.Storage.File do
 
   @impl true
   def seal(s, terminal, reason) do
-    with :ok <- ensure_current(s) do
-      transfer_result(s, fn -> seal_current(s, terminal, reason) end)
-    else
+    case ensure_current(s) do
+      :ok -> transfer_result(s, fn -> seal_current(s, terminal, reason) end)
       {:error, reason} -> %Transfer{handle: s, result: {:error, {:outcome_unknown, reason}}}
     end
   end
@@ -412,31 +418,42 @@ defmodule MedEx.Storage.File do
   def recover(dir, opts), do: recovery_call(dir, opts, &recover_locked/2)
 
   defp recovery_call(dir, opts, operation) when is_binary(dir) and is_list(opts) do
-    if Keyword.keyword?(opts) and
-         Enum.all?(
-           Keyword.keys(opts),
-           &(&1 in [:stream, :fence, :root_owner, :known_receipt, :timeout])
-         ) and
-         length(Keyword.keys(opts)) == length(Enum.uniq(Keyword.keys(opts))) and
-         is_integer(Keyword.get(opts, :timeout, 30_000)) and
-         Keyword.get(opts, :timeout, 30_000) in 1..30_000 and
-         Keyword.has_key?(opts, :stream) and Keyword.has_key?(opts, :fence) and
-         Keyword.has_key?(opts, :root_owner) do
+    if recovery_options?(opts) do
       hook =
         if Code.ensure_loaded?(ExUnit), do: Process.get({__MODULE__, :recovery_hook}), else: nil
 
-      bounded(opts, fn ->
-        with_quiescence(dir, fn ->
-          if is_function(hook, 1), do: hook.(:quiescence_acquired)
-          operation.(dir, opts)
-        end)
-      end)
+      bounded(opts, fn -> recover_quiescent(dir, opts, operation, hook) end)
     else
       {:error, :invalid_recovery_options}
     end
   end
 
   defp recovery_call(_, _, _), do: {:error, :invalid_recovery_options}
+
+  defp recovery_options?(opts) do
+    Keyword.keyword?(opts) and recovery_keys?(opts) and
+      is_integer(Keyword.get(opts, :timeout, 30_000)) and
+      Keyword.get(opts, :timeout, 30_000) in 1..30_000 and required_recovery_keys?(opts)
+  end
+
+  defp recovery_keys?(opts) do
+    keys = Keyword.keys(opts)
+
+    Enum.all?(keys, &(&1 in [:stream, :fence, :root_owner, :known_receipt, :timeout])) and
+      length(keys) == length(Enum.uniq(keys))
+  end
+
+  defp required_recovery_keys?(opts) do
+    Keyword.has_key?(opts, :stream) and Keyword.has_key?(opts, :fence) and
+      Keyword.has_key?(opts, :root_owner)
+  end
+
+  defp recover_quiescent(dir, opts, operation, hook) do
+    with_quiescence(dir, fn ->
+      if is_function(hook, 1), do: hook.(:quiescence_acquired)
+      operation.(dir, opts)
+    end)
+  end
 
   defp bounded(opts, op) do
     # On deadline let a blocked OS operation finish under its original lock.
@@ -804,9 +821,8 @@ defmodule MedEx.Storage.File do
   end
 
   defp trusted_ancestors(path) do
-    with {:ok, %{uid: uid}} <- File.stat("/proc/self") do
-      check_ancestors(path, uid)
-    else
+    case File.stat("/proc/self") do
+      {:ok, %{uid: uid}} -> check_ancestors(path, uid)
       _ -> {:error, :unsupported_root_ownership_platform}
     end
   end
@@ -820,7 +836,7 @@ defmodule MedEx.Storage.File do
         # Sticky ancestors protect the owned next directory from replacement;
         # the granted root itself must pass the stricter trusted_root check.
         if Bitwise.band(mode, 0o022) == 0 or Bitwise.band(mode, 0o1000) != 0 do
-          if path == "/", do: :ok, else: check_ancestors(Path.dirname(path), uid)
+          check_parent(path, uid)
         else
           {:error, :untrusted_root_permissions}
         end
@@ -829,4 +845,7 @@ defmodule MedEx.Storage.File do
         {:error, :untrusted_root_path}
     end
   end
+
+  defp check_parent("/", _), do: :ok
+  defp check_parent(path, uid), do: check_ancestors(Path.dirname(path), uid)
 end

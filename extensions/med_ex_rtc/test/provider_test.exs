@@ -50,8 +50,8 @@ defmodule MedEx.RTC.ProviderTest do
         sdp: answer
       })
 
-    assert_receive {:med_ex_rtc, ^ref, :connected}, 10000
-    assert_receive {:ex_webrtc, ^receiver, {:connection_state_change, :connected}}, 10000
+    assert_receive {:med_ex_rtc, ^ref, :connected}, 10_000
+    assert_receive {:ex_webrtc, ^receiver, {:connection_state_change, :connected}}, 10_000
     {peer, receiver}
   end
 
@@ -130,7 +130,7 @@ defmodule MedEx.RTC.ProviderTest do
         end
       end)
 
-    assert_receive {:owned, owned, child}, 12000
+    assert_receive {:owned, owned, child}, 12_000
     wrapper_monitor = Process.monitor(owned.pid)
     child_monitor = Process.monitor(child)
     send(owner, :done)
@@ -152,7 +152,7 @@ defmodule MedEx.RTC.ProviderTest do
         end
       end)
 
-    assert_receive {:answer, {:ok, peer, _}}, 12000
+    assert_receive {:answer, {:ok, peer, _}}, 12_000
     child = :sys.get_state(peer.pid).pc
     monitor = Process.monitor(child)
     send(caller, :done)

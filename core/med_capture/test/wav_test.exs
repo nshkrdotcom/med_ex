@@ -26,9 +26,9 @@ defmodule MedEx.FormatWavTest do
           [:s16le, 1, 0, 2],
           [:s16le, 2, 48_000, 3],
           [:s16le, 1, 0xFFFFFFFF, 2],
-          [:s32le, 65535, 1, 4],
+          [:s32le, 65_535, 1, 4],
           [:s16le, 1, 48_000, 0xFFFFFFFF],
-          [:s16le, 1, 48000.0, 2]
+          [:s16le, 1, 48_000.0, 2]
         ] do
       assert {:error, :invalid_wav_projection} = apply(Wav, :header, args)
     end

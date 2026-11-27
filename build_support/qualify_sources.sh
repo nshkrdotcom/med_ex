@@ -17,15 +17,14 @@ for transport in direct live full prepared git registry; do
     [[ "$app" == med_ex ]] || project_source="$sdk/extensions/$app"
     case "$transport" in
       direct) entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
-      live) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/live/med_ex"; fi
+      live) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/v2/live/med_ex"; fi
         entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
-      full) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/full/med_ex/project"; fi
+      full) if [[ "$app" == med_ex ]]; then project_source="$sdk/.weld/v2/full/med_ex/project"; fi
         entry=$(jq -cn --arg path "$project_source" '{path:$path}') ;;
       prepared)
         if [[ "$app" == med_ex ]]; then
-          read -r schema identity < "$sdk/.weld/releases/med_ex/CURRENT"
-          [[ "$schema" == weld.release/v1 && "$identity" =~ ^[0-9a-f]{64}$ ]]
-          project_source="$sdk/.weld/releases/med_ex/$identity/project"
+          bundle=$(cd "$sdk/tools/maintainer" && mix weld path --root "$sdk" --artifact med_ex --kind bundle)
+          project_source="$bundle/project"
         fi
         entry=$(jq -cn --arg path "$project_source" '{path:$path}')
         ;;

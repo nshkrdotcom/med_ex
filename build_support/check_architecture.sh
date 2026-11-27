@@ -37,13 +37,21 @@ done
 
 if [ "$#" -eq 1 ]; then
   projection=$(cd "$1" && pwd -P)
+  root=$(pwd -P)
+  report=$(mktemp)
+  trap 'rm -f "$report"' EXIT
+  (
+    cd tools/maintainer
+    MIX_ENV=dev mix compile --warnings-as-errors
+    MIX_ENV=dev mix weld plan --root "$root" --artifact med_ex --format json > "$report"
+  )
   (
     cd "$projection"
     mix deps.get
     mix compile --warnings-as-errors
     mix test
   )
-  mix run --no-start build_support/check_architecture.exs "$projection"
+  mix run --no-start build_support/check_architecture.exs "$projection" "$report"
 else
   mix run --no-start build_support/check_architecture.exs
 fi

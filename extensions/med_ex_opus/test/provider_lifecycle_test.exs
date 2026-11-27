@@ -18,7 +18,7 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
 
     File.write!(
       executable,
-      "#!/usr/bin/env python3\nimport os,sys,time,struct,threading,select\nopen(\"#{dir}/native.pid\",\"w\").write(str(os.getpid()))\ndef watch_port():\n poll=select.poll();poll.register(sys.stdout.fileno(),select.POLLERR|select.POLLHUP)\n while True:\n  if poll.poll(100): os._exit(66)\nthreading.Thread(target=watch_port,daemon=True).start()\ndef emit(data):\n sys.stdout.buffer.write(struct.pack('>I',len(data))+data);sys.stdout.buffer.flush()\n" <>
+      ~s|#!/usr/bin/env python3\nimport os,sys,time,struct,threading,select\nopen("#{dir}/native.pid","w").write(str(os.getpid()))\ndef watch_port():\n poll=select.poll();poll.register(sys.stdout.fileno(),select.POLLERR\|select.POLLHUP)\n while True:\n  if poll.poll(100): os._exit(66)\nthreading.Thread(target=watch_port,daemon=True).start()\ndef emit(data):\n sys.stdout.buffer.write(struct.pack('>I',len(data))+data);sys.stdout.buffer.flush()\n| <>
         body
     )
 
@@ -29,11 +29,13 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
 
   defp dead_native(dir) do
     if File.exists?(Path.join(dir, "native.pid")) do
-      pid = File.read!(Path.join(dir, "native.pid"))
-
-      if :os.type() == {:unix, :linux},
-        do: assert_eventually(fn -> not File.exists?("/proc/" <> pid) end, 100)
+      check_native_exit(File.read!(Path.join(dir, "native.pid")))
     end
+  end
+
+  defp check_native_exit(pid) do
+    if :os.type() == {:unix, :linux},
+      do: assert_eventually(fn -> not File.exists?("/proc/" <> pid) end, 100)
   end
 
   defp assert_eventually(fun, left) do

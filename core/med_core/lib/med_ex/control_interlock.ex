@@ -13,40 +13,36 @@ defmodule MedEx.ControlInterlock do
 
   def request(%__MODULE__{} = state, command, watermarks)
       when is_map(command) and is_map(watermarks) do
-    cond do
-      not command?(command) or not watermarks?(watermarks) ->
-        {:error, :invalid_command}
+    with :ok <- validate_request(state, command, watermarks) do
+      pending = %{
+        command: Map.take(command, @identity),
+        phase: :requested,
+        watermarks: watermarks
+      }
 
-      command.expired ->
-        {:error, :expired}
-
-      command.target != state.target ->
-        {:error, :wrong_target}
-
-      command.boot_id != state.boot_id ->
-        {:error, :wrong_boot}
-
-      command.generation != state.generation ->
-        {:error, :stale_generation}
-
-      command.expected_epoch != state.current_epoch ->
-        {:error, :stale_configuration}
-
-      length(state.historical_unknown) >= 256 ->
-        {:error, :command_limit}
-
-      true ->
-        pending = %{
-          command: Map.take(command, @identity),
-          phase: :requested,
-          watermarks: watermarks
-        }
-
-        {:ok, %{state | pending: pending}, [{:persist_intent, pending.command, watermarks}]}
+      {:ok, %{state | pending: pending}, [{:persist_intent, pending.command, watermarks}]}
     end
   end
 
   def request(_, _, _), do: {:error, :invalid_command}
+
+  defp validate_request(state, command, watermarks) do
+    if command?(command) and watermarks?(watermarks),
+      do: request_authority(state, command),
+      else: {:error, :invalid_command}
+  end
+
+  defp request_authority(state, command) do
+    cond do
+      command.expired -> {:error, :expired}
+      command.target != state.target -> {:error, :wrong_target}
+      command.boot_id != state.boot_id -> {:error, :wrong_boot}
+      command.generation != state.generation -> {:error, :stale_generation}
+      command.expected_epoch != state.current_epoch -> {:error, :stale_configuration}
+      length(state.historical_unknown) >= 256 -> {:error, :command_limit}
+      true -> :ok
+    end
+  end
 
   def step(%__MODULE__{} = state, :freeze), do: {:ok, %{state | frozen: true}, []}
   def step(%__MODULE__{frozen: true}, _), do: {:error, :frozen}
@@ -134,24 +130,7 @@ defmodule MedEx.ControlInterlock do
   @doc "Exact cached application is historical proof; expiry only prevents a new application."
   def device_decide(ledger, command, actual_epoch) when is_map(ledger) and is_map(command) do
     if map_size(ledger) <= 256 and command?(command) and R.uint?(actual_epoch, 0xFFFFFFFE) do
-      case Map.fetch(ledger, command.id) do
-        {:ok, %{fingerprint: fingerprint, command: cached, result: result}} ->
-          if fingerprint == command.fingerprint and cached == Map.take(command, @identity) and
-               result?(cached, result),
-             do: {:cached, result},
-             else: {:error, :command_id_conflict}
-
-        {:ok, _} ->
-          {:error, :invalid_command_ledger}
-
-        :error ->
-          cond do
-            command.expired -> {:error, :expired}
-            command.expected_epoch != actual_epoch -> {:error, :stale_configuration}
-            map_size(ledger) == 256 -> {:error, :command_limit}
-            true -> {:execute_and_persist_result, command}
-          end
-      end
+      decide_from_ledger(ledger, command, actual_epoch)
     else
       {:error, :invalid_command}
     end
@@ -159,11 +138,43 @@ defmodule MedEx.ControlInterlock do
 
   def device_decide(_, _, _), do: {:error, :invalid_command}
 
+  defp decide_from_ledger(ledger, command, actual_epoch) do
+    case Map.fetch(ledger, command.id) do
+      {:ok, %{fingerprint: fingerprint, command: cached, result: result}} ->
+        if fingerprint == command.fingerprint and cached == Map.take(command, @identity) and
+             result?(cached, result),
+           do: {:cached, result},
+           else: {:error, :command_id_conflict}
+
+      {:ok, _} ->
+        {:error, :invalid_command_ledger}
+
+      :error ->
+        decide_new_command(ledger, command, actual_epoch)
+    end
+  end
+
+  defp decide_new_command(ledger, command, actual_epoch) do
+    cond do
+      command.expired -> {:error, :expired}
+      command.expected_epoch != actual_epoch -> {:error, :stale_configuration}
+      map_size(ledger) == 256 -> {:error, :command_limit}
+      true -> {:execute_and_persist_result, command}
+    end
+  end
+
   defp command?(command) do
     Enum.all?(@identity ++ [:expired], &Map.has_key?(command, &1)) and
-      R.id?(command.id) and byte_size(command.id) <= 96 and R.digest?(command.fingerprint) and
-      R.id?(command.boot_id) and R.id?(command.target) and
-      R.uint?(command.generation, 0x7FFFFFFFFFFFFFFF) and
+      command_identity?(command) and command_value?(command)
+  end
+
+  defp command_identity?(command) do
+    R.id?(command.id) and byte_size(command.id) <= 96 and R.digest?(command.fingerprint) and
+      R.id?(command.boot_id) and R.id?(command.target)
+  end
+
+  defp command_value?(command) do
+    R.uint?(command.generation, 0x7FFFFFFFFFFFFFFF) and
       R.uint?(command.expected_epoch, 0xFFFFFFFD) and R.scalar?(command.value) and
       is_boolean(command.expired)
   end
@@ -181,8 +192,7 @@ defmodule MedEx.ControlInterlock do
 
     case result do
       %{outcome: :applied, epoch: epoch, application: %{observed_at: at, first_sample: first}} ->
-        exact and epoch == command.expected_epoch + 1 and R.uint?(at, 0xFFFFFFFFFFFFFFFF) and
-          (first == :unknown or R.uint?(first, 0xFFFFFFFFFFFFFFFF))
+        exact and applied_result?(command, epoch, at, first)
 
       %{outcome: :rejected, reason: reason} ->
         exact and R.id?(reason)
@@ -196,4 +206,9 @@ defmodule MedEx.ControlInterlock do
   end
 
   defp result?(_, _), do: false
+
+  defp applied_result?(command, epoch, at, first) do
+    epoch == command.expected_epoch + 1 and R.uint?(at, 0xFFFFFFFFFFFFFFFF) and
+      (first == :unknown or R.uint?(first, 0xFFFFFFFFFFFFFFFF))
+  end
 end

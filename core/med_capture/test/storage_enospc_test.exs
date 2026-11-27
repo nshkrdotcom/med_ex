@@ -3,6 +3,7 @@ defmodule MedEx.StorageENOSPCTest do
   alias MedEx.CaptureFixture, as: F
   alias MedEx.{Receipt, StreamWriter}
   alias MedEx.Storage.File, as: Store
+  alias MedEx.Storage.{Objects, Records}
   @moduletag :enospc
   @moduletag timeout: 120_000
   @marker ".med-ex-enospc-fixture.json"
@@ -91,7 +92,7 @@ defmodule MedEx.StorageENOSPCTest do
     {:ok, before} = StreamWriter.receipt(writer, "f1", 1000)
     # Sixteen frame metadata records make this append larger than a filesystem
     # block, so it cannot fit in the identity record's existing allocation.
-    {record, _, _} = MedEx.Storage.Records.chunk_record(Enum.map(0..15, &F.frame/1))
+    {record, _, _} = Records.chunk_record(Enum.map(0..15, &F.frame/1))
     assert MedEx.RecordingLimits.encoded_record_bytes(record) > 4096
 
     for sequence <- 0..14,
@@ -188,6 +189,6 @@ defmodule MedEx.StorageENOSPCTest do
 
   defp release_space(f) do
     File.rm!(f.filler)
-    :ok = MedEx.Storage.Objects.sync_directory(f.root)
+    :ok = Objects.sync_directory(f.root)
   end
 end

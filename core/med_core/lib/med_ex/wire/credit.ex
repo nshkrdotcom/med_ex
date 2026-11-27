@@ -38,23 +38,27 @@ defmodule MedEx.Wire.Credit do
           {:error, :conflicting_operation}
 
         :error ->
-          if map_size(ledger.operations) < ledger.frame_limit and
-               ledger.bytes + operation.bytes <= ledger.byte_limit do
-            {:ok,
-             %{
-               ledger
-               | operations: Map.put(ledger.operations, operation.id, operation),
-                 bytes: ledger.bytes + operation.bytes
-             }, :new}
-          else
-            {:error, :credit_exhausted}
-          end
+          reserve_new(ledger, operation)
       end
     end
   end
 
   def reserve(%__MODULE__{}, _, _), do: {:error, :stale_binding}
   def reserve(_, _, _), do: {:error, :invalid_credit}
+
+  defp reserve_new(ledger, operation) do
+    if map_size(ledger.operations) < ledger.frame_limit and
+         ledger.bytes + operation.bytes <= ledger.byte_limit do
+      {:ok,
+       %{
+         ledger
+         | operations: Map.put(ledger.operations, operation.id, operation),
+           bytes: ledger.bytes + operation.bytes
+       }, :new}
+    else
+      {:error, :credit_exhausted}
+    end
+  end
 
   @doc "Return one exact outstanding operation only for its current connection binding."
   @spec lookup(t(), map(), binary()) :: {:ok, map()} | {:error, atom()}
@@ -133,13 +137,21 @@ defmodule MedEx.Wire.Credit do
          %{id: id, fingerprint: hash, bytes: bytes, sequence: sequence, sample: sample} = op
        )
        when map_size(op) == 5 and is_binary(id) and byte_size(id) in 1..96 and
-              is_binary(hash) and byte_size(hash) == 64 and is_integer(bytes) and bytes > 0 and
-              is_integer(sequence) and sequence >= 0 and sequence <= @max_counter and
-              is_integer(sample) and sample >= 0 and sample <= @max_counter do
-    if Regex.match?(~r/\A[A-Za-z0-9_-]+\z/, id) and Regex.match?(~r/\A[0-9a-f]{64}\z/, hash),
+              is_binary(hash) and byte_size(hash) == 64 and is_integer(bytes) and bytes > 0 do
+    if operation_values?(id, hash, sequence, sample),
       do: :ok,
       else: {:error, :invalid_operation}
   end
 
   defp valid_operation(_), do: {:error, :invalid_operation}
+
+  defp operation_values?(id, hash, sequence, sample) do
+    counter?(sequence) and counter?(sample) and valid_identity?(id, hash)
+  end
+
+  defp counter?(value), do: is_integer(value) and value >= 0 and value <= @max_counter
+
+  defp valid_identity?(id, hash) do
+    Regex.match?(~r/\A[A-Za-z0-9_-]+\z/, id) and Regex.match?(~r/\A[0-9a-f]{64}\z/, hash)
+  end
 end

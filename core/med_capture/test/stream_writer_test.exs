@@ -1,8 +1,8 @@
 defmodule MedEx.StreamWriterTest do
   use ExUnit.Case, async: true
+  alias MedEx.CaptureFixture, as: F
   alias MedEx.{IntegritySpan, Receipt, Serialization, StreamWriter}
   alias MedEx.Storage.{File, Terminal}
-  alias MedEx.CaptureFixture, as: F
 
   setup do
     fixture = F.root()

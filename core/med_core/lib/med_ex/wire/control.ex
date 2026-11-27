@@ -91,11 +91,7 @@ defmodule MedEx.Wire.Control do
 
     case JSON.decode(bytes, nil, decoders) do
       {%{"schema" => @schema, "type" => type} = message, nil, remaining} ->
-        cond do
-          not is_binary(type) or type not in allowed -> {:error, :unsupported_message}
-          String.trim(remaining) != "" -> {:error, :invalid_message}
-          true -> validate(message)
-        end
+        decode_message(type, message, remaining, allowed)
 
       _ ->
         {:error, :invalid_message}
@@ -108,22 +104,32 @@ defmodule MedEx.Wire.Control do
 
   def decode(_, _), do: {:error, :message_limit}
 
+  defp decode_message(type, message, remaining, allowed) do
+    cond do
+      not is_binary(type) or type not in allowed -> {:error, :unsupported_message}
+      String.trim(remaining) != "" -> {:error, :invalid_message}
+      true -> validate(message)
+    end
+  end
+
   def encode(type, fields) when is_binary(type) and is_map(fields) do
     if Map.has_key?(fields, "schema") or Map.has_key?(fields, "type") do
       {:error, :reserved_field}
     else
       message = Map.merge(fields, %{"schema" => @schema, "type" => type})
 
-      with {:ok, ^message} <- validate(message) do
-        bytes = JSON.encode!(message)
-        if byte_size(bytes) <= @max_json, do: {:ok, bytes}, else: {:error, :message_limit}
-      end
+      with {:ok, ^message} <- validate(message), do: encode_message(message)
     end
   rescue
     _ -> {:error, :invalid_message}
   end
 
   def encode(_, _), do: {:error, :invalid_message}
+
+  defp encode_message(message) do
+    bytes = JSON.encode!(message)
+    if byte_size(bytes) <= @max_json, do: {:ok, bytes}, else: {:error, :message_limit}
+  end
 
   defp validate(%{"type" => type} = message) do
     case Map.fetch(@messages, type) do

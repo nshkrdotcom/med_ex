@@ -5,7 +5,7 @@ defmodule MedEx.Build.Architecture do
   @moduledoc false
   alias MedEx.Build.{Boundaries, Ownership}
 
-  def check!(root, projection) do
+  def check!(root, projection, report) do
     {composition, _} = Code.eval_file(Path.join(root, "build_support/composition.exs"))
 
     source_roots =
@@ -29,7 +29,10 @@ defmodule MedEx.Build.Architecture do
 
     MedEx.Build.PublicAPI.check!()
     trace!(expected, source_roots, Map.keys(Map.fetch!(proofs, :med_core)))
-    if projection, do: compare!(projection, root, direct, composition, expected, source_roots)
+
+    if projection,
+      do: compare!(projection, report, root, direct, composition, expected, source_roots)
+
     IO.puts("Verified #{map_size(expected)} compiled SDK modules against the component builds")
   end
 
@@ -69,19 +72,30 @@ defmodule MedEx.Build.Architecture do
     end
   end
 
-  defp compare!(projection, root, direct, composition, expected, source_roots) do
-    report = projection |> Path.join("projection.lock.json") |> File.read!() |> JSON.decode!()
-    provenance = projection |> Path.join("weld.provenance.json") |> File.read!() |> JSON.decode!()
-    components = Enum.sort(composition.components)
+  defp compare!(projection, report, root, direct, composition, expected, source_roots) do
+    %{"schema" => "weld.result/2", "ok" => true, "data" => data} =
+      report |> File.read!() |> JSON.decode!()
 
-    unless report["artifact"]["id"] == "med_ex" and provenance["artifact"] == "med_ex" and
-             report["graph"]["dependency_projects"] == components and
-             report["graph"]["selected_projects"] == components,
+    kind =
+      cond do
+        projection == Path.join(root, ".weld/v2/live/med_ex") -> "live"
+        projection == Path.join(root, ".weld/v2/full/med_ex/project") -> "full"
+        true -> raise("Use the managed Weld v2 live or full projection")
+      end
+
+    components = Enum.sort(composition.components)
+    artifact = data["artifact"]
+
+    unless data["artifact_id"] == "med_ex" and data["layout"] == "components" and
+             Enum.sort(artifact["dependency_projects"]) == components and
+             Enum.sort(artifact["selected_projects"]) == components,
            do: raise("Weld closure differs from the declared base composition")
 
-    files = report["source"]["inventory"]
+    files = artifact["source_inventory"]
     compile_sources = index(files, "compiled")
-    package_files = report["projection"]["package_files"]
+
+    package_files =
+      for %{"publish" => true, "target" => path} <- artifact["output_inventory"], do: path
 
     projected_roots =
       for project <- composition.components do
@@ -110,7 +124,7 @@ defmodule MedEx.Build.Architecture do
     projected = ebin(projection, :med_ex)
 
     allowed_roots =
-      if provenance["kind"] == "live", do: projected_roots ++ source_roots, else: projected_roots
+      if kind == "live", do: projected_roots ++ source_roots, else: projected_roots
 
     unless Ownership.beam_inventory!(projected, allowed_roots) == expected,
       do: raise("projected/component BEAM inventories differ")
@@ -120,7 +134,7 @@ defmodule MedEx.Build.Architecture do
 
     verify_test_inputs!(files, root, projection, composition, package_files)
 
-    IO.puts("Verified the #{provenance["kind"]} base closure, module ownership, tests and assets")
+    IO.puts("Verified the #{kind} base closure, module ownership, tests and assets")
   end
 
   defp verify_test_inputs!(files, root, projection, composition, package_files) do
@@ -128,7 +142,7 @@ defmodule MedEx.Build.Architecture do
 
     suites =
       Enum.map(composition.components, &{Path.join(&1, "test"), &1}) ++
-        [{"test/projection", "."}]
+        [{"test/projection", nil}]
 
     for {suite, owner} <- suites do
       paths =
@@ -189,4 +203,4 @@ defmodule MedEx.Build.Architecture do
 end
 
 root = Path.expand("..", __DIR__)
-MedEx.Build.Architecture.check!(root, List.first(System.argv()))
+MedEx.Build.Architecture.check!(root, List.first(System.argv()), Enum.at(System.argv(), 1))

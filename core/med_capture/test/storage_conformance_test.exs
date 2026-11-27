@@ -3,6 +3,7 @@ defmodule MedEx.StorageConformanceTest do
   alias MedEx.CaptureFixture, as: F
   alias MedEx.{Serialization, StreamWriter}
   alias MedEx.Storage.File, as: Store
+  alias MedEx.Storage.{Journal, Records}
 
   setup do
     fixture = F.root()
@@ -75,7 +76,7 @@ defmodule MedEx.StorageConformanceTest do
       predecessor: nil
     }
 
-    {envelope, _} = MedEx.Storage.Journal.envelope(1, MedEx.Storage.Journal.zero(), old)
+    {envelope, _} = Journal.envelope(1, Journal.zero(), old)
     File.write!(Path.join(f.dir, "stream.mejournal"), envelope)
 
     assert {:error, :identity_mismatch} =
@@ -270,7 +271,7 @@ defmodule MedEx.StorageConformanceTest do
     {:ok, writer} = F.start(reference)
     {:ok, %{journal_bytes: initial_bytes}} = StreamWriter.stats(writer, "f1", 1000)
     F.retire(writer)
-    {record, _, _} = MedEx.Storage.Records.chunk_record([F.frame(0)])
+    {record, _, _} = Records.chunk_record([F.frame(0)])
 
     exact =
       initial_bytes + MedEx.RecordingLimits.encoded_record_bytes(record) +

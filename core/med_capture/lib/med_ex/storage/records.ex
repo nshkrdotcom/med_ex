@@ -183,15 +183,7 @@ defmodule MedEx.Storage.Records do
         read
       )
       when map_size(record) == 4 and map_size(conflict) == 4 do
-    known =
-      case family do
-        "frame" -> Map.get(s.frames, n(id))
-        "gap" -> Map.get(s.gap_ids, id)
-        _ -> :invalid
-      end
-
-    if ContractRules.id?(id) and ContractRules.digest?(attempted) and known == stored and
-         attempted != stored do
+    if valid_conflict?(s, family, id, attempted, stored) do
       # The replay's claimed sample range may itself conflict. Refer to the
       # operation identity, without inventing a verified sample interval.
       span = %IntegritySpan{
@@ -224,6 +216,19 @@ defmodule MedEx.Storage.Records do
   end
 
   def apply_record(_, _, _), do: {:error, :unknown_record}
+
+  defp valid_conflict?(s, family, id, attempted, stored) do
+    known =
+      case family do
+        "frame" -> Map.get(s.frames, n(id))
+        "gap" -> Map.get(s.gap_ids, id)
+        _ -> :invalid
+      end
+
+    ContractRules.id?(id) and ContractRules.digest?(attempted) and known == stored and
+      attempted != stored
+  end
+
   defp n(v), do: Serialization.integer!(v)
 
   defp duration?(cursor) do
