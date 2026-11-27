@@ -30,8 +30,12 @@ defmodule MedEx.PackageTest do
              ]
            end)
 
+    assert Code.ensure_loaded?(MedEx.StreamWriter)
     assert function_exported?(MedEx.StreamWriter, :push, 4)
     refute function_exported?(MedEx.StreamWriter, :push, 2)
-    refute File.exists?(Application.app_dir(:med_ex, "priv/static"))
+
+    refute Application.app_dir(:med_ex, "priv/static/**/*")
+           |> Path.wildcard()
+           |> Enum.any?(&File.regular?/1)
   end
 end

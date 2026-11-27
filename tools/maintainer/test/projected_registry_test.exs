@@ -61,7 +61,10 @@ defmodule MedEx.ProjectedRegistryTest do
     revision = git!(root, ["rev-parse", "HEAD"]) |> String.trim()
     File.write!(source, changed)
     projection = Weld.project!(manifest, artifact: :registry_freshness)
-    projected_source = Path.join(projection.build_path, "lib/registry_freshness.ex")
+
+    [projected_source] =
+      Path.wildcard(Path.join(projection.build_path, "**/lib/registry_freshness.ex"))
+
     assert File.read!(projected_source) == changed
     File.write!(source, original)
     assert git!(root, ["status", "--porcelain"]) == ""

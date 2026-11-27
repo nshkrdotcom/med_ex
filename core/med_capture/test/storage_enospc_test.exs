@@ -44,7 +44,7 @@ defmodule MedEx.StorageENOSPCTest do
     # fixture inventory, so no ordinary service/shared filesystem can be filled.
     assert Enum.all?(File.ls!(mount), &(&1 in [@marker, "lost+found"]))
     case_root = Path.join(mount, "med-ex-case-#{System.unique_integer([:positive])}")
-    {:ok, guard} = MedEx.TestRootOwner.start_link(case_root)
+    {:ok, guard} = MedEx.TestRootOwner.start(case_root)
     Process.unlink(guard)
 
     fixture = %{

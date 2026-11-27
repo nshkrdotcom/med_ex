@@ -140,7 +140,7 @@ defmodule MedEx.Storage.File do
   defp ensure_dir(dir) do
     case File.mkdir(dir) do
       :ok ->
-        :ok
+        File.chmod(dir, 0o700)
 
       {:error, :eexist} ->
         :ok

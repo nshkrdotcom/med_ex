@@ -74,7 +74,7 @@ defmodule MedEx.Build.PublicAPI do
     for {module, supported} <- @supported do
       Code.ensure_compiled!(module)
       internal = Map.get(@internal, module, [])
-      actual = module.__info__(:functions) -- (@generated -- internal)
+      actual = module.__info__(:functions) -- (@generated ++ internal)
 
       unless Enum.sort(actual) == Enum.sort(supported),
         do: raise("public export drift in #{inspect(module)}: #{inspect(actual)}")

@@ -2,6 +2,10 @@ defmodule MedEx.BaseOnlyTest do
   use ExUnit.Case, async: true
   alias MedEx.CaptureFixture, as: F
 
+  test "writer startup returns a refusal without exiting its caller" do
+    assert {:error, :invalid_writer_options} = MedEx.StreamWriter.start_link(owner: self())
+  end
+
   test "base records and verifies exact PCM with no codec or RTC runtime" do
     fixture = F.root()
     on_exit(fn -> F.cleanup(fixture) end)

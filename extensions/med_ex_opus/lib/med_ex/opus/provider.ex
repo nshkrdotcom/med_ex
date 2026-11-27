@@ -31,7 +31,9 @@ defmodule MedEx.Opus.Provider do
           caller: self(),
           executable: executable,
           deadline: now() + @hello_timeout
-        }, timeout: @start_timeout)
+        },
+        timeout: @start_timeout
+      )
     else
       {:error, :invalid_owner_or_options}
     end
@@ -91,6 +93,18 @@ defmodule MedEx.Opus.Provider do
 
   @impl true
   def init(initial) do
+    case initialize(initial) do
+      {:stop, _} = failure ->
+        # Failed startup must return the refusal without sending the caller an exit.
+        Process.unlink(initial.caller)
+        failure
+
+      success ->
+        success
+    end
+  end
+
+  defp initialize(initial) do
     Process.flag(:trap_exit, true)
     owner_ref = Process.monitor(initial.owner)
     caller_ref = Process.monitor(initial.caller)

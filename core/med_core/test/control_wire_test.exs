@@ -2,7 +2,7 @@ defmodule MedEx.ControlWireTest do
   use ExUnit.Case, async: true
   alias MedEx.Wire.Control
 
-  defp binding,
+  defp test_binding,
     do: %{
       "acquisition" => "a",
       "profile" => "paired_exam",
@@ -13,7 +13,7 @@ defmodule MedEx.ControlWireTest do
   test "one strict v2 codec rejects nested duplicates, unsupported fields and incorrect counters" do
     duplicate = ~s({"schema":"medex.acquisition.v2","type":"heartbeat","binding":{"x":1,"x":2}})
     assert {:error, :duplicate_key} = Control.decode(duplicate, ["heartbeat"])
-    fields = %{"binding" => binding(), "operation_id" => "o", "nonce" => "n"}
+    fields = %{"binding" => test_binding(), "operation_id" => "o", "nonce" => "n"}
     assert {:ok, bytes} = Control.encode("heartbeat", fields)
     assert {:ok, message} = Control.decode(bytes, ["heartbeat"])
     assert message["schema"] == "medex.acquisition.v2"

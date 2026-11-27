@@ -44,11 +44,11 @@ defmodule MedEx.ReceiptProgressTest do
         to_string(Receipt.exact_prefix?(previous, proposed))
 
       "handoff" ->
-        result(Receipt.handoff(previous, proposed, binding(vector["binding"])))
+        result(Receipt.handoff(previous, proposed, vector_binding(vector["binding"])))
     end
   end
 
-  defp binding(value) when is_map(value),
+  defp vector_binding(value) when is_map(value),
     do: %{
       authority: :authenticated_host,
       authenticated: value["authenticated"],
@@ -58,7 +58,7 @@ defmodule MedEx.ReceiptProgressTest do
       imported: value["imported"]
     }
 
-  defp binding(value), do: value
+  defp vector_binding(value), do: value
   defp result(:ok), do: "ok"
   defp result({:ok, _}), do: "ok"
   defp result({:error, reason}), do: Atom.to_string(reason)

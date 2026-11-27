@@ -1,6 +1,6 @@
 defmodule MedEx.TestRootOwner do
   use GenServer
-  def start_link(root), do: GenServer.start_link(__MODULE__, root)
+  def start(root), do: GenServer.start(__MODULE__, root)
 
   def init(root) do
     Process.flag(:trap_exit, true)
@@ -57,10 +57,10 @@ defmodule MedEx.CaptureFixture do
   alias MedEx.Storage.File, as: Store
 
   def root do
-    base = Path.expand("../../../../_build/test/med_ex_artifacts", __DIR__)
-    root = Path.join(base, Integer.to_string(System.unique_integer([:positive, :monotonic])))
-    {:ok, owner} = MedEx.TestRootOwner.start_link(root)
-    Process.unlink(owner)
+    suffix = :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
+    root = Path.join(System.tmp_dir!(), "med_ex_artifacts_" <> suffix)
+    File.mkdir!(root)
+    {:ok, owner} = MedEx.TestRootOwner.start(root)
     %{root: root, root_owner: owner, dir: Path.join(root, "attempt"), spec: spec()}
   end
 

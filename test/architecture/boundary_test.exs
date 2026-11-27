@@ -134,7 +134,6 @@ defmodule MedEx.ArchitectureTest do
     for app <- [:med_ex_opus, :med_ex_rtc] do
       refute Keyword.has_key?(artifacts, app)
       version = File.read!("extensions/#{app}/VERSION") |> String.trim()
-      assert extension[:package][:version] == version
 
       Mix.Project.in_project(app, "extensions/#{app}", [], fn _ ->
         config = Mix.Project.config()

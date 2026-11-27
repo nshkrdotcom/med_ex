@@ -52,7 +52,9 @@ defmodule MedEx.Opus.ProviderTest do
           "MIX_APP_PATH=#{app}",
           "DECODER=#{decoder}",
           "DECODER_SRC=#{Path.join(__DIR__, "decode.c")}"
-        ], stderr_to_stdout: true)
+        ],
+        stderr_to_stdout: true
+      )
 
     assert status == 0, log
     {:ok, pid} = Provider.start_link(owner: self())

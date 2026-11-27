@@ -1,7 +1,13 @@
 defmodule MedEx.CliRecorderTest do
   use ExUnit.Case, async: true
 
-  @moduletag :tmp_dir
+  setup do
+    suffix = Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+    dir = Path.join(System.tmp_dir!(), "mf-source-test-" <> suffix)
+    File.mkdir!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+    %{tmp_dir: dir}
+  end
 
   test "second reference host (tools/cli_recorder.exs) records, seals, and recovers", %{
     tmp_dir: dir

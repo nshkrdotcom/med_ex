@@ -26,6 +26,7 @@ defmodule MedEx.StorageConformanceTest do
     end
 
     File.mkdir_p!(f.dir)
+    File.chmod!(f.dir, 0o700)
     for name <- File.ls!(source), do: File.cp!(Path.join(source, name), Path.join(f.dir, name))
 
     {:ok, spec} =
@@ -216,7 +217,7 @@ defmodule MedEx.StorageConformanceTest do
   end
 
   test "another OS root owner is denied and lost root ownership denies effects", f do
-    assert {:error, :root_in_use} = MedEx.TestRootOwner.start_link(f.root)
+    assert {:error, :root_in_use} = MedEx.TestRootOwner.start(f.root)
     {:ok, writer} = F.start(f)
     {:ok, _} = StreamWriter.push(writer, "f1", F.frame(0), 1000)
     GenServer.stop(f.root_owner)
@@ -307,7 +308,7 @@ defmodule MedEx.StorageConformanceTest do
 
   test "service-owned root below a sticky temporary ancestor is supported", _f do
     root = Path.join(System.tmp_dir!(), "med-ex-root-#{System.unique_integer([:positive])}")
-    {:ok, guard} = MedEx.TestRootOwner.start_link(root)
+    {:ok, guard} = MedEx.TestRootOwner.start(root)
     fixture = %{root: root, root_owner: guard, dir: Path.join(root, "attempt"), spec: F.spec()}
     on_exit(fn -> F.cleanup(fixture) end)
     {:ok, writer} = F.start(fixture)
