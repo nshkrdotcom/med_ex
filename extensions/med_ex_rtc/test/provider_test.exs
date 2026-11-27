@@ -16,7 +16,17 @@ defmodule MedEx.RTC.ProviderTest do
     assert Enum.sort(Provider.__info__(:functions) -- internal) ==
              Enum.sort(answer: 2, send_opus: 5, close: 1, peer_ref: 1, validate_options: 1)
 
-    deps = Mix.Project.config()[:deps] |> Enum.map(&elem(&1, 0))
+    config = Mix.Project.config()
+
+    deps =
+      if config[:app] == :med_ex_rtc do
+        config[:deps]
+      else
+        path = Map.fetch!(Mix.Project.deps_paths(), :med_ex_rtc)
+        Mix.Project.in_project(:med_ex_rtc, path, fn _ -> Mix.Project.config()[:deps] end)
+      end
+
+    deps = Enum.map(deps, &elem(&1, 0))
     refute :med_ex in deps
     refute :med_ex_opus in deps
   end

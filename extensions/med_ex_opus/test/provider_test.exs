@@ -13,7 +13,17 @@ defmodule MedEx.Opus.ProviderTest do
     assert Enum.sort(Provider.__info__(:functions) -- internal) ==
              Enum.sort(start_link: 1, offer: 4, stop: 1)
 
-    deps = Mix.Project.config()[:deps] |> Enum.map(&elem(&1, 0))
+    config = Mix.Project.config()
+
+    deps =
+      if config[:app] == :med_ex_opus do
+        config[:deps]
+      else
+        path = Map.fetch!(Mix.Project.deps_paths(), :med_ex_opus)
+        Mix.Project.in_project(:med_ex_opus, path, fn _ -> Mix.Project.config()[:deps] end)
+      end
+
+    deps = Enum.map(deps, &elem(&1, 0))
     refute :med_ex in deps
     refute :med_ex_rtc in deps
   end
