@@ -37,8 +37,10 @@ defmodule MedEx.Build.EcosystemQC do
     --enospc-root DIR Dedicated marked ext4 loop mount for physical SDK ENOSPC
     --artifacts FILE Exact six-tar manifest for detached candidate/official proof
   Bootstrap genuine dependencies once before fast/full: mix setup in each repo.
-  Fast runs the two source-quality gates and records reusable receipts.
-  It permits the explicit Fabric development source selector; full does not.
+  Fast runs ordinary mix test in both repositories, with separate test receipts.
+  Dev runs source tests for changed repositories (SDK changes also test Fabric).
+  Neither mode builds consumer projections or satisfies release quality gates.
+  Both permit the explicit Fabric development source selector; full does not.
   Full/resume select local consumer proof from clean committed sources and
   exact candidate archives. Released Weld 0.20.3 is the tool, not a CI target.
   Remote Git proof requires explicit --gate medex-remote or fabric-remote.
@@ -93,7 +95,10 @@ defmodule MedEx.Build.EcosystemQC do
       mode: mode
     }
 
-    required = graph(config) |> Graph.select(opts[:gate]) |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+    nodes =
+      if mode in ~w(fast dev), do: Graph.fast(), else: Graph.select(graph(config), opts[:gate])
+
+    required = nodes |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
 
     Enum.each(required, fn name ->
       path = Map.fetch!(repos, name)
@@ -132,7 +137,7 @@ defmodule MedEx.Build.EcosystemQC do
   defp status(config) do
     unless File.dir?(config.evidence), do: raise("No evidence directory")
 
-    for {id, _, _, _} <- graph(config) do
+    for {id, _, _, _} <- Graph.fast() ++ graph(config) do
       path = Path.join(config.evidence, id <> ".receipt.json")
 
       state =
@@ -156,7 +161,7 @@ defmodule MedEx.Build.EcosystemQC do
       nodes =
         case mode do
           "dev" -> dev_gates(config, opts)
-          "fast" -> Enum.filter(graph(config), &(elem(&1, 0) in ~w(medex-core fabric-projects)))
+          "fast" -> Graph.fast()
           _ -> graph(config) |> Graph.select(opts[:gate])
         end
 
@@ -415,53 +420,14 @@ defmodule MedEx.Build.EcosystemQC do
   defp dev_gates(config, opts) do
     base = opts[:base] || "HEAD"
 
-    for {repo, root} <- Enum.sort(Map.take(config.repos, ~w(med_ex med_fabric))),
-        changed = Scope.changed(root, base),
-        changed != [],
-        {name, args} <- dev_commands(repo, changed, base) do
-      IO.puts("#{repo}: #{Enum.join(changed, ", ")}")
-      {name, repo, [], args}
-    end
-  end
-
-  defp dev_commands("med_ex", _, base),
-    do: [{"medex-affected", ["./build_support/check_consumers.sh", "--affected", base]}]
-
-  defp dev_commands("med_fabric", changed, _) do
-    projects = ~w(core/domain core/store core/interop apps/exam apps/handheld apps/preview)
-
-    path_projects =
-      Enum.filter(projects, fn project ->
-        Enum.any?(changed, &String.starts_with?(&1, project <> "/"))
+    changed =
+      Map.new(~w(med_ex med_fabric), fn repo ->
+        paths = Scope.changed(config.repos[repo], base)
+        if paths != [], do: IO.puts("#{repo}: #{Enum.join(paths, ", ")}")
+        {repo, paths != []}
       end)
 
-    unknown? =
-      Enum.any?(changed, fn path ->
-        !Enum.any?(projects, &String.starts_with?(path, &1 <> "/"))
-      end)
-
-    expanded =
-      Enum.uniq(
-        Enum.flat_map(path_projects, fn
-          "core/domain" -> ~w(core/domain core/store apps/exam)
-          "core/store" -> ~w(core/store apps/exam)
-          "core/interop" -> ~w(core/interop apps/exam)
-          project -> [project]
-        end)
-      )
-
-    affected = if unknown?, do: projects, else: expanded
-
-    for project <- affected do
-      {"fabric-" <> Path.basename(project),
-       [
-         "bash",
-         "-ec",
-         "cd \"$1\"; MIX_ENV=test mix deps.get --check-locked; mix test",
-         "qc",
-         project
-       ]}
-    end
+    Enum.filter(Graph.fast(), fn {_, repo, _, _} -> changed[repo] or changed["med_ex"] end)
   end
 
   defp run_gate(config, {id, repo, parents, args}, previous) do
@@ -549,7 +515,7 @@ defmodule MedEx.Build.EcosystemQC do
     Receipt.fingerprint({
       2,
       id,
-      source_scope(config, root, id, args),
+      source_scope(config, root, id),
       Receipt.toolchain(),
       source_dependencies(config, root, id),
       native_identity(config, id),
@@ -602,12 +568,16 @@ defmodule MedEx.Build.EcosystemQC do
 
   defp fabric_selection(config, "fabric-" <> _ = id) do
     {selector_identity(config), Sources.selected(config.repos["med_fabric"]),
-     if(id == "fabric-projects", do: fabric_context_locks(config))}
+     case id do
+       "fabric-tests" -> fabric_context_locks(config, [:test])
+       "fabric-projects" -> fabric_context_locks(config, [:dev, :test, :prod])
+       _ -> nil
+     end}
   end
 
   defp fabric_selection(_, _), do: nil
 
-  defp source_scope(config, root, id, args) do
+  defp source_scope(config, root, id) do
     if String.starts_with?(id, "fabric-") and config.mode not in ["fast", "dev"] do
       selector = Path.join(root, ".mix_sources.json")
 
@@ -616,23 +586,7 @@ defmodule MedEx.Build.EcosystemQC do
       end
     end
 
-    paths =
-      case args do
-        ["bash", "-ec", _, "qc", project] ->
-          upstream =
-            case project do
-              "core/store" -> ~w(core/domain)
-              "apps/exam" -> ~w(core/domain core/store core/interop)
-              _ -> []
-            end
-
-          [project, "config", "VERSION", ".tool-versions" | upstream]
-
-        _ ->
-          []
-      end
-
-    Receipt.source(root, paths)
+    Receipt.source(root)
   end
 
   defp official_registry(hex) do
@@ -704,7 +658,10 @@ defmodule MedEx.Build.EcosystemQC do
         "medex-prepare" ->
           prepared_outputs(root, "med_ex")
 
-        id when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated medex-remote) ->
+        id when id in ~w(fabric-native fabric-soak-off fabric-soak-isolated) ->
+          native_pointer_outputs(config, id)
+
+        "medex-remote" ->
           pointer_outputs(config, id, "**/*.{json,log}")
 
         _ ->
@@ -736,6 +693,17 @@ defmodule MedEx.Build.EcosystemQC do
 
       _ ->
         [current]
+    end
+  end
+
+  defp native_pointer_outputs(config, id) do
+    pointer = Path.join(config.evidence, id <> ".output")
+
+    with {:ok, %{type: :regular}} <- File.lstat(pointer),
+         {:ok, directory} <- File.read(pointer) do
+      [pointer | Receipt.native_outputs(directory, id)]
+    else
+      _ -> [pointer]
     end
   end
 
@@ -839,7 +807,7 @@ defmodule MedEx.Build.EcosystemQC do
     end
   end
 
-  defp fabric_context_locks(config) do
+  defp fabric_context_locks(config, environments) do
     Mix.start()
     previous = Mix.env()
 
@@ -853,7 +821,7 @@ defmodule MedEx.Build.EcosystemQC do
     ]
 
     try do
-      for environment <- [:dev, :test, :prod], {app, project} <- projects do
+      for environment <- environments, {app, project} <- projects do
         Mix.env(environment)
         directory = Path.join(config.repos["med_fabric"], project)
 

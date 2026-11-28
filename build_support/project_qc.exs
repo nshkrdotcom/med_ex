@@ -81,10 +81,14 @@ defmodule MedEx.Build.ProjectQC do
 
   defp run_phase(app, phase, compiled?) do
     {env, task} = if phase == "compile_prod", do: {"prod", "compile"}, else: {"dev", phase}
-    status = child(env, task, [])
+    status = child(env, task, quality_args(app, phase))
     IO.puts("QC #{app} #{phase} exit=#{status}")
     {status, if(phase == "compile", do: status == 0, else: compiled?)}
   end
+
+  @doc false
+  def quality_args(:med_ex_opus, "test"), do: ["--include", "startup_deadline"]
+  def quality_args(_app, _phase), do: []
 
   defp quality_phases(app) when app in @boundary_apps, do: ~w(compile test)
   defp quality_phases(@coordinator), do: ~w(tooling_test format credo docs)

@@ -21,7 +21,15 @@ defmodule MedEx.Build.QualificationReceipt do
   end
 
   def write!(path, input, files, details) do
-    {:ok, outputs} = digests(files)
+    outputs =
+      case digests(files) do
+        {:ok, outputs} ->
+          outputs
+
+        {:error, {path, reason}} ->
+          raise "Cannot record qualification output #{path}: #{inspect(reason)}"
+      end
+
     payload = %{"schema" => 1, "input" => input, "files" => outputs, "details" => details}
     bytes = JSON.encode_to_iodata!(%{payload: payload, sha256: fingerprint(payload)})
     temporary = path <> "." <> Base.encode16(:crypto.strong_rand_bytes(8), case: :lower)
@@ -42,9 +50,38 @@ defmodule MedEx.Build.QualificationReceipt do
            {:ok, bytes} <- File.read(path) do
         {:cont, {:ok, Map.put(acc, name, sha256(bytes))}}
       else
-        _ -> {:halt, :missing}
+        {:ok, %{type: type}} -> {:halt, {:error, {path, {:not_regular, type}}}}
+        {:error, reason} -> {:halt, {:error, {path, reason}}}
       end
     end)
+  end
+
+  # Only retained proof inputs and reports belong in a native receipt. The
+  # consumer trees contain generated dependencies, build products and links.
+  # Enumerate required files even when absent, so missing proof fails closed.
+  def native_outputs(directory, gate)
+      when gate in ~w(fabric-native fabric-soak-off fabric-soak-isolated) do
+    common = ~w(exit-status run.log native.json) ++ role_outputs("installed")
+
+    specific =
+      if gate == "fabric-native" do
+        ["detached.json" | role_outputs("detached.json.inputs")] ++
+          ~w(detached.json.inputs/combined-installed.json detached.json.inputs/combined-mix.lock detached.json.inputs/combined-tests.log)
+      else
+        ["filesystem.txt"]
+      end
+
+    Enum.map(common ++ specific, &Path.join(directory, &1))
+  end
+
+  defp role_outputs(directory) do
+    roles =
+      for role <- ~w(exam handheld preview),
+          suffix <- ~w(installed.json mix.lock dependencies.txt) do
+        role <> "-" <> suffix
+      end
+
+    Enum.map(~w(artifacts.json registry.json) ++ roles, &Path.join(directory, &1))
   end
 
   def sha256(bytes), do: :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)

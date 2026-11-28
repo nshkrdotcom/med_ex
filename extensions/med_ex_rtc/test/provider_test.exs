@@ -4,6 +4,8 @@ defmodule MedEx.RTC.ProviderTest do
   alias ExWebRTC.{PeerConnection, SessionDescription}
   alias MedEx.RTC.Provider
 
+  @moduletag capture_log: true
+
   # Independently supplied RFC 6716 Opus silence; this package has no encoder
   # dependency and this test does not imply PCM/codec qualification.
   @packet <<0xF8, 0xFF, 0xFE>>

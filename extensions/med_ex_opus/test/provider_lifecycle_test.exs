@@ -53,6 +53,7 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
     end
   end
 
+  @tag :startup_deadline
   test "public start_link has a five-second hello and six-second outer deadline", %{tmp_dir: dir} do
     fixture(dir, "time.sleep(30)\n")
     start = System.monotonic_time(:millisecond)
@@ -260,6 +261,7 @@ defmodule MedEx.Opus.ProviderLifecycleTest do
     dead_native(dir)
   end
 
+  @tag :startup_deadline
   test "outer OTP startup deadline retires a suspended initializer and its native Port", %{
     tmp_dir: dir
   } do

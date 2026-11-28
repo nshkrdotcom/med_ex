@@ -2,6 +2,14 @@ defmodule MedEx.Build.EcosystemGraph do
   @moduledoc false
   @separate ~w(weld-ci weld-minimum medex-remote fabric-remote)
 
+  # Development feedback never substitutes for the release graph.
+  def fast do
+    [
+      {"medex-tests", "med_ex", [], ["mix", "test"]},
+      {"fabric-tests", "med_fabric", [], ["mix", "test"]}
+    ]
+  end
+
   def select(nodes, nil), do: Enum.reject(nodes, &(elem(&1, 0) in @separate))
 
   def select(nodes, id) do

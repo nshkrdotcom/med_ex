@@ -78,4 +78,77 @@ defmodule MedEx.EcosystemGraphTest do
     File.write!(log, "changed output\n")
     assert :miss = QualificationReceipt.read(receipt, input, %{"log" => log})
   end
+
+  test "development runs only ordinary source tests, never release prerequisites" do
+    assert EcosystemGraph.fast() == [
+             {"medex-tests", "med_ex", [], ["mix", "test"]},
+             {"fabric-tests", "med_fabric", [], ["mix", "test"]}
+           ]
+
+    release_ids = MapSet.new(@nodes, &elem(&1, 0))
+    assert Enum.all?(EcosystemGraph.fast(), &(not MapSet.member?(release_ids, elem(&1, 0))))
+  end
+
+  @tag :tmp_dir
+  test "native receipts bind required reports and locks, not the installed build tree", %{
+    tmp_dir: root
+  } do
+    files = QualificationReceipt.native_outputs(root, "fabric-native")
+    outputs = Map.new(files, &{&1, &1})
+    receipt = Path.join(root, "gate.receipt.json")
+    input = QualificationReceipt.fingerprint(:native)
+
+    for path <- files do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, "proof")
+    end
+
+    # Generated JSON symlinks must not make a successful native gate unrecordable.
+    build = Path.join(root, "consumers/exam/_build/generated.json")
+    File.mkdir_p!(Path.dirname(build))
+    File.ln_s!("missing-target", build)
+
+    assert Path.join(root, "native.json") in files
+    assert Path.join(root, "detached.json") in files
+    assert Path.join(root, "installed/exam-mix.lock") in files
+    assert Path.join(root, "detached.json.inputs/combined-mix.lock") in files
+    refute build in files
+    assert :ok = QualificationReceipt.write!(receipt, input, outputs, %{})
+    assert {:ok, %{}} = QualificationReceipt.read(receipt, input, outputs)
+
+    lock = Path.join(root, "installed/exam-mix.lock")
+    File.write!(lock, "changed lock")
+    assert :miss = QualificationReceipt.read(receipt, input, outputs)
+    File.write!(lock, "proof")
+    assert {:ok, %{}} = QualificationReceipt.read(receipt, input, outputs)
+
+    required = Path.join(root, "detached.json")
+    File.rm!(required)
+    assert :miss = QualificationReceipt.read(receipt, input, outputs)
+
+    assert_raise RuntimeError,
+                 ~r/Cannot record qualification output .*detached.json: :enoent/,
+                 fn ->
+                   QualificationReceipt.write!(receipt, input, outputs, %{})
+                 end
+
+    File.ln_s!(Path.join(root, "native.json"), required)
+
+    assert_raise RuntimeError,
+                 ~r/Cannot record qualification output .*detached.json:.*not_regular/,
+                 fn ->
+                   QualificationReceipt.write!(receipt, input, outputs, %{})
+                 end
+  end
+
+  test "both soak receipts require filesystem, reports and role locks, not detached release proof" do
+    for gate <- ~w(fabric-soak-off fabric-soak-isolated) do
+      files = QualificationReceipt.native_outputs("/evidence", gate)
+      assert "/evidence/native.json" in files
+      assert "/evidence/exit-status" in files
+      assert "/evidence/filesystem.txt" in files
+      assert "/evidence/installed/preview-mix.lock" in files
+      refute "/evidence/detached.json" in files
+    end
+  end
 end

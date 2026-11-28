@@ -14,7 +14,7 @@ defmodule MedExOpus.MixProject do
         quality: [
           "format --check-formatted",
           "compile --warnings-as-errors",
-          "cmd env MIX_ENV=test mix test --warnings-as-errors",
+          "cmd env MIX_ENV=test mix test --warnings-as-errors --include startup_deadline",
           "credo --strict",
           "dialyzer",
           "docs --warnings-as-errors"

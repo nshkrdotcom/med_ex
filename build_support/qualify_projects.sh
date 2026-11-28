@@ -57,6 +57,7 @@ if [[ "$mode" == sdk ]]; then
   run python3 test/qualification_command_test.py
   run python3 test/receipt_fixture_test.py
   run python3 test/qualify_projects_test.py
+  run python3 test/prepare_candidates_test.py
   run python3 extensions/med_ex_opus/test/build_test.py
   run python3 extensions/med_ex_opus/test/native_io_test.py
 else

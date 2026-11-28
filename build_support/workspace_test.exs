@@ -18,6 +18,12 @@ defmodule MedEx.WorkspaceTest do
              ~w(. extensions/med_ex_opus extensions/med_ex_rtc core/med_core core/med_capture tools/maintainer)
   end
 
+  test "quality explicitly includes the real Opus startup deadlines" do
+    assert ProjectQC.quality_args(:med_ex_opus, "test") == ["--include", "startup_deadline"]
+    assert ProjectQC.quality_args(:med_ex_rtc, "test") == []
+    assert ProjectQC.quality_args(:med_ex_opus, "compile") == []
+  end
+
   test "SDK focused native tests stay at the compiled root" do
     assert Workspace.select("test", [], ["core/med_core/test/wire_test.exs:3"]) == ["."]
 

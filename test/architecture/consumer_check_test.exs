@@ -25,7 +25,12 @@ defmodule MedEx.ConsumerCheckTest do
   end
 
   test "registry package selection accepts one source and requires a registry command" do
-    for selection <- [[], [projected_packages: true], [prepared_packages: true]] do
+    for selection <- [
+          [],
+          [projected_packages: true],
+          [prepared_packages: true],
+          [registry_manifest: "candidate-inputs.json"]
+        ] do
       assert :ok =
                MedEx.ConsumerCheck.validate_options!([registry: true] ++ selection, ["true"])
     end
@@ -43,6 +48,11 @@ defmodule MedEx.ConsumerCheckTest do
           {[projected_packages: true], ["true"]},
           {[registry: true, projected_packages: true], []},
           {[registry: true, projected_packages: true, prepared_packages: true], ["true"]},
+          {[registry_manifest: "candidate-inputs.json"], ["true"]},
+          {[registry: true, registry_manifest: "candidate-inputs.json", prepared_packages: true],
+           ["true"]},
+          {[registry: true, registry_manifest: "candidate-inputs.json", projected_packages: true],
+           ["true"]},
           {[registry: true, weld_invoker: invoker], ["true"]},
           {[registry: true, projected_packages: true, weld_invoker: "relative"], ["true"]},
           {[registry: true, projected_packages: true, weld_invoker: __DIR__], ["true"]}
@@ -50,6 +60,47 @@ defmodule MedEx.ConsumerCheckTest do
       assert_raise ArgumentError, fn ->
         MedEx.ConsumerCheck.validate_options!(options, command)
       end
+    end
+  end
+
+  @tag :tmp_dir
+  test "candidate registry uses pinned third-party locks, never an official family fallback", %{
+    tmp_dir: root
+  } do
+    first = Path.join(root, "first.lock")
+    second = Path.join(root, "second.lock")
+    checksum = String.duplicate("a", 64)
+    entry = {:hex, :jason, "1.4.5", checksum, [:mix], [], "hexpm", checksum}
+    family = {:hex, :mf_exam, "0.2.0", checksum, [:mix], [], "hexpm", checksum}
+    File.write!(first, inspect(%{jason: entry, mf_exam: family}))
+    File.write!(second, inspect(%{jason: entry}))
+
+    assert MedEx.ConsumerCheck.locked_registry_packages!([first, second], ["mf_exam"]) ==
+             [{"jason", "1.4.5", "hexpm", checksum}]
+
+    File.write!(second, inspect(%{jason: put_elem(entry, 7, String.duplicate("b", 64))}))
+
+    assert_raise RuntimeError, ~r/Conflicting registry locks for jason 1.4.5/, fn ->
+      MedEx.ConsumerCheck.locked_registry_packages!([first, second], ["mf_exam"])
+    end
+  end
+
+  @tag :tmp_dir
+  test "generated quoted lock keys are quiet and nonliteral locks are rejected", %{tmp_dir: root} do
+    path = Path.join(root, "mix.lock")
+    checksum = String.duplicate("a", 64)
+    entry = {:hex, :jason, "1.4.5", checksum, [:mix], [], "hexpm", checksum}
+    File.write!(path, ~s(%{"jason": #{inspect(entry)}}))
+
+    assert ExUnit.CaptureIO.capture_io(:stderr, fn ->
+             assert MedEx.ConsumerCheck.locked_registry_packages!([path], []) ==
+                      [{"jason", "1.4.5", "hexpm", checksum}]
+           end) == ""
+
+    File.write!(path, ~S|%{jason: raise("must not execute")}|)
+
+    assert_raise RuntimeError, ~r/Expected literal Mix lock/, fn ->
+      MedEx.ConsumerCheck.locked_registry_packages!([path], [])
     end
   end
 

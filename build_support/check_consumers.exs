@@ -29,6 +29,7 @@ defmodule MedEx.ConsumerCheck do
     release_extras: :string,
     registry: :boolean,
     registry_lock: :keep,
+    registry_manifest: :string,
     prepared_packages: :boolean,
     projected_packages: :boolean,
     weld_invoker: :string,
@@ -74,6 +75,9 @@ defmodule MedEx.ConsumerCheck do
   Use --prepared-packages to read verified CURRENT
   archives afterward. These selections are mutually exclusive. Repeat --registry-lock
   PATH to include genuine third-party dependencies from consumer lockfiles.
+  --registry-manifest FILE serves the exact six candidate archives verified by
+  the sibling MedFabric release verifier, with third-party tarballs from the
+  committed SDK/provider and Fabric app/core locks. It never rebuilds packages.
   """
 
   def main(argv) do
@@ -162,6 +166,73 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp run_registry_command(ctx, opts, [program | args]) do
+    if manifest = opts[:registry_manifest] do
+      run_manifest_registry(ctx, Path.expand(manifest), opts, program, args)
+    else
+      run_sdk_registry(ctx, opts, program, args)
+    end
+  end
+
+  defp run_manifest_registry(ctx, manifest, opts, program, args) do
+    fabric = Path.expand("../med_fabric", @repo)
+    verified = Path.join(ctx.stage, "verified-inputs.json")
+
+    command!(
+      ctx,
+      "verify-candidate-inputs",
+      "elixir",
+      [
+        Path.join(fabric, "ops/detached_artifacts.exs"),
+        "inputs",
+        Path.join(fabric, "build_support/release_matrix.json"),
+        manifest,
+        verified
+      ],
+      ctx.stage
+    )
+
+    inputs = read_json!(verified)
+
+    unless inputs["schema"] == "medfabric.detached_verified.v2" and
+             inputs["registry"] == "candidate" and
+             inputs["manifest_sha256"] == digest(File.read!(manifest)),
+           do: raise("Expected verified, unchanged candidate archive manifest")
+
+    archives =
+      Map.new(inputs["packages"], fn {name, entry} ->
+        {name,
+         %{
+           archive: entry["archive"],
+           sha256: entry["sha256"],
+           registry_name: "#{name}-#{entry["version"]}.tar"
+         }}
+      end)
+
+    locks =
+      Enum.map(direct(), fn {_app, spec} -> Path.join(spec[:path], "mix.lock") end) ++
+        Path.wildcard(Path.join(fabric, "apps/*/mix.lock")) ++
+        Path.wildcard(Path.join(fabric, "core/*/mix.lock")) ++
+        Keyword.get_values(opts, :registry_lock)
+
+    packages = locked_registry_packages!(locks, Map.keys(archives))
+    ctx = Map.put(ctx, :manifest_packages, packages)
+
+    with_registry(ctx, archives, fn env, _packages ->
+      # The release driver owns its gate logs. Stream its progress rather than
+      # buffering the entire command for the duration of a native or soak gate.
+      {_, status} =
+        System.cmd(program, args,
+          cd: File.cwd!(),
+          env: env,
+          stderr_to_stdout: true,
+          into: IO.stream(:stdio, :line)
+        )
+
+      if status != 0, do: raise("Candidate registry command exited #{status}")
+    end)
+  end
+
+  defp run_sdk_registry(ctx, opts, program, args) do
     archives =
       if opts[:prepared_packages],
         do: prepared_archives!(ctx),
@@ -229,10 +300,11 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp registry_options?(opts, command) do
-    needs_registry = Enum.any?(~w(prepared_packages projected_packages registry_lock)a, &opts[&1])
+    selections = ~w(prepared_packages projected_packages registry_manifest)a
+    needs_registry = Enum.any?(selections ++ [:registry_lock], &opts[&1])
 
     (!needs_registry or opts[:registry] == true) and
-      !(opts[:prepared_packages] && opts[:projected_packages]) and
+      Enum.count(selections, &opts[&1]) <= 1 and
       valid_invoker?(opts[:weld_invoker], opts[:projected_packages]) and
       opts[:registry] == true == (command != [])
   end
@@ -966,7 +1038,7 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp full_cell!(ctx, label, profile, work, inventory, outputs, env) do
-    output = mix!(ctx, "#{label}-test", work, ["test"], env)
+    output = mix!(ctx, "#{label}-test", work, ["test", "--include", "startup_deadline"], env)
 
     if ctx.optimized do
       finish_cell!(ctx, label, profile, work, inventory, outputs, "own", test_results!(output))
@@ -1297,14 +1369,23 @@ defmodule MedEx.ConsumerCheck do
   end
 
   defp with_registry(ctx, archives, action, extra_lock \\ nil) do
-    bootstrap = official_bootstrap!(ctx)
     public = Path.join(ctx.stage, "registry")
     tarballs = Path.join(public, "tarballs")
     File.mkdir_p!(tarballs)
-    fetch_third_party!(ctx, bootstrap, tarballs, extra_lock, archives)
+
+    if packages = ctx[:manifest_packages] do
+      for package <- packages, do: fetch_official_tar!(ctx, tarballs, package)
+    else
+      bootstrap = official_bootstrap!(ctx)
+      fetch_third_party!(ctx, bootstrap, tarballs, extra_lock, archives)
+    end
 
     for {_app, archive} <- archives do
-      File.cp!(archive.archive, Path.join(tarballs, Path.basename(archive.archive)))
+      target = Path.join(tarballs, archive[:registry_name] || Path.basename(archive.archive))
+      File.cp!(archive.archive, target)
+
+      unless digest(File.read!(target)) == archive.sha256,
+        do: raise("Candidate archive changed: #{archive.archive}")
     end
 
     key = registry_key!(ctx)
@@ -1393,6 +1474,32 @@ defmodule MedEx.ConsumerCheck do
     end
   end
 
+  @doc false
+  def locked_registry_packages!(locks, candidates) do
+    for path <- locks do
+      unless File.lstat!(path).type == :regular,
+        do: raise("Expected regular registry lock: #{path}")
+    end
+
+    packages =
+      for path <- locks,
+          {_, {:hex, package, version, _, _, _, repo, checksum}} <- read_lock(path),
+          to_string(package) not in candidates,
+          do: {to_string(package), version, repo, checksum}
+
+    packages = Enum.uniq(packages)
+
+    for {{name, version}, entries} <-
+          Enum.group_by(packages, fn {name, version, _, _} ->
+            {name, version}
+          end),
+        length(entries) != 1 do
+      raise "Conflicting registry locks for #{name} #{version}"
+    end
+
+    Enum.sort(packages)
+  end
+
   defp fetch_third_party!(ctx, bootstrap, tarballs, extra_lock, archives) do
     locks = [
       Path.join(bootstrap, "mix.lock")
@@ -1428,15 +1535,28 @@ defmodule MedEx.ConsumerCheck do
     target = Path.join(tarballs, name)
 
     unless File.exists?(target),
-      do: fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo)
+      do: fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo, checksum)
 
     unless digest(File.read!(target)) == checksum, do: raise("Checksum mismatch for #{target}")
   end
 
-  defp fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo) do
-    cached = Path.join([ctx.hex_home, "packages", repo, name])
+  defp fetch_missing_tar!(ctx, target, tarballs, name, package, version, repo, checksum) do
+    # Reuse only checksum-identical bytes. The caller's Hex configuration and
+    # caches remain read-only; a different candidate at the same version is not
+    # an acceptable substitute for an official archive.
+    home = System.get_env("HEX_HOME") || Path.join(System.user_home!(), ".hex")
 
-    if File.regular?(cached) do
+    cached =
+      [ctx.hex_home, home]
+      |> Enum.map(&Path.join([&1, "packages", repo, name]))
+      |> Enum.find(fn path ->
+        case File.lstat(path) do
+          {:ok, %{type: :regular}} -> digest(File.read!(path)) == checksum
+          _ -> false
+        end
+      end)
+
+    if cached do
       File.cp!(cached, target)
       IO.puts("Reusing official tarball: #{package}-#{version}")
     else
@@ -1459,7 +1579,7 @@ defmodule MedEx.ConsumerCheck do
       if Map.has_key?(read_lock(Path.join(work, "mix.lock")), :med_ex),
         do: raise("Base dependency leaked into #{app}")
 
-      mix!(ctx, "#{app}-standalone-test", work, ["test"], env)
+      mix!(ctx, "#{app}-standalone-test", work, ["test", "--include", "startup_deadline"], env)
       mix!(ctx, "#{app}-standalone-doc-deps", work, ["deps.get"], env, "dev")
       mix!(ctx, "#{app}-standalone-docs", work, ["docs", "--warnings-as-errors"], env, "dev")
     end
@@ -1550,9 +1670,11 @@ defmodule MedEx.ConsumerCheck do
         %{}
 
       {:ok, bytes} ->
-        ast = Code.string_to_quoted!(bytes, file: path)
+        # Mix's own lock reader suppresses diagnostics for generated lock syntax.
+        opts = [file: path, emit_warnings: false]
+        ast = Code.string_to_quoted!(bytes, opts)
         unless Macro.quoted_literal?(ast), do: raise("Expected literal Mix lock in #{path}")
-        {lock, []} = Code.eval_quoted(ast, [], file: path)
+        {lock, []} = Code.eval_quoted(ast, [], opts)
         lock
     end
   end
