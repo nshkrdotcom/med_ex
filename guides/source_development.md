@@ -26,13 +26,21 @@ cd extensions/med_ex_opus
 mix deps.get --check-locked
 mix format --check-formatted
 mix compile --warnings-as-errors
-mix test
+mix test --include startup_deadline
 mix credo --strict
 mix dialyzer
 mix docs --warnings-as-errors
 python3 test/build_test.py
 python3 test/native_protocol_test.py
 ```
+
+Ordinary `mix test` excludes only the two Opus `:startup_deadline` tests that
+wait for the actual five- and six-second production startup timeouts.
+`mix quality` (including `--release`) and the full consumer matrix explicitly
+include them. To run just these checks from the SDK root, use
+`mix test --project extensions/med_ex_opus -- --only startup_deadline`.
+The other provider regressions, native encoding and decoder checks remain
+in ordinary tests.
 
 Run equivalent declared checks for RTC, including actual independent receiver
 negotiation. Opus requires a real pinned libopus build and decode from the exact
