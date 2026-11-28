@@ -99,6 +99,7 @@ case "$mode" in
     mkdir -- "$out/archives" "$out/before-locks"
     (cd "$sdk"; ./build_support/qualify_ecosystem.sh full --gate medex-prepare --evidence "$out/source-qc")
     run_registry sync
+    sha256sum -c -- "$out/upstream-locks.sha256"
     printf 'Review and commit only the genuine Fabric lock changes before build:\n'
     git -C "$fabric" diff --stat
     ;;
@@ -141,6 +142,7 @@ case "$mode" in
     [[ $(wc -l < "$out/upstream-locks.sha256") == 5 ]]
     sha256sum -c -- "$out/upstream-locks.sha256"
     attempt=$(mktemp -d "$out/build.XXXXXXXX")
+    ln -sfn -- "$attempt/build.log" "$out/build.log"
     run_registry build "$attempt"
     printf 'Exact six-candidate manifest: %s/candidate-inputs.json\n' "$out"
     ;;
