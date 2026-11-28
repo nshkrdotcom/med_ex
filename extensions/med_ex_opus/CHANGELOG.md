@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cover native I/O, build/cache failure, protocol validation and concrete lifecycle.
 - Document independent installation and exact native/detached release gates.
+- Keep the five- and six-second startup deadline regressions in explicit
+  quality and consumer qualification; exclude them from ordinary development
+  tests without changing production deadlines.
 
 ## [0.2.1] - 2026-11-26
 

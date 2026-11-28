@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update standalone negotiation, ownership, deadline, teardown and wrap tests.
 - Document direct and relay-only native receiver qualification requirements.
+- Capture verbose negotiation logs in provider tests without excluding RTC
+  lifecycle or transport coverage.
 
 ## [0.2.1] - 2026-11-26
 

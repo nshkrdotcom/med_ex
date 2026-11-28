@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   latest compatible Hex releases (`blitz 0.5.0`, `credo 1.7.19`, `dialyxir 1.4.9`,
   `ex_doc 0.40.5`, `elixir_make 0.10.1`, `ex_rtp 0.4.1`, `weld 0.20.3`).
 
+- Keep ordinary workspace and ecosystem development tests separate from release
+  qualification; retain full startup-deadline and installed-consumer checks in QC.
+- Bind qualification receipts to required reports and verified installation
+  evidence rather than dependency/build trees; identify missing evidence by path.
+- Add maintained six-package candidate preparation and signed local registry
+  support with checksum-pinned third-party archive reuse and explicit downstream
+  lock review before freezing the release.
+
 ### Verification and documentation
 
 - Add receipt, capacity, lifecycle, replay, resource-transfer, credit, option
