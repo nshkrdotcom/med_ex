@@ -377,7 +377,7 @@ defmodule MedEx.Storage.File do
              :ok <- s.hook.(:before_index_install),
              :ok <- install_index(s.dir, recovered.index, s.hook),
              :ok <- s.hook.(:after_index_install),
-             {:ok, verified} <- recover_locked(s.dir, opts),
+             {:ok, verified} <- verify_installed_index(s.dir, opts, recovered),
              {:ok, final} <-
                Receipt.terminal_receipt(verified.index, verified, Records.receipt(s.view)) do
           {:ok, %Terminal{index: verified.index, receipt: final, recovered: verified}}
@@ -401,11 +401,22 @@ defmodule MedEx.Storage.File do
          true <- result.terminal_recorded,
          {:ok, _} <- root_ownership(dir, opts[:root_owner]),
          :ok <- install_index(dir, result.index, fn _ -> :ok end),
-         {:ok, verified} <- recover_locked(dir, opts),
+         {:ok, verified} <- verify_installed_index(dir, opts, result),
          true <- verified.index_status == :installed do
       {:ok, verified}
     else
       false -> {:error, :missing_terminal}
+      error -> error
+    end
+  end
+
+  defp verify_installed_index(dir, opts, recovered) do
+    with {:ok, _} <- root_ownership(dir, opts[:root_owner]),
+         {:ok, digest} when is_binary(digest) <-
+           installed_index(dir, %{terminal: recovered.index.terminal}, recovered.index) do
+      {:ok, %{recovered | index_digest: digest, sealed: true, index_status: :installed}}
+    else
+      {:ok, nil} -> {:error, :index_not_installed}
       error -> error
     end
   end
