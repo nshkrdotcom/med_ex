@@ -52,18 +52,18 @@ printf '%s\\n' "$name $*" >> "$TRACE"
         commands = self.trace.read_text().splitlines() if self.trace.exists() else []
         return result, commands
 
-    def test_sdk_one_root_matrix_with_bounded_jobs(self):
-        result, commands = self.run_dispatch("sdk", "--fast", "--jobs", "3")
+    def test_sdk_one_root_matrix(self):
+        result, commands = self.run_dispatch("sdk", "--fast")
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertEqual([line for line in commands if line.startswith("mix ")],
-                         ["mix setup --jobs 3", "mix quality --jobs 3"])
+                         ["mix setup", "mix quality"])
         self.assertNotIn("architecture", commands)
 
     def test_release_uses_locked_setup_and_production_quality(self):
-        result, commands = self.run_dispatch("fabric", "--jobs", "1")
+        result, commands = self.run_dispatch("fabric")
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertIn("mix setup --jobs 1 --locked", commands)
-        self.assertIn("mix quality --jobs 1 --release", commands)
+        self.assertIn("mix setup --locked", commands)
+        self.assertIn("mix quality --release", commands)
         self.assertFalse(any("mix dialyzer" in command for command in commands))
 
     def test_setup_failure_blocks_only_dependent_quality(self):
@@ -77,7 +77,7 @@ printf '%s\\n' "$name $*" >> "$TRACE"
         result, commands = self.run_dispatch("fabric", "--fast", failure="node --test")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("python3 ops/verify_soak_report_test.py", commands)
-        self.assertIn("mix quality --jobs 2", commands)
+        self.assertIn("mix quality", commands)
         self.assertIn("failures=2", result.stdout)
 
     def test_release_refuses_source_selector_before_build(self):
@@ -93,7 +93,7 @@ printf '%s\\n' "$name $*" >> "$TRACE"
         self.assertTrue(any("native_io_test.py" in line for line in commands))
         self.assertFalse(any(line.startswith("mix ") for line in commands))
 
-    def test_invalid_job_count_never_runs_tools(self):
+    def test_removed_jobs_option_never_runs_tools(self):
         result, commands = self.run_dispatch("sdk", "--jobs", "5")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(commands, [])

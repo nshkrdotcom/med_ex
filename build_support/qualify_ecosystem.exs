@@ -37,10 +37,10 @@ defmodule MedEx.Build.EcosystemQC do
     --enospc-root DIR Dedicated marked ext4 loop mount for physical SDK ENOSPC
     --artifacts FILE Exact six-tar manifest for detached candidate/official proof
   Bootstrap genuine dependencies once before fast/full: mix setup in each repo.
-  Fast runs the two bounded source-quality gates and records reusable receipts.
+  Fast runs the two source-quality gates and records reusable receipts.
   It permits the explicit Fabric development source selector; full does not.
   Full/resume select local consumer proof from clean committed sources and
-  exact candidate archives. Released Weld 0.20.2 is the tool, not a CI target.
+  exact candidate archives. Released Weld 0.20.3 is the tool, not a CI target.
   Remote Git proof requires explicit --gate medex-remote or fabric-remote.
   Weld source CI/minimum require their explicit --gate and sibling checkout.
   This runner performs no push, publication, activation or retained-data reset.
@@ -247,8 +247,7 @@ defmodule MedEx.Build.EcosystemQC do
        [project_script, "weld-minimum", Path.join(evidence, "minimum-tooling")]},
       {"medex-short", "med_ex", [], [project_script, "sdk", "--checks-only"]},
       {"fabric-short", "med_fabric", [], [project_script, "fabric", "--checks-only"]},
-      {"medex-core", "med_ex", [],
-       ["mix", "quality", "--release", "--jobs", to_string(config.jobs)]},
+      {"medex-core", "med_ex", [], ["mix", "quality", "--release"]},
       {"medex-enospc", "med_ex", ~w(medex-core),
        [
          "bash",
@@ -266,8 +265,7 @@ defmodule MedEx.Build.EcosystemQC do
          "remote",
          Path.join(evidence, "remote-" <> run_token())
        ]},
-      {"fabric-projects", "med_fabric", [],
-       ["mix", "quality", "--release", "--jobs", to_string(config.jobs)]},
+      {"fabric-projects", "med_fabric", [], ["mix", "quality", "--release"]},
       {"fabric-sources", "med_fabric", ~w(medex-matrix fabric-projects),
        [
          Path.join(config.repos["med_ex"], "build_support/qualify_sources.sh"),
@@ -772,7 +770,6 @@ defmodule MedEx.Build.EcosystemQC do
 
     env = [
       {"PATH", postgres_path()},
-      {"ERL_FLAGS", System.get_env("ERL_FLAGS") || "+S 4:4"},
       {"MED_QC_KEEP_FAILURE", if(config.opts[:keep_failure], do: "1", else: "0")}
       | removed
     ]

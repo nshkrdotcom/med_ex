@@ -64,9 +64,9 @@ development tooling, excluded from the Weld package's dependencies and files.
 ## Root command contract
 
 Both repositories expose the following source-development commands. They use
-released Blitz 0.4.1 with at most two concurrent project processes by default;
-`--jobs 1` through `--jobs 4` select the bound. `ERL_FLAGS` defaults to `+S 4:4`.
-These are repository wrapper options, not guessed Blitz task passthrough syntax.
+released Blitz 0.5.0 with advisory CPU and memory admission based on the
+available host resources. No fixed project-worker cap or scheduler override
+is imposed by the workspace runner.
 
 | Command | Default behavior |
 |---|---|
@@ -86,7 +86,7 @@ from the leaf directory. Quality/setup reject stray arguments. Root Credo is
 always strict; use a native leaf task for deliberately focused lint.
 
 Each project owns its dependency, build, lock and PLT paths. Unset inherited
-`MIX_EXS`, `MIX_BUILD_PATH`, `MIX_BUILD_ROOT`, `MIX_DEPS_PATH` and `MIX_LOCKFILE`.
+`MIX_EXS`, `MIX_BUILD_PATH`, `MIX_BUILD_ROOT` and `MIX_DEPS_PATH`.
 The root runner invokes native tasks without recursive aliases; startup tests
 exercise fetched-but-uncompiled dependencies and real Blitz failure propagation.
 A missing expected suite, empty BEAM set or incomplete Credo inventory fails.

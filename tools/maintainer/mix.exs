@@ -6,7 +6,7 @@ defmodule MedEx.Maintainer.MixProject do
       app: :med_ex_maintainer,
       version: "0.0.0",
       elixir: "~> 1.20",
-      deps: [{:weld, "~> 0.20.2", runtime: false}]
+      deps: [{:weld, "~> 0.20.3", runtime: false}]
     ]
   end
 end

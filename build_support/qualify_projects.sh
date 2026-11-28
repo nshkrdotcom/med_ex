@@ -25,18 +25,15 @@ case "$mode" in
   *) echo "Unknown project qualification: $mode" >&2; exit 2 ;;
 esac
 [[ "$mode" == sdk || "$mode" == fabric ]] || exit 0
-jobs=2
 fast=false
 checks_only=false
 while (( $# )); do
   case "$1" in
     --fast) fast=true; shift ;;
     --checks-only) checks_only=true; shift ;;
-    --jobs) jobs=${2:?Supply 1--4 jobs}; shift 2 ;;
-    *) echo 'Use [--fast] [--checks-only] [--jobs 1..4].' >&2; exit 2 ;;
+    *) echo 'Use [--fast] [--checks-only] .' >&2; exit 2 ;;
   esac
 done
-[[ "$jobs" =~ ^[1-4]$ ]] || { echo 'Use 1--4 jobs.' >&2; exit 2; }
 root=$(pwd -P)
 source "$root/build_support/receipt_fixture.sh"
 if [[ "$mode" == sdk ]]; then
@@ -74,10 +71,10 @@ if "$checks_only"; then
   exit
 fi
 # A failed bootstrap blocks dependent Mix checks, not the independent short tests.
-setup=(mix setup --jobs "$jobs")
+setup=(mix setup)
 if ! "$fast"; then setup+=(--locked); fi
 if "${setup[@]}"; then
-  quality=(mix quality --jobs "$jobs")
+  quality=(mix quality)
   if ! "$fast"; then quality+=(--release); fi
   run "${quality[@]}"
 else

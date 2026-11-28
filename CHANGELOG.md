@@ -32,11 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Check effective OS ownership freshly without global identity caching; retain
   final storage path/owner/symlink fences.
 - Handle native Opus partial/EINTR I/O, exact signed PCM and normal cleanup.
-- Add bounded root Mix/Blitz orchestration, real static coverage guards and
+- Add resource-aware root Mix/Blitz orchestration, real static coverage guards and
   resumable consumer qualification independent of Weld's own CI/remote Git proof.
 - Refresh third-party development and tooling dependency floors and locks to
-  latest compatible Hex releases (`blitz 0.4.2`, `credo 1.7.19`, `dialyxir 1.4.9`,
-  `ex_doc 0.40.5`, `elixir_make 0.10.1`, `ex_rtp 0.4.1`, `weld 0.20.2`).
+  latest compatible Hex releases (`blitz 0.5.0`, `credo 1.7.19`, `dialyxir 1.4.9`,
+  `ex_doc 0.40.5`, `elixir_make 0.10.1`, `ex_rtp 0.4.1`, `weld 0.20.3`).
 
 ### Verification and documentation
 

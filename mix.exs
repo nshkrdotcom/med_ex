@@ -52,7 +52,7 @@ defmodule MedEx.MixProject do
     ]
 
   defp workspace_dependencies do
-    if @workspace, do: [{:blitz, "0.4.2", only: [:dev, :test], runtime: false}], else: []
+    if @workspace, do: [{:blitz, "0.5.0", only: [:dev, :test], runtime: false}], else: []
   end
 
   def application, do: [extra_applications: [:logger, :crypto]]

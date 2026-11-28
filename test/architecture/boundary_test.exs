@@ -123,7 +123,7 @@ defmodule MedEx.ArchitectureTest do
 
     assert cfg[:deps] ==
              projected_deps ++
-               [{:blitz, "0.4.2", only: [:dev, :test], runtime: false}]
+               [{:blitz, "0.5.0", only: [:dev, :test], runtime: false}]
 
     refute Enum.any?(projected_deps, &(elem(&1, 0) == :blitz))
 
@@ -134,7 +134,7 @@ defmodule MedEx.ArchitectureTest do
     assert_raise RuntimeError, ~r/development tooling leaked/, fn ->
       Boundaries.dependencies!(
         :med_ex,
-        projected_deps ++ [{:blitz, "0.4.1", only: [:dev, :test]}],
+        projected_deps ++ [{:blitz, "0.5.0", only: [:dev, :test]}],
         :workspace
       )
     end
