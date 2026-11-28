@@ -1,4 +1,13 @@
+<p align="center">
+  <img src="assets/med_ex.svg" alt="MedEx logo" width="200" />
+</p>
+
 # MedEx
+
+<p align="center">
+  <a href="https://github.com/nshkrdotcom/med_ex"><img src="https://img.shields.io/badge/GitHub-nshkrdotcom%2Fmed__ex-345366" alt="GitHub repository" /></a>
+  <a href="https://github.com/nshkrdotcom/med_ex/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-458f8b" alt="MIT license" /></a>
+</p>
 
 MedEx 0.4.0 is an Elixir SDK for source-preserving waveform and measurement
 acquisition. It provides pure stream/frame/event contracts, a single fenced
@@ -105,4 +114,6 @@ release; no source documentation asserts an unobserved passing gate.
 - [Release gates](guides/releasing.md)
 - [Architecture](guides/architecture_and_roadmap.md)
 
-Released under the MIT License. See [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md).
+
+**License:** [MIT](LICENSE).

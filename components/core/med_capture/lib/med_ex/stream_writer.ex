@@ -420,8 +420,6 @@ defmodule MedEx.StreamWriter do
 
   defp capacity(s, cursor, extra, separate) do
     with {:ok, used} <- usage(s) do
-      pending_record = if s.count > 0, do: elem(Records.chunk_record(Enum.reverse(s.pending)), 0)
-
       pending = %{
         bytes: s.bytes,
         frames: s.count,
@@ -429,10 +427,12 @@ defmodule MedEx.StreamWriter do
           if(separate and s.count > 0 and hd(s.pending).config_epoch == :unknown, do: 1, else: 0),
         commits: if(separate and s.count > 0, do: 1, else: 0),
         encoded_bytes:
-          if(separate and pending_record,
-            do: RecordingLimits.encoded_record_bytes(pending_record),
-            else: 0
-          )
+          if separate and s.count > 0 do
+            {record, _bytes, _segment} = Records.chunk_record(Enum.reverse(s.pending))
+            RecordingLimits.encoded_record_bytes(record)
+          else
+            0
+          end
       }
 
       RecordingLimits.admit(s.limits, used, pending, cursor, extra)
