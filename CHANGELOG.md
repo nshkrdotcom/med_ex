@@ -5,20 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-- Bound gap identifiers so canonical credit identities fit unchanged wire limits;
-  reject mixed waveform/event durable state.
-- Normalize expected startup failures without OTP argument dumps, make provider
-  stop one owner-checked call, and preserve in-flight work across expired calls.
-- Check effective OS ownership freshly without global identity caching; retain
-  final storage path/owner/symlink fences.
-- Handle native Opus partial/EINTR I/O, exact signed PCM and normal cleanup.
-- Add bounded root Mix/Blitz orchestration, real static coverage guards and
-  resumable consumer qualification independent of Weld's own CI/remote Git proof.
-- Add C I/O, lifecycle, ownership, wire and tooling regressions. Elixir/runtime
-  and release qualification remain pending; source changes are not release proof.
-
 ## [0.4.0] - 2026-11-26
 
 ### Breaking changes
@@ -32,14 +18,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separate read-only recovery from authorized terminal-index reconciliation;
   verify bounded segment bytes and derive playback WAV headers from descriptors.
 - Require exclusive host root ownership and preserve unknown durable outcomes.
+- Reject unsupported prior control schemas (`medex.device.v1`), journal identity
+  content (`medex.journal.v1`) and index schema versions without mutation; binary
+  envelopes (`MEX1`/`MEJ1`) and hash domains remain unchanged.
 - Build only the base SDK through Weld; the two providers are direct Mix packages.
+
+### Hardening and tooling
+
+- Bound gap identifiers so canonical credit identities fit unchanged wire limits;
+  reject mixed waveform/event durable state.
+- Normalize expected startup failures without OTP argument dumps, make provider
+  stop one owner-checked call, and preserve in-flight work across expired calls.
+- Check effective OS ownership freshly without global identity caching; retain
+  final storage path/owner/symlink fences.
+- Handle native Opus partial/EINTR I/O, exact signed PCM and normal cleanup.
+- Add bounded root Mix/Blitz orchestration, real static coverage guards and
+  resumable consumer qualification independent of Weld's own CI/remote Git proof.
+- Refresh third-party development and tooling dependency floors and locks to
+  latest compatible Hex releases (`blitz 0.4.2`, `credo 1.7.19`, `dialyxir 1.4.9`,
+  `ex_doc 0.40.5`, `elixir_make 0.10.1`, `ex_rtp 0.4.1`, `weld 0.20.2`).
 
 ### Verification and documentation
 
-- Add receipt, capacity, lifecycle, replay, resource-transfer and credit tests.
+- Add receipt, capacity, lifecycle, replay, resource-transfer, credit, option
+  boundary, C I/O, ownership, wire and tooling regressions.
 - Rewrite technical, host, durability and source/release guides for revision 2.
-- Native Elixir, detached artifact and service qualification remain mandatory
-  before release; this entry does not assert that those gates have passed.
+- Formal detached artifact, native and soak qualification remain mandatory
+  before publication; this entry does not assert that those gates have passed.
 
 ## [0.3.1] - 2026-11-26
 

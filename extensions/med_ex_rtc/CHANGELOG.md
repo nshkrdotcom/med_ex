@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep independent ExWebRTC/ExRTP operation with externally encoded Opus packets.
 - Publish directly from this Mix project; no provider Weld projection.
 
+### Hardening
+
+- Normalize expected startup refusals without OTP argument dumps and preserve
+  owner-checked teardown and ICE input validation.
+- Update third-party dependency floors (`ex_rtp ~> 0.4.1`, `credo`, `dialyxir`,
+  `ex_doc`).
+
 ### Tests and documentation
 
 - Update standalone negotiation, ownership, deadline, teardown and wrap tests.

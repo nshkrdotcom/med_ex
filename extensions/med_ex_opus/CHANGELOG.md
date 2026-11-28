@@ -17,9 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retain the pinned libopus OS-process isolation and source-only distribution.
 - Publish directly from this Mix project; no provider Weld projection.
 
+### Hardening
+
+- Handle native partial/EINTR I/O, exact signed PCM framing and normal cleanup in
+  `c_src/opus_encoder.c`.
+- Normalize expected startup failures without OTP argument dumps, make provider
+  `stop/1` a single owner-checked call and preserve in-flight encodes across
+  expired calls.
+- Update third-party dependency floors (`elixir_make ~> 0.10.1`, `credo`,
+  `dialyxir`, `ex_doc`).
+
 ### Tests and documentation
 
-- Cover native build/cache failure, protocol validation and concrete lifecycle.
+- Cover native I/O, build/cache failure, protocol validation and concrete lifecycle.
 - Document independent installation and exact native/detached release gates.
 
 ## [0.2.1] - 2026-11-26
