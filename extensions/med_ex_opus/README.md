@@ -1,4 +1,13 @@
+<p align="center">
+  <img src="assets/med_ex_opus.svg" alt="MedEx Opus logo" width="200" />
+</p>
+
 # MedEx Opus
+
+<p align="center">
+  <a href="https://github.com/nshkrdotcom/med_ex/tree/main/extensions/med_ex_opus"><img src="https://img.shields.io/badge/GitHub-med__ex__opus-345366" alt="GitHub source" /></a>
+  <a href="https://github.com/nshkrdotcom/med_ex/blob/main/extensions/med_ex_opus/LICENSE"><img src="https://img.shields.io/badge/license-MIT-458f8b" alt="MIT license" /></a>
+</p>
 
 `med_ex_opus` is an independent concrete encoder capability. It requires Elixir
 `~> 1.20` and `elixir_make`; it has no dependency on `med_ex`, `med_ex_rtc`,
@@ -95,3 +104,5 @@ The native protocol suite independently decodes with a system libopus shared
 library and checks Linux supervisor/codec death using procfs and pidfds.
 Missing BEAM, toolchain, archive, decoder or kernel capability means the
 applicable gate was **NOT RUN**, never a passing native qualification.
+
+**License:** [MIT](LICENSE).

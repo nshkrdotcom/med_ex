@@ -1,4 +1,13 @@
+<p align="center">
+  <img src="assets/med_ex_rtc.svg" alt="MedEx RTC logo" width="200" />
+</p>
+
 # MedEx RTC
+
+<p align="center">
+  <a href="https://github.com/nshkrdotcom/med_ex/tree/main/extensions/med_ex_rtc"><img src="https://img.shields.io/badge/GitHub-med__ex__rtc-345366" alt="GitHub source" /></a>
+  <a href="https://github.com/nshkrdotcom/med_ex/blob/main/extensions/med_ex_rtc/LICENSE"><img src="https://img.shields.io/badge/license-MIT-458f8b" alt="MIT license" /></a>
+</p>
 
 `med_ex_rtc` is an independent concrete send-only Opus/WebRTC capability. It
 requires Elixir `~> 1.20`, ExWebRTC `~> 0.18.0` and ExRTP `~> 0.4`; it has no
@@ -76,3 +85,5 @@ relay test, set `MED_EX_RTC_TURN_URL`, `MED_EX_RTC_TURN_USERNAME` and
 excluded and remains **NOT RUN**. Browser and deployment NAT/TURN behavior must
 also be qualified in the deployment environment. A source/static check does
 not establish WebRTC, native DTLS, browser or relay qualification.
+
+**License:** [MIT](LICENSE).

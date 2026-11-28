@@ -16,3 +16,7 @@ builds a static `libopus.a`, and links it into `priv/opus_encoder`. The encoder 
 
 To upgrade: update `OPUS` and `URL_GH` in `Makefile`, and update `SHA256SUMS`
 with Xiph's published checksum.
+
+**License:** [MIT](../../LICENSE).
+
+**libopus license:** [BSD 3-Clause](https://raw.githubusercontent.com/xiph/opus/v1.5.2/COPYING).
