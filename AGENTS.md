@@ -3,8 +3,19 @@
 Use Elixir ~> 1.20 and keep the implementation small. Every package, process,
 mutable field and abstraction must serve an exercised requirement. Prefer pure
 functions, one owner per fact and direct use of existing libraries. Delete unused
-scaffolding and test guarantees that can fail. Verify real integrations with
-native services and report evidence precisely.
+scaffolding and test guarantees that can fail.
+
+## Quality checks
+
+- README, documentation, and artwork-only edits need only checks relevant to
+  the edited files. Skip code test suites, native checks, and release tooling
+  unless explicitly requested.
+- For code changes, run the checks that cover the affected behavior. For release
+  qualification, run formatting, warning-free compilation, Credo, Dialyzer,
+  ExUnit, ExDoc, and applicable Python, C, native, and detached gates. Verify
+  integrations with real services and report evidence precisely.
+- Report checks blocked by missing services or tooling as NOT RUN. Do not
+  publish, reset data, delete evidence, or deploy without explicit authorization.
 
 ## Revision 2 architecture
 
@@ -23,7 +34,4 @@ native services and report evidence precisely.
   archive checksums are qualification evidence; never invent checksum entries.
 
 Read guides/technical_contract.md and guides/releasing.md before cross-package
-changes. Run formatting, warning-free compilation, Credo, Dialyzer, ExUnit,
-ExDoc and applicable Python/C/native/detached gates. Missing tooling means NOT RUN,
-not PASS. No publication, reset, evidence deletion or deployment without explicit
-owner authorization. Changelogs retain factual history only.
+changes. Changelogs retain factual history only.
