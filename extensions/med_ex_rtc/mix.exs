@@ -21,9 +21,9 @@ defmodule MedExRTC.MixProject do
       ],
       deps: [
         {:ex_webrtc, "~> 0.18.0"},
-        {:ex_rtp, "~> 0.4"},
-        {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-        {:dialyxir, "~> 1.4", only: :dev, runtime: false},
+        {:ex_rtp, "~> 0.4.1"},
+        {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
+        {:dialyxir, "~> 1.4.9", only: :dev, runtime: false},
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
       ],
       description: "Optional WebRTC and RTP provider for MedEx",

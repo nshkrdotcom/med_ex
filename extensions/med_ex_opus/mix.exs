@@ -21,9 +21,9 @@ defmodule MedExOpus.MixProject do
         ]
       ],
       deps: [
-        {:elixir_make, "~> 0.9", runtime: false},
-        {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-        {:dialyxir, "~> 1.4", only: :dev, runtime: false},
+        {:elixir_make, "~> 0.10.1", runtime: false},
+        {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
+        {:dialyxir, "~> 1.4.9", only: :dev, runtime: false},
         {:ex_doc, "~> 0.40.5", only: :dev, runtime: false}
       ],
       description: "Optional Opus encoding provider for MedEx",

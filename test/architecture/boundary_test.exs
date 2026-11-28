@@ -123,7 +123,7 @@ defmodule MedEx.ArchitectureTest do
 
     assert cfg[:deps] ==
              projected_deps ++
-               [{:blitz, "0.4.1", only: [:dev, :test], runtime: false}]
+               [{:blitz, "0.4.2", only: [:dev, :test], runtime: false}]
 
     refute Enum.any?(projected_deps, &(elem(&1, 0) == :blitz))
 
