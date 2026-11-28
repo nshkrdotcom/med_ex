@@ -24,15 +24,31 @@ defmodule MedEx.HostIntegrationTest do
   test "public startup refuses invalid owners/descriptors/options before creating bytes" do
     fixture = F.root()
     on_exit(fn -> F.cleanup(fixture) end)
+    test_pid = self()
+    probe = fn _ -> send(test_pid, :unexpected_hook) end
 
     for opts <- [
           F.opts(fixture, owner: nil),
           F.opts(fixture, fence: ""),
           F.opts(fixture, stream: %{}),
-          F.opts(fixture, limits: %{pending_frames: 0}),
-          F.opts(fixture, storage: :not_allowed)
+          F.opts(fixture, limits: %{pending_frames: 0})
         ] do
       assert {:error, _} = StreamWriter.start_link(opts)
+      refute File.exists?(fixture.dir)
+    end
+
+    for opts <- [
+          F.opts(fixture, storage: :not_allowed),
+          F.opts(fixture, test_storage: :not_allowed),
+          F.opts(fixture, fault_hook: probe),
+          F.opts(fixture, _fault_hook: probe),
+          F.opts(fixture, recovery_hook: probe),
+          F.opts(fixture) ++ [fence: "dup"],
+          :not_a_keyword,
+          [{"fence", "f1"}]
+        ] do
+      assert {:error, :invalid_options} = StreamWriter.start_link(opts)
+      refute_received :unexpected_hook
       refute File.exists?(fixture.dir)
     end
   end

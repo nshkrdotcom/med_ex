@@ -45,7 +45,13 @@ defmodule MedEx.ControlWireTest do
     }
 
     assert {:error, :invalid_message} = Control.encode("hello", fields)
-    assert {:ok, _} = Control.encode("hello", %{fields | "api_revision" => 2})
+    assert {:ok, valid_bytes} = Control.encode("hello", %{fields | "api_revision" => 2})
+    assert {:ok, %{"api_revision" => 2}} = Control.decode(valid_bytes, ["hello"])
+
+    old_schema = String.replace(valid_bytes, "medex.acquisition.v2", "medex.device.v1")
+    old_revision = String.replace(valid_bytes, ~s("api_revision":2), ~s("api_revision":1))
+    assert {:error, :invalid_message} = Control.decode(old_schema, ["hello"])
+    assert {:error, :invalid_message} = Control.decode(old_revision, ["hello"])
     assert {:error, :invalid_message} = Control.encode("checkpoint", %{"operation_id" => "o"})
   end
 

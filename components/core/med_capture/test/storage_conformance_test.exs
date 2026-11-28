@@ -78,9 +78,51 @@ defmodule MedEx.StorageConformanceTest do
 
     {envelope, _} = Journal.envelope(1, Journal.zero(), old)
     File.write!(Path.join(f.dir, "stream.mejournal"), envelope)
+    before = dir_inventory(f.dir)
 
     assert {:error, :identity_mismatch} =
              Store.recover(f.dir, stream: spec, fence: "frozen-fence", root_owner: f.root_owner)
+
+    assert {:error, :identity_mismatch} =
+             Store.reconcile_terminal(f.dir,
+               stream: spec,
+               fence: "frozen-fence",
+               root_owner: f.root_owner
+             )
+
+    assert dir_inventory(f.dir) == before
+  end
+
+  test "recovery and reconciliation refuse internal or duplicate options without mutation", f do
+    _prefix = sealed(f)
+    before = dir_inventory(f.dir)
+    test_pid = self()
+    probe = fn _ -> send(test_pid, :unexpected_recovery_hook) end
+    base = [stream: f.spec, fence: "f1", root_owner: f.root_owner]
+
+    for bad <- [
+          base ++ [storage: :not_allowed],
+          base ++ [test_storage: :not_allowed],
+          base ++ [fault_hook: probe],
+          base ++ [_fault_hook: probe],
+          base ++ [recovery_hook: probe],
+          base ++ [fence: "dup"]
+        ] do
+      assert {:error, :invalid_recovery_options} = Store.recover(f.dir, bad)
+      assert {:error, :invalid_recovery_options} = Store.reconcile_terminal(f.dir, bad)
+      refute_received :unexpected_recovery_hook
+      assert dir_inventory(f.dir) == before
+    end
+  end
+
+  defp dir_inventory(dir) do
+    dir
+    |> File.ls!()
+    |> Enum.sort()
+    |> Map.new(fn name ->
+      path = Path.join(dir, name)
+      {name, Serialization.sha256(File.read!(path))}
+    end)
   end
 
   test "read-only recovery reports absent terminal index and explicit reconciliation installs once",
