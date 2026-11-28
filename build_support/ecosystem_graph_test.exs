@@ -93,6 +93,8 @@ defmodule MedEx.EcosystemGraphTest do
   test "native receipts bind required reports and locks, not the installed build tree", %{
     tmp_dir: root
   } do
+    on_exit(fn -> File.rm_rf!(root) end)
+
     files = QualificationReceipt.native_outputs(root, "fabric-native")
     outputs = Map.new(files, &{&1, &1})
     receipt = Path.join(root, "gate.receipt.json")
